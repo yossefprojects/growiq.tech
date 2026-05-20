@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, asc } from "drizzle-orm";
-import { db, conversations, messages } from "@workspace/db";
+import { eq, asc, desc } from "drizzle-orm";
+import { db, conversations, messages, campaigns, type CampaignBusinessContext } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import {
   GetOpenaiConversationParams,
@@ -399,6 +399,279 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   });
 
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+  res.end();
+});
+
+function buildCampaignPrompt(type: string, ctx: CampaignBusinessContext): string {
+  const baseInfo = `
+**Entreprise/Marque :** ${ctx.businessName}
+**Secteur :** ${ctx.sector}
+**Cible / Persona :** ${ctx.audience}
+**Objectif :** ${ctx.objective}
+**Ton :** ${ctx.tone}${ctx.extra ? `\n**Informations supplémentaires :** ${ctx.extra}` : ""}
+`;
+
+  const prompts: Record<string, string> = {
+    content: `Tu es mandaté pour créer une CAMPAGNE COMPLÈTE de Marketing de Contenu pour :
+${baseInfo}
+Génère IMMÉDIATEMENT tous les livrables suivants, prêts à copier-coller et utiliser sans modification :
+
+## 📅 Calendrier Éditorial — 4 semaines
+Tableau : Semaine | Jour | Format | Sujet/Titre | Plateforme
+
+## ✍️ Article de Blog #1
+Titre accrocheur + article complet de 400 mots optimisé SEO (H1, H2, H3, introduction, développement, conclusion, CTA)
+
+## ✍️ Article de Blog #2
+Titre accrocheur + article complet de 400 mots (même format)
+
+## 📧 Newsletter — Prête à envoyer
+Objet accrocheur | Préheader | Corps complet avec sections et CTA final
+
+## 🖼️ 5 Concepts d'Infographies
+Pour chaque : Titre + données à visualiser + format recommandé + plateforme cible
+
+## 🎬 3 Scripts Vidéo / Reels
+Pour chaque : Accroche 3 secondes + contenu 30-60s + CTA
+
+---
+Génère TOUT le contenu ci-dessus, complet et prêt à l'emploi. Ne résume pas, CRÉE directement.`,
+
+    seo: `Tu es mandaté pour créer une STRATÉGIE SEO COMPLÈTE pour :
+${baseInfo}
+Génère IMMÉDIATEMENT tous les livrables suivants :
+
+## 🔑 Recherche de Mots-Clés — 15 mots-clés ciblés
+Tableau : Mot-clé | Volume estimé | Difficulté (1-10) | Intention de recherche | Priorité
+
+## 🏠 Optimisation Page d'Accueil
+Balise Title (60 car.) | Meta Description (160 car.) | H1 proposé | Structure des sections | Maillage interne recommandé (5 liens internes)
+
+## ✍️ Plan d'Article SEO #1 — [mot-clé prioritaire n°1]
+Title SEO + Meta + Plan détaillé H2/H3 + Introduction complète (200 mots)
+
+## ✍️ Plan d'Article SEO #2 — [mot-clé prioritaire n°2]
+Même format complet
+
+## ✍️ Plan d'Article SEO #3 — [mot-clé n°3]
+Même format complet
+
+## 🔗 Stratégie Netlinking Gratuit
+10 actions concrètes pour obtenir des backlinks (guest blogging, annuaires, RP, partenariats...)
+
+## 📊 Plan d'Action SEO — 90 jours
+Tableau : Semaines 1-4 | Semaines 5-8 | Semaines 9-12 (actions prioritaires par phase)
+
+---
+Génère TOUT le contenu ci-dessus, complet et actionnable.`,
+
+    social: `Tu es mandaté pour créer une CAMPAGNE RÉSEAUX SOCIAUX COMPLÈTE pour :
+${baseInfo}
+Génère IMMÉDIATEMENT tous les livrables suivants :
+
+## 📱 10 Posts Prêts à Publier
+Pour chaque post : Plateforme | Visuel suggéré | Caption complète | Hashtags (20-30) | Heure conseillée
+
+## 🎬 5 Scripts Reels / TikTok
+Pour chaque : Accroche (3 sec) | Déroulé (30-60s) | CTA final | Son/musique suggéré
+
+## 📅 Calendrier de Publication — 30 jours
+Tableau : Semaine | Lundi | Mercredi | Vendredi | Samedi | Format | Thème
+
+## 💬 3 Idées de Carrousels / Stories Interactifs
+Pour chaque : Slides 1 à 6 avec contenu + question/sondage à inclure
+
+## 🤝 Plan Social Selling — 15 min/jour
+Script de prise de contact en DM | 5 groupes/communautés à rejoindre | Routine d'engagement quotidien
+
+---
+Génère TOUT le contenu ci-dessus, complet et prêt à publier immédiatement.`,
+
+    email: `Tu es mandaté pour créer une CAMPAGNE E-MAIL COMPLÈTE pour :
+${baseInfo}
+Génère IMMÉDIATEMENT tous les livrables suivants :
+
+## 📧 Séquence de Bienvenue — 5 Emails Complets
+Pour chaque email : Objet | Préheader | Corps COMPLET avec intro, développement, CTA | Délai d'envoi
+- Email 1 (J+0) : Bienvenue + valeur immédiate
+- Email 2 (J+2) : Histoire de la marque + problème résolu
+- Email 3 (J+4) : Ressource gratuite ou conseil premium
+- Email 4 (J+7) : Preuve sociale (témoignages, résultats)
+- Email 5 (J+10) : Offre ou invitation à l'action principale
+
+## 📰 Newsletter Mensuelle Type — Complète
+Objet accrocheur | Préheader | Éditorial (150 mots) | Section "Bon à savoir" (3 items) | CTA principal
+
+## 📢 Email de Relance Inactifs
+Objet urgence/curiosité | Corps court et percutant | CTA de re-engagement
+
+## 💡 3 Lead Magnets à Créer
+Pour chaque : Titre | Format | Contenu résumé (10 points) | Texte du formulaire d'inscription
+
+---
+Génère TOUT le contenu ci-dessus, complet et prêt à envoyer.`,
+
+    pr: `Tu es mandaté pour créer une CAMPAGNE RELATIONS PUBLIQUES COMPLÈTE pour :
+${baseInfo}
+Génère IMMÉDIATEMENT tous les livrables suivants :
+
+## 📰 Communiqué de Presse Complet
+Titre accrocheur | Sous-titre | Lieu/Date | Chapô (2-3 phrases) | Corps (3 paragraphes complets) | Citation du dirigeant | À propos | Contacts presse
+
+## 📋 20 Médias / Journalistes à Cibler
+Tableau : Média | Rubrique/Section | Type de contenu | Angle recommandé | Mode de contact
+
+## 📬 Email de Démarchage Presse — Prêt à envoyer
+Objet percutant | Corps personnalisé complet | P.S. accrocheur | Template de relance J+7
+
+## 🎯 3 Angles de Communication Originaux
+Pour chaque : Titre de l'angle | Pourquoi ça intéresse les médias | Comment le présenter
+
+## 🎭 Concept de Guerilla Marketing
+Idée créative détaillée | Lieu/contexte | Matériel nécessaire | Plan de viralisation | Hashtag campagne
+
+## 🎙️ 5 Podcasts / Blogs pour Guest Posting
+Pour chaque : Nom | Audience estimée | Sujet d'article proposé | Email de candidature complet
+
+---
+Génère TOUT le contenu ci-dessus, complet et prêt à utiliser.`,
+
+    local: `Tu es mandaté pour créer une CAMPAGNE MARKETING LOCAL COMPLÈTE pour :
+${baseInfo}
+Génère IMMÉDIATEMENT tous les livrables suivants :
+
+## 📍 Optimisation Google Business Profile
+Description optimisée (750 caractères exactement) | Catégories à cocher | 10 mots-clés locaux | Checklist complète (25 points) des informations à remplir
+
+## 📸 Plan de Contenu Photo GBP
+20 types de photos avec description détaillée + conseils de prise de vue + légendes optimisées
+
+## 📢 5 Posts Google Business Profile — Prêts à publier
+Pour chaque : Texte complet (300 mots max) | Type de post | Bouton CTA | Image suggérée
+
+## ⭐ Stratégie de Collecte d'Avis — 5 outils
+Email post-achat complet | SMS de demande | Script verbal en boutique | QR code (texte descriptif) | 3 réponses-type aux avis négatifs
+
+## 📋 25 Annuaires Locaux à Rejoindre
+Tableau : Nom | URL | Catégorie pertinente | Informations à renseigner | Impact SEO estimé
+
+## 🏘️ 5 Partenariats Locaux à Développer
+Pour chaque : Type de partenaire | Action proposée | Bénéfice mutuel | Script d'approche
+
+---
+Génère TOUT le contenu ci-dessus, complet et actionnable.`,
+
+    referral: `Tu es mandaté pour créer un PROGRAMME DE RECOMMANDATION COMPLET pour :
+${baseInfo}
+Génère IMMÉDIATEMENT tous les livrables suivants :
+
+## 🤝 Structure du Programme
+Nom du programme | Récompense parrain | Récompense filleul | Conditions | Durée | Outil de tracking recommandé + configuration
+
+## 📄 Page de Présentation — Contenu Complet
+Titre accrocheur | Sous-titre | Comment ça marche (3 étapes) | Avantages clés (6 bullet points) | FAQ (5 Q/R) | CTA principal
+
+## 📧 Email d'Annonce aux Clients — Complet
+Objet | Préheader | Corps entier avec storytelling + CTA + P.S.
+
+## 📱 3 Posts Réseaux Sociaux pour l'Annonce
+Pour chaque : Caption complète + hashtags adaptés
+
+## 💌 Email de Relance Parrain J+15 — Complet
+Pour relancer ceux qui n'ont pas encore parrainé
+
+## ⭐ Programme Ambassadeurs
+Critères de sélection | Avantages exclusifs (10 idées) | Kit de contenu à fournir | Email de recrutement complet
+
+## 📊 Dashboard de Suivi
+5 KPIs clés avec objectifs chiffrés + outils gratuits de mesure + fréquence de suivi
+
+---
+Génère TOUT le contenu ci-dessus, complet et prêt à lancer.`,
+  };
+
+  return prompts[type] ?? prompts["content"];
+}
+
+router.get("/openai/campaigns", async (_req, res): Promise<void> => {
+  const result = await db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
+  res.json(result.map((c) => ({ ...c, createdAt: c.createdAt.toISOString() })));
+});
+
+router.delete("/openai/campaigns/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid campaign id" });
+    return;
+  }
+  const [deleted] = await db.delete(campaigns).where(eq(campaigns.id, id)).returning();
+  if (!deleted) {
+    res.status(404).json({ error: "Campaign not found" });
+    return;
+  }
+  res.sendStatus(204);
+});
+
+router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
+  const { title, type, businessContext } = req.body as {
+    title: string;
+    type: string;
+    businessContext: CampaignBusinessContext;
+  };
+
+  if (!title || !type || !businessContext) {
+    res.status(400).json({ error: "title, type, and businessContext are required" });
+    return;
+  }
+
+  const [convo] = await db.insert(conversations).values({ title }).returning();
+
+  const [campaign] = await db
+    .insert(campaigns)
+    .values({ title, type, businessContext, conversationId: convo.id })
+    .returning();
+
+  const userPrompt = buildCampaignPrompt(type, businessContext);
+
+  await db.insert(messages).values({
+    conversationId: convo.id,
+    role: "user",
+    content: userPrompt,
+  });
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  let fullResponse = "";
+
+  const stream = await openai.chat.completions.create({
+    model: "gpt-5.4",
+    max_completion_tokens: 8192,
+    messages: [
+      { role: "system", content: MARKETING_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    stream: true,
+  });
+
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content;
+    if (content) {
+      fullResponse += content;
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
+  }
+
+  await db.insert(messages).values({
+    conversationId: convo.id,
+    role: "assistant",
+    content: fullResponse,
+  });
+
+  res.write(
+    `data: ${JSON.stringify({ done: true, campaignId: campaign.id, conversationId: convo.id })}\n\n`
+  );
   res.end();
 });
 

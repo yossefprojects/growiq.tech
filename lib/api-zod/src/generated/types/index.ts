@@ -7,6 +7,8 @@
  */
 
 export * from './healthStatus';
+export * from './openaiCampaign';
+export * from './openaiCampaignBusinessContext';
 export * from './openaiConversation';
 export * from './openaiConversationInput';
 export * from './openaiConversationWithMessages';

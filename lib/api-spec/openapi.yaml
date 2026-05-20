@@ -141,6 +141,40 @@ paths:
           description: SSE stream of assistant text chunks
           content:
             text/event-stream: {}
+  /openai/campaigns:
+    get:
+      operationId: listOpenaiCampaigns
+      tags: [openai]
+      summary: List all campaigns
+      responses:
+        "200":
+          description: List of campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenaiCampaign"
+  /openai/campaigns/{id}:
+    delete:
+      operationId: deleteOpenaiCampaign
+      tags: [openai]
+      summary: Delete a campaign and its linked conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiError"
   /openai/generate-image:
     post:
       operationId: generateOpenaiImage
@@ -252,6 +286,30 @@ components:
           type: string
       required:
         - b64_json
+    OpenaiCampaign:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+        businessContext:
+          type: object
+          additionalProperties: true
+        conversationId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - type
+        - businessContext
+        - createdAt
     OpenaiError:
       type: object
       properties:

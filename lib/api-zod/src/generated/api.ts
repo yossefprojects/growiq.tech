@@ -95,6 +95,28 @@ export const SendOpenaiMessageBody = zod.object({
 
 
 /**
+ * @summary List all campaigns
+ */
+export const ListOpenaiCampaignsResponseItem = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "type": zod.string(),
+  "businessContext": zod.record(zod.string(), zod.unknown()),
+  "conversationId": zod.number().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListOpenaiCampaignsResponse = zod.array(ListOpenaiCampaignsResponseItem)
+
+
+/**
+ * @summary Delete a campaign and its linked conversation
+ */
+export const DeleteOpenaiCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
  * @summary Generate an image from a text prompt
  */
 export const GenerateOpenaiImageBody = zod.object({

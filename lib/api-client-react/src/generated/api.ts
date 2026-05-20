@@ -21,6 +21,7 @@ import type {
 
 import type {
   HealthStatus,
+  OpenaiCampaign,
   OpenaiConversation,
   OpenaiConversationInput,
   OpenaiConversationWithMessages,
@@ -563,6 +564,153 @@ export const useSendOpenaiMessage = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSendOpenaiMessageMutationOptions(options));
+    }
+
+export const getListOpenaiCampaignsUrl = () => {
+
+
+
+
+  return `/api/openai/campaigns`
+}
+
+/**
+ * @summary List all campaigns
+ */
+export const listOpenaiCampaigns = async ( options?: RequestInit): Promise<OpenaiCampaign[]> => {
+
+  return customFetch<OpenaiCampaign[]>(getListOpenaiCampaignsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOpenaiCampaignsQueryKey = () => {
+    return [
+    `/api/openai/campaigns`
+    ] as const;
+    }
+
+
+export const getListOpenaiCampaignsQueryOptions = <TData = Awaited<ReturnType<typeof listOpenaiCampaigns>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOpenaiCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOpenaiCampaignsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOpenaiCampaigns>>> = ({ signal }) => listOpenaiCampaigns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOpenaiCampaigns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOpenaiCampaignsQueryResult = NonNullable<Awaited<ReturnType<typeof listOpenaiCampaigns>>>
+export type ListOpenaiCampaignsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all campaigns
+ */
+
+export function useListOpenaiCampaigns<TData = Awaited<ReturnType<typeof listOpenaiCampaigns>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOpenaiCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOpenaiCampaignsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDeleteOpenaiCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/openai/campaigns/${id}`
+}
+
+/**
+ * @summary Delete a campaign and its linked conversation
+ */
+export const deleteOpenaiCampaign = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteOpenaiCampaignUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteOpenaiCampaignMutationOptions = <TError = ErrorType<OpenaiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOpenaiCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteOpenaiCampaign>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteOpenaiCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteOpenaiCampaign>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteOpenaiCampaign(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteOpenaiCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOpenaiCampaign>>>
+
+    export type DeleteOpenaiCampaignMutationError = ErrorType<OpenaiError>
+
+    /**
+ * @summary Delete a campaign and its linked conversation
+ */
+export const useDeleteOpenaiCampaign = <TError = ErrorType<OpenaiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOpenaiCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteOpenaiCampaign>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteOpenaiCampaignMutationOptions(options));
     }
 
 export const getGenerateOpenaiImageUrl = () => {

@@ -56,6 +56,17 @@ export interface OpenaiImageOutput {
   b64_json: string;
 }
 
+export type OpenaiCampaignBusinessContext = { [key: string]: unknown };
+
+export interface OpenaiCampaign {
+  id: number;
+  title: string;
+  type: string;
+  businessContext: OpenaiCampaignBusinessContext;
+  conversationId?: number | null;
+  createdAt: string;
+}
+
 export interface OpenaiError {
   error: string;
 }
