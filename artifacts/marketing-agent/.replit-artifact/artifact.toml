@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Agent Marketing IA"
+version = "1.0.0"
+id = "artifacts/marketing-agent"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22821
+
+[services.development]
+run = "pnpm --filter @workspace/marketing-agent run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/marketing-agent", "run", "build" ]
+publicDir = "artifacts/marketing-agent/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22821"
+BASE_PATH = "/"
