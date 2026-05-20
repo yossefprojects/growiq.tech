@@ -402,6 +402,77 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   res.end();
 });
 
+router.post("/openai/analyze-url", async (req, res): Promise<void> => {
+  const { url } = req.body as { url?: string };
+  if (!url) {
+    res.status(400).json({ error: "url is required" });
+    return;
+  }
+
+  let siteContent = `URL: ${url}`;
+  try {
+    const fetchResponse = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; MarketingAgentBot/1.0)" },
+    });
+    const html = await fetchResponse.text();
+    const text = html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 4000);
+    siteContent = `URL: ${url}\n\nContenu extrait:\n${text}`;
+  } catch (_) {
+    // Continue with just the URL if fetch fails
+  }
+
+  const analysisPrompt = `Analyse ce site web et propose les campagnes marketing gratuites les plus adaptées pour le promouvoir.
+
+${siteContent}
+
+Réponds UNIQUEMENT avec un objet JSON valide (sans markdown, sans bloc de code) avec cette structure exacte :
+{
+  "businessInfo": {
+    "name": "nom détecté de l'entreprise ou marque",
+    "sector": "secteur d'activité détecté",
+    "audience": "cible / persona probable",
+    "objective": "objectif marketing principal probable",
+    "tone": "professionnel"
+  },
+  "suggestedCampaigns": [
+    {
+      "id": "seo",
+      "title": "Référencement Naturel (SEO)",
+      "reasoning": "Pourquoi cette campagne est prioritaire pour ce site (1-2 phrases concrètes)",
+      "priority": 1
+    }
+  ]
+}
+
+Les ids valides pour suggestedCampaigns sont : content, seo, social, email, pr, local, referral.
+Inclus LES 7 campagnes, triées par pertinence décroissante pour ce site (priority 1 = la plus adaptée).`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5.4",
+    max_completion_tokens: 1500,
+    messages: [
+      { role: "system", content: MARKETING_SYSTEM_PROMPT },
+      { role: "user", content: analysisPrompt },
+    ],
+  });
+
+  const rawContent = completion.choices[0]?.message?.content ?? "{}";
+  try {
+    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(rawContent);
+    res.json(parsed);
+  } catch (_) {
+    res.status(500).json({ error: "Impossible d'analyser la réponse" });
+  }
+});
+
 function buildCampaignPrompt(type: string, ctx: CampaignBusinessContext): string {
   const baseInfo = `
 **Entreprise/Marque :** ${ctx.businessName}
