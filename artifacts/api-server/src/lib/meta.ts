@@ -23,13 +23,15 @@ export function isMetaConfigured(platform: "facebook" | "instagram"): boolean {
 async function graphFetch(
   path: string,
   method: "GET" | "POST",
+  token: string,
   body?: Record<string, unknown>,
 ): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }> {
   const url = `${GRAPH_BASE}${path}`;
   try {
-    const init: RequestInit = { method };
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    const init: RequestInit = { method, headers };
     if (body) {
-      init.headers = { "Content-Type": "application/json" };
+      headers["Content-Type"] = "application/json";
       init.body = JSON.stringify(body);
     }
     const res = await fetch(url, init);
@@ -53,7 +55,7 @@ export async function publishFacebookText(message: string): Promise<MetaPublishR
   if (!token || !fbPageId) {
     return { success: false, error: "META_ACCESS_TOKEN ou META_FB_PAGE_ID manquant", configMissing: true };
   }
-  const result = await graphFetch(`/${fbPageId}/feed?access_token=${encodeURIComponent(token)}`, "POST", {
+  const result = await graphFetch(`/${fbPageId}/feed`, "POST", token, {
     message,
   });
   if (!result.ok) {
@@ -72,11 +74,11 @@ export async function publishFacebookImage(imageUrl: string, caption: string): P
   if (!token || !fbPageId) {
     return { success: false, error: "META_ACCESS_TOKEN ou META_FB_PAGE_ID manquant", configMissing: true };
   }
-  const result = await graphFetch(
-    `/${fbPageId}/photos?access_token=${encodeURIComponent(token)}`,
-    "POST",
-    { url: imageUrl, caption, published: true },
-  );
+  const result = await graphFetch(`/${fbPageId}/photos`, "POST", token, {
+    url: imageUrl,
+    caption,
+    published: true,
+  });
   if (!result.ok) {
     logger.warn({ err: result.error }, "Facebook image publish failed");
     return { success: false, error: result.error };
@@ -103,11 +105,10 @@ export async function publishInstagramImage(
   }
 
   // Step 1: create media container
-  const container = await graphFetch(
-    `/${igUserId}/media?access_token=${encodeURIComponent(token)}`,
-    "POST",
-    { image_url: imageUrl, caption },
-  );
+  const container = await graphFetch(`/${igUserId}/media`, "POST", token, {
+    image_url: imageUrl,
+    caption,
+  });
   if (!container.ok) {
     logger.warn({ err: container.error }, "Instagram container creation failed");
     return { success: false, error: container.error };
@@ -116,11 +117,9 @@ export async function publishInstagramImage(
   if (!creationId) return { success: false, error: "Container Instagram sans id" };
 
   // Step 2: publish container
-  const publish = await graphFetch(
-    `/${igUserId}/media_publish?access_token=${encodeURIComponent(token)}`,
-    "POST",
-    { creation_id: creationId },
-  );
+  const publish = await graphFetch(`/${igUserId}/media_publish`, "POST", token, {
+    creation_id: creationId,
+  });
   if (!publish.ok) {
     logger.warn({ err: publish.error }, "Instagram publish failed");
     return { success: false, error: publish.error };
@@ -130,10 +129,7 @@ export async function publishInstagramImage(
   // Step 3 (optional): fetch permalink
   let permalink: string | undefined;
   if (postId) {
-    const meta = await graphFetch(
-      `/${postId}?fields=permalink&access_token=${encodeURIComponent(token)}`,
-      "GET",
-    );
+    const meta = await graphFetch(`/${postId}?fields=permalink`, "GET", token);
     if (meta.ok && typeof meta.data["permalink"] === "string") {
       permalink = meta.data["permalink"];
     }
