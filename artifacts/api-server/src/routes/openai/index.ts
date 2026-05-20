@@ -12,6 +12,7 @@ import {
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
+import { publishToMeta, isMetaConfigured } from "../../lib/meta";
 import {
   GetOpenaiConversationParams,
   DeleteOpenaiConversationParams,
@@ -247,6 +248,17 @@ Transformer ses clients satisfaits en ambassadeurs actifs de la marque.
 - Utilise des **exemples concrets** pour illustrer chaque concept
 - Propose toujours un **plan d'action priorisé** : quoi faire en premier, deuxième, troisième
 - Lorsque c'est pertinent, signale les **pièges courants** et comment les éviter
+
+## CAPACITÉS D'EXÉCUTION DIRECTE
+
+Tu peux exécuter de vraies actions marketing pour l'utilisateur (pas seulement conseiller) :
+- **Envoyer des e-mails réels** via Resend (newsletters, relances, annonces)
+- **Publier directement sur Facebook et Instagram** via la Meta Graph API (posts texte sur Facebook, posts image avec légende sur Facebook et Instagram, programmation)
+- **Générer des visuels IA** prêts à publier
+- **Programmer des publications** pour publication automatique à la date choisie
+- **Créer des pages de capture de leads** publiques
+
+Quand l'utilisateur veut publier sur Facebook ou Instagram, propose-lui d'utiliser la boîte à outils (bouton « Programmer ») ou le bouton « Publier maintenant ». Instagram exige une image accessible publiquement (URL HTTPS).
 `;
 
 router.get("/openai/conversations", async (_req, res): Promise<void> => {
@@ -1000,6 +1012,61 @@ router.delete("/scheduled-posts/:id", async (req, res) => {
   res.json({ success: true });
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// META (Facebook / Instagram) — direct publish
+// ════════════════════════════════════════════════════════════════════════════
+
+router.get("/meta/status", (_req, res) => {
+  res.json({
+    facebook: isMetaConfigured("facebook"),
+    instagram: isMetaConfigured("instagram"),
+  });
+});
+
+router.post("/meta/publish", async (req, res): Promise<void> => {
+  const { platform, message, imageUrl, scheduledPostId } = req.body as Partial<{
+    platform: "facebook" | "instagram";
+    message: string;
+    imageUrl: string;
+    scheduledPostId: number;
+  }>;
+  if (platform !== "facebook" && platform !== "instagram") {
+    res.status(400).json({ error: "platform doit être 'facebook' ou 'instagram'" });
+    return;
+  }
+  if (!message || typeof message !== "string") {
+    res.status(400).json({ error: "message requis" });
+    return;
+  }
+  const result = await publishToMeta({ platform, message, imageUrl });
+  if (!result.success) {
+    res.status(result.configMissing ? 412 : 502).json({ error: result.error });
+    return;
+  }
+  // If a scheduled post id is supplied, mark it as sent
+  if (typeof scheduledPostId === "number") {
+    const [existing] = await db
+      .select()
+      .from(scheduledPosts)
+      .where(eq(scheduledPosts.id, scheduledPostId));
+    if (existing) {
+      await db
+        .update(scheduledPosts)
+        .set({
+          status: "sent",
+          sentAt: new Date(),
+          meta: {
+            ...(existing.meta ?? {}),
+            metaPostId: result.postId,
+            metaPermalink: result.permalink,
+          },
+        })
+        .where(eq(scheduledPosts.id, scheduledPostId));
+    }
+  }
+  res.json({ success: true, postId: result.postId, permalink: result.permalink });
+});
+
 // ── Scheduler worker ────────────────────────────────────────────────────────
 let schedulerRunning = false;
 async function processScheduledPosts(): Promise<void> {
@@ -1037,8 +1104,36 @@ async function processScheduledPosts(): Promise<void> {
               })
               .where(eq(scheduledPosts.id, post.id));
           }
+        } else if (post.platform === "facebook" || post.platform === "instagram") {
+          const result = await publishToMeta({
+            platform: post.platform,
+            message: post.content,
+            imageUrl: post.meta?.imageUrl,
+          });
+          if (result.success) {
+            await db
+              .update(scheduledPosts)
+              .set({
+                status: "sent",
+                sentAt: new Date(),
+                meta: {
+                  ...(post.meta ?? {}),
+                  metaPostId: result.postId,
+                  metaPermalink: result.permalink,
+                },
+              })
+              .where(eq(scheduledPosts.id, post.id));
+          } else {
+            await db
+              .update(scheduledPosts)
+              .set({
+                status: result.configMissing ? "ready" : "failed",
+                errorMessage: result.error.slice(0, 200),
+              })
+              .where(eq(scheduledPosts.id, post.id));
+          }
         } else {
-          // Social / other platforms → mark as ready for manual 1-click publish
+          // Other platforms (linkedin, twitter, tiktok) → mark as ready for manual 1-click publish
           await db
             .update(scheduledPosts)
             .set({ status: "ready" })

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Loader2, Trash2, Copy, ExternalLink, Users, Calendar, Target, Mail, RefreshCw } from "lucide-react";
+import { Loader2, Trash2, Copy, ExternalLink, Users, Calendar, Target, Mail, RefreshCw, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -23,11 +23,17 @@ interface Lead {
 interface ScheduledPost {
   id: number;
   title: string;
+  content: string;
   platform: string;
   scheduledFor: string;
   status: string;
   sentAt?: string | null;
   errorMessage?: string | null;
+  meta?: {
+    imageUrl?: string;
+    metaPermalink?: string;
+    metaPostId?: string;
+  } | null;
 }
 
 interface ToolboxModalProps {
@@ -82,6 +88,36 @@ export function ToolboxModal({ open, onClose }: ToolboxModalProps) {
     await fetch(`/api/scheduled-posts/${id}`, { method: "DELETE" });
     toast.success("Programmation supprimée");
     refresh();
+  };
+
+  const publishMetaNow = async (p: ScheduledPost) => {
+    if (p.platform !== "facebook" && p.platform !== "instagram") return;
+    if (!confirm(`Publier vraiment maintenant sur ${p.platform === "facebook" ? "Facebook" : "Instagram"} ?`)) return;
+    try {
+      const r = await fetch("/api/meta/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: p.platform,
+          message: p.content,
+          imageUrl: p.meta?.imageUrl,
+          scheduledPostId: p.id,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error ?? "Échec de la publication", {
+          description: r.status === 412 ? "Token Meta manquant — configurez les secrets." : undefined,
+        });
+        return;
+      }
+      toast.success("Publication envoyée !", {
+        action: data.permalink ? { label: "Voir", onClick: () => window.open(data.permalink, "_blank") } : undefined,
+      });
+      refresh();
+    } catch {
+      toast.error("Erreur réseau");
+    }
   };
 
   const copyUrl = async (slug: string) => {
@@ -249,11 +285,35 @@ export function ToolboxModal({ open, onClose }: ToolboxModalProps) {
                       {p.errorMessage && (
                         <div className="text-xs text-amber-600 mt-1">⚠️ {p.errorMessage}</div>
                       )}
+                      {p.meta?.metaPermalink && (
+                        <a
+                          href={p.meta.metaPermalink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-blue-600 hover:underline mt-1 inline-flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" /> Voir la publication
+                        </a>
+                      )}
                     </div>
                     <button onClick={() => deleteScheduled(p.id)} className="text-muted-foreground hover:text-destructive p-1" data-testid={`del-sched-${p.id}`}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                  {(p.platform === "facebook" || p.platform === "instagram") &&
+                    p.status !== "sent" && (
+                      <div className="mt-2">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => publishMetaNow(p)}
+                          data-testid={`publish-meta-${p.id}`}
+                        >
+                          <Send className="w-3 h-3 mr-1" />
+                          Publier maintenant sur {p.platform === "facebook" ? "Facebook" : "Instagram"}
+                        </Button>
+                      </div>
+                    )}
                 </div>
               ))}
             </div>

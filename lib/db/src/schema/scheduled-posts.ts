@@ -8,6 +8,9 @@ export type ScheduledPostMeta = {
   recipients?: string[];
   subject?: string;
   notes?: string;
+  imageUrl?: string;
+  metaPostId?: string;
+  metaPermalink?: string;
 };
 
 export const scheduledPosts = pgTable("scheduled_posts", {
