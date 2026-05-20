@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { Trash2, MessageSquare, Plus, Loader2, Rocket } from "lucide-react";
+import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
+import { ToolboxModal } from "./toolbox-modal";
 
 interface Conversation {
   id: number;
@@ -38,6 +40,7 @@ export function Sidebar({
   onDeleteCampaign,
   isLoading,
 }: SidebarProps) {
+  const [toolboxOpen, setToolboxOpen] = useState(false);
   return (
     <div className="w-64 border-r bg-card flex flex-col h-full flex-shrink-0">
       <div className="p-3 border-b flex flex-col gap-2">
@@ -57,7 +60,16 @@ export function Sidebar({
           <Rocket className="w-4 h-4" />
           Lancer une campagne
         </button>
+        <button
+          onClick={() => setToolboxOpen(true)}
+          className="w-full flex items-center justify-center gap-2 text-muted-foreground hover:bg-secondary/70 hover:text-foreground rounded-md h-8 px-4 text-xs font-medium transition-colors"
+          data-testid="button-toolbox"
+        >
+          <Wrench className="w-3.5 h-3.5" />
+          Boîte à outils
+        </button>
       </div>
+      <ToolboxModal open={toolboxOpen} onClose={() => setToolboxOpen(false)} />
 
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (

@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import ChatPage from "@/pages/chat";
+import LandingPage from "@/pages/landing";
 
 const queryClient = new QueryClient();
 
@@ -12,6 +13,7 @@ function Router() {
     <Switch>
       <Route path="/" component={ChatPage} />
       <Route path="/conversations/:id" component={ChatPage} />
+      <Route path="/landing/:slug" component={LandingPage} />
       <Route component={NotFound} />
     </Switch>
   );

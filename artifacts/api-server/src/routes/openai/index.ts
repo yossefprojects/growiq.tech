@@ -1,6 +1,15 @@
 import { Router, type IRouter } from "express";
-import { eq, asc, desc } from "drizzle-orm";
-import { db, conversations, messages, campaigns, type CampaignBusinessContext } from "@workspace/db";
+import { eq, asc, desc, and, lte } from "drizzle-orm";
+import {
+  db,
+  conversations,
+  messages,
+  campaigns,
+  landingPages,
+  leads,
+  scheduledPosts,
+  type CampaignBusinessContext,
+} from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import {
   GetOpenaiConversationParams,
@@ -831,19 +840,296 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
   res.end();
 });
 
+const ALLOWED_IMAGE_SIZES = new Set([
+  "1024x1024",
+  "512x512",
+  "256x256",
+  "1536x1024",
+  "1024x1536",
+]);
+
 router.post("/openai/generate-image", async (req, res): Promise<void> => {
-  const parsed = GenerateOpenaiImageBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const body = (req.body ?? {}) as { prompt?: unknown; size?: unknown };
+  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+  const sizeRaw = typeof body.size === "string" ? body.size : "1024x1024";
+  if (!prompt || prompt.length > 2000) {
+    res.status(400).json({ error: "prompt requis (max 2000 caractères)" });
+    return;
+  }
+  if (!ALLOWED_IMAGE_SIZES.has(sizeRaw)) {
+    res.status(400).json({ error: `size invalide. Valeurs: ${[...ALLOWED_IMAGE_SIZES].join(", ")}` });
     return;
   }
 
   const { generateImageBuffer } = await import("@workspace/integrations-openai-ai-server/image");
   const buffer = await generateImageBuffer(
-    parsed.data.prompt,
-    (parsed.data.size as "1024x1024" | "1536x1024" | "1024x1536") ?? "1024x1024"
+    prompt,
+    sizeRaw as "1024x1024" | "1536x1024" | "1024x1536"
   );
   res.json({ b64_json: buffer.toString("base64") });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// LANDING PAGES (lead capture)
+// ════════════════════════════════════════════════════════════════════════════
+
+router.get("/landing-pages", async (_req, res) => {
+  const list = await db.select().from(landingPages).orderBy(desc(landingPages.createdAt));
+  res.json(list);
+});
+
+router.post("/landing-pages", async (req, res) => {
+  const { slug, title, headline, subheadline, ctaLabel, successMessage, fields, style, conversationId } =
+    req.body as Partial<{
+      slug: string;
+      title: string;
+      headline: string;
+      subheadline: string;
+      ctaLabel: string;
+      successMessage: string;
+      fields: string[];
+      style: Record<string, string>;
+      conversationId: number;
+    }>;
+  if (!slug || !title || !headline) {
+    res.status(400).json({ error: "slug, title et headline sont requis" });
+    return;
+  }
+  const cleanSlug = slug
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 64);
+  try {
+    const [created] = await db
+      .insert(landingPages)
+      .values({
+        slug: cleanSlug,
+        title,
+        headline,
+        subheadline: subheadline ?? "",
+        ctaLabel: ctaLabel ?? "Je m'inscris",
+        successMessage: successMessage ?? "Merci ! Nous vous recontactons très vite.",
+        fields: fields ?? ["name", "email"],
+        style: style ?? {},
+        conversationId: conversationId ?? null,
+      })
+      .returning();
+    res.status(201).json(created);
+  } catch (e: unknown) {
+    res.status(400).json({ error: "Ce slug est déjà utilisé. Choisissez-en un autre." });
+  }
+});
+
+router.delete("/landing-pages/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  await db.delete(landingPages).where(eq(landingPages.id, id));
+  res.json({ success: true });
+});
+
+router.get("/landing-pages/:id/leads", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const rows = await db.select().from(leads).where(eq(leads.landingPageId, id)).orderBy(desc(leads.createdAt));
+  res.json(rows);
+});
+
+// Public endpoints (no auth)
+router.get("/public/landing/:slug", async (req, res): Promise<void> => {
+  const slug = req.params.slug;
+  const [page] = await db.select().from(landingPages).where(eq(landingPages.slug, slug));
+  if (!page || !page.active) {
+    res.status(404).json({ error: "Page introuvable" });
+    return;
+  }
+  res.json({
+    slug: page.slug,
+    title: page.title,
+    headline: page.headline,
+    subheadline: page.subheadline,
+    ctaLabel: page.ctaLabel,
+    successMessage: page.successMessage,
+    fields: page.fields,
+    style: page.style,
+  });
+});
+
+// Simple in-memory rate limiter for public submit (per IP+slug)
+const submitHits = new Map<string, number[]>();
+const SUBMIT_WINDOW_MS = 60_000;
+const SUBMIT_MAX = 5;
+const ALLOWED_LEAD_FIELDS = new Set(["name", "email", "phone", "message", "company"]);
+
+router.post("/public/landing/:slug/submit", async (req, res): Promise<void> => {
+  const slug = req.params.slug;
+  const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0].trim() || req.ip || "anon");
+  const key = `${ip}:${slug}`;
+  const now = Date.now();
+  const hits = (submitHits.get(key) ?? []).filter((t) => now - t < SUBMIT_WINDOW_MS);
+  if (hits.length >= SUBMIT_MAX) {
+    res.status(429).json({ error: "Trop de soumissions. Réessayez dans 1 minute." });
+    return;
+  }
+  hits.push(now);
+  submitHits.set(key, hits);
+
+  const [page] = await db.select().from(landingPages).where(eq(landingPages.slug, slug));
+  if (!page || !page.active) {
+    res.status(404).json({ error: "Page introuvable" });
+    return;
+  }
+  const raw = (req.body ?? {}) as Record<string, unknown>;
+  // Strict whitelist + length cap
+  const data: Record<string, string> = {};
+  for (const k of Object.keys(raw)) {
+    if (!ALLOWED_LEAD_FIELDS.has(k)) continue;
+    const v = raw[k];
+    if (typeof v !== "string") continue;
+    data[k] = v.slice(0, 500).trim();
+  }
+  const email = (data.email ?? "").toLowerCase();
+  const name = data.name ?? "";
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
+    res.status(400).json({ error: "Email invalide" });
+    return;
+  }
+  data.email = email;
+  await db.insert(leads).values({
+    landingPageId: page.id,
+    email,
+    name,
+    data,
+    source: (req.headers.referer ?? "").toString().slice(0, 500),
+  });
+  res.json({ success: true, message: page.successMessage });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// SCHEDULED POSTS
+// ════════════════════════════════════════════════════════════════════════════
+
+router.get("/scheduled-posts", async (_req, res) => {
+  const list = await db.select().from(scheduledPosts).orderBy(asc(scheduledPosts.scheduledFor));
+  res.json(list);
+});
+
+router.post("/scheduled-posts", async (req, res): Promise<void> => {
+  const { title, content, platform, scheduledFor, meta, conversationId } = req.body as Partial<{
+    title: string;
+    content: string;
+    platform: string;
+    scheduledFor: string;
+    meta: { recipients?: string[]; subject?: string; notes?: string };
+    conversationId: number;
+  }>;
+  if (!title || !content || !platform || !scheduledFor) {
+    res.status(400).json({ error: "title, content, platform, scheduledFor sont requis" });
+    return;
+  }
+  const date = new Date(scheduledFor);
+  if (isNaN(date.getTime())) {
+    res.status(400).json({ error: "scheduledFor invalide" });
+    return;
+  }
+  const [created] = await db
+    .insert(scheduledPosts)
+    .values({
+      title,
+      content,
+      platform,
+      scheduledFor: date,
+      meta: meta ?? {},
+      conversationId: conversationId ?? null,
+      status: "pending",
+    })
+    .returning();
+  res.status(201).json(created);
+});
+
+router.delete("/scheduled-posts/:id", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  await db.delete(scheduledPosts).where(eq(scheduledPosts.id, id));
+  res.json({ success: true });
+});
+
+// ── Scheduler worker ────────────────────────────────────────────────────────
+let schedulerRunning = false;
+async function processScheduledPosts(): Promise<void> {
+  if (schedulerRunning) return; // prevent overlap within the same process
+  schedulerRunning = true;
+  try {
+    // Atomic claim: pending → processing in a single statement to avoid
+    // duplicate sends when multiple instances or overlapping ticks run.
+    const due = await db
+      .update(scheduledPosts)
+      .set({ status: "processing" })
+      .where(and(eq(scheduledPosts.status, "pending"), lte(scheduledPosts.scheduledFor, new Date())))
+      .returning();
+
+    for (const post of due) {
+      try {
+        if (post.platform === "email" && post.meta?.recipients?.length) {
+          const sendgridKey = process.env.SENDGRID_API_KEY;
+          const resendKey = process.env.RESEND_API_KEY;
+          const fromAddress = process.env.EMAIL_FROM || "noreply@marketing-agent.app";
+          const subject = post.meta.subject || post.title;
+          let sent = false;
+          if (sendgridKey) {
+            const r = await fetch("https://api.sendgrid.com/v3/mail/send", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${sendgridKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                personalizations: post.meta.recipients.map((email: string) => ({ to: [{ email }] })),
+                from: { email: fromAddress, name: "Marketing Agent IA" },
+                subject,
+                content: [{ type: "text/plain", value: post.content }],
+              }),
+            });
+            sent = r.ok;
+          } else if (resendKey) {
+            const r = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ from: fromAddress, to: post.meta.recipients, subject, text: post.content }),
+            });
+            sent = r.ok;
+          }
+          if (sent) {
+            await db
+              .update(scheduledPosts)
+              .set({ status: "sent", sentAt: new Date() })
+              .where(eq(scheduledPosts.id, post.id));
+          } else {
+            await db
+              .update(scheduledPosts)
+              .set({ status: "ready", errorMessage: "Aucun fournisseur email — à envoyer manuellement" })
+              .where(eq(scheduledPosts.id, post.id));
+          }
+        } else {
+          // Social / other platforms → mark as ready for manual 1-click publish
+          await db
+            .update(scheduledPosts)
+            .set({ status: "ready" })
+            .where(eq(scheduledPosts.id, post.id));
+        }
+      } catch (e: unknown) {
+        await db
+          .update(scheduledPosts)
+          .set({ status: "failed", errorMessage: (e as Error).message?.slice(0, 200) ?? "erreur inconnue" })
+          .where(eq(scheduledPosts.id, post.id));
+      }
+    }
+  } catch (_) {
+    // Silent — will retry next tick
+  } finally {
+    schedulerRunning = false;
+  }
+}
+
+if (process.env.NODE_ENV !== "test") {
+  setInterval(() => {
+    void processScheduledPosts();
+  }, 60_000);
+}
 
 export default router;

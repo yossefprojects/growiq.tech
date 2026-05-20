@@ -14,7 +14,7 @@ interface ChatAreaProps {
   isStreaming: boolean;
   streamingContent: string;
   isLoading: boolean;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function ChatArea({ messages, isStreaming, streamingContent, isLoading, scrollRef }: ChatAreaProps) {

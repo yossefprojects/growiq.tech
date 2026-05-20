@@ -15,7 +15,11 @@ import {
   ExternalLink,
   ChevronDown,
   Sparkles,
+  Image as ImageIcon,
+  Calendar,
+  Target,
 } from "lucide-react";
+import { ImageGeneratorDialog, ScheduleDialog, LandingPageDialog } from "@/components/campaign-extras";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -37,6 +41,9 @@ interface CampaignActionsProps {
 
 export function CampaignActions({ content, title = "Campagne marketing" }: CampaignActionsProps) {
   const [emailOpen, setEmailOpen] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [landingOpen, setLandingOpen] = useState(false);
 
   const handleCopy = async () => {
     try {
@@ -204,6 +211,36 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
             <Mail className="w-3.5 h-3.5 mr-1.5" /> Envoyer par email
           </Button>
 
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setImageOpen(true)}
+            className="h-8 text-xs"
+            data-testid="action-image"
+          >
+            <ImageIcon className="w-3.5 h-3.5 mr-1.5" /> Visuel IA
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setScheduleOpen(true)}
+            className="h-8 text-xs"
+            data-testid="action-schedule"
+          >
+            <Calendar className="w-3.5 h-3.5 mr-1.5" /> Programmer
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setLandingOpen(true)}
+            className="h-8 text-xs"
+            data-testid="action-landing"
+          >
+            <Target className="w-3.5 h-3.5 mr-1.5" /> Page de capture
+          </Button>
+
           <Button size="sm" variant="ghost" onClick={handlePrint} className="h-8 text-xs" data-testid="action-print">
             <Printer className="w-3.5 h-3.5 mr-1.5" /> Imprimer
           </Button>
@@ -215,6 +252,23 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
         onClose={() => setEmailOpen(false)}
         defaultSubject={title}
         defaultBody={content}
+      />
+      <ImageGeneratorDialog
+        open={imageOpen}
+        onClose={() => setImageOpen(false)}
+        defaultPrompt={`Visuel pour : ${content.slice(0, 200)}`}
+      />
+      <ScheduleDialog
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        defaultTitle={title}
+        defaultContent={content}
+      />
+      <LandingPageDialog
+        open={landingOpen}
+        onClose={() => setLandingOpen(false)}
+        defaultTitle={title}
+        defaultHeadline={content.split("\n")[0]?.slice(0, 80) || title}
       />
     </>
   );
