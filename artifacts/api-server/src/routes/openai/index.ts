@@ -11,6 +11,7 @@ import {
   type CampaignBusinessContext,
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { sendEmail } from "../../lib/email";
 import {
   GetOpenaiConversationParams,
   DeleteOpenaiConversationParams,
@@ -496,68 +497,15 @@ router.post("/openai/send-email", async (req, res): Promise<void> => {
     return;
   }
 
-  const sendgridKey = process.env.SENDGRID_API_KEY;
-  const resendKey = process.env.RESEND_API_KEY;
-  const fromAddress = from || process.env.EMAIL_FROM || "noreply@marketing-agent.app";
-
-  // ─── Sendgrid ───
-  if (sendgridKey) {
-    try {
-      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${sendgridKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          personalizations: recipients.map((email) => ({ to: [{ email }] })),
-          from: { email: fromAddress, name: "Marketing Agent IA" },
-          subject,
-          content: [{ type: "text/plain", value: body }],
-        }),
-      });
-      if (!response.ok) {
-        const errText = await response.text();
-        req.log.error({ status: response.status, errText }, "Sendgrid failed");
-        res.status(502).json({ error: "Sendgrid a refusé l'envoi", details: errText.slice(0, 300), provider: "sendgrid" });
-        return;
-      }
-      res.json({ success: true, provider: "Sendgrid", recipients: recipients.length });
-      return;
-    } catch (e: unknown) {
-      req.log.error({ err: e }, "Sendgrid error");
-      res.status(502).json({ error: "Erreur Sendgrid", provider: "sendgrid" });
-      return;
-    }
+  const result = await sendEmail({ to: recipients, subject, body, from });
+  if (result.success) {
+    res.json({ success: true, provider: result.provider, recipients: recipients.length });
+    return;
   }
-
-  // ─── Resend (alt) ───
-  if (resendKey) {
-    try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: fromAddress,
-          to: recipients,
-          subject,
-          text: body,
-        }),
-      });
-      if (!response.ok) {
-        const errText = await response.text();
-        res.status(502).json({ error: "Resend a refusé l'envoi", details: errText.slice(0, 300), provider: "resend" });
-        return;
-      }
-      res.json({ success: true, provider: "Resend", recipients: recipients.length });
-      return;
-    } catch (_) {
-      res.status(502).json({ error: "Erreur Resend", provider: "resend" });
-      return;
-    }
+  if (result.provider !== "none") {
+    req.log.error({ provider: result.provider, error: result.error }, "Email send failed");
+    res.status(502).json({ error: `Le fournisseur (${result.provider}) a refusé l'envoi`, details: result.error, provider: result.provider });
+    return;
   }
 
   // No provider configured
@@ -1069,32 +1017,13 @@ async function processScheduledPosts(): Promise<void> {
     for (const post of due) {
       try {
         if (post.platform === "email" && post.meta?.recipients?.length) {
-          const sendgridKey = process.env.SENDGRID_API_KEY;
-          const resendKey = process.env.RESEND_API_KEY;
-          const fromAddress = process.env.EMAIL_FROM || "noreply@marketing-agent.app";
           const subject = post.meta.subject || post.title;
-          let sent = false;
-          if (sendgridKey) {
-            const r = await fetch("https://api.sendgrid.com/v3/mail/send", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${sendgridKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                personalizations: post.meta.recipients.map((email: string) => ({ to: [{ email }] })),
-                from: { email: fromAddress, name: "Marketing Agent IA" },
-                subject,
-                content: [{ type: "text/plain", value: post.content }],
-              }),
-            });
-            sent = r.ok;
-          } else if (resendKey) {
-            const r = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ from: fromAddress, to: post.meta.recipients, subject, text: post.content }),
-            });
-            sent = r.ok;
-          }
-          if (sent) {
+          const result = await sendEmail({
+            to: post.meta.recipients,
+            subject,
+            body: post.content,
+          });
+          if (result.success) {
             await db
               .update(scheduledPosts)
               .set({ status: "sent", sentAt: new Date() })
@@ -1102,7 +1031,10 @@ async function processScheduledPosts(): Promise<void> {
           } else {
             await db
               .update(scheduledPosts)
-              .set({ status: "ready", errorMessage: "Aucun fournisseur email — à envoyer manuellement" })
+              .set({
+                status: result.provider === "none" ? "ready" : "failed",
+                errorMessage: result.error?.slice(0, 200) ?? "Aucun fournisseur email",
+              })
               .where(eq(scheduledPosts.id, post.id));
           }
         } else {
