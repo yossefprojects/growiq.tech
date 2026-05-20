@@ -192,7 +192,7 @@ export function CampaignLaunchModal({ open, onClose, onCampaignCreated }: Campai
 
       onCampaignCreated();
       handleClose();
-      if (conversationId) setLocation(`/conversations/${conversationId}`);
+      if (conversationId) setLocation(`/app/conversations/${conversationId}`);
     } catch (err: unknown) {
       if ((err as Error).name !== "AbortError") {
         toast.error("Erreur lors de la génération");

@@ -99,8 +99,8 @@ export function Sidebar({
                   {campaigns.map((campaign) => {
                     const typeInfo = CAMPAIGN_TYPES.find((t) => t.id === campaign.type);
                     const href = campaign.conversationId
-                      ? `/conversations/${campaign.conversationId}`
-                      : "/";
+                      ? `/app/conversations/${campaign.conversationId}`
+                      : "/app";
                     return (
                       <div
                         key={campaign.id}
@@ -149,7 +149,7 @@ export function Sidebar({
                       )}
                       data-testid={`link-conversation-${conv.id}`}
                     >
-                      <Link href={`/conversations/${conv.id}`} className="flex-1 truncate flex items-center gap-2">
+                      <Link href={`/app/conversations/${conv.id}`} className="flex-1 truncate flex items-center gap-2">
                         <MessageSquare className="w-4 h-4 flex-shrink-0" />
                         <span className="truncate">{conv.title}</span>
                       </Link>

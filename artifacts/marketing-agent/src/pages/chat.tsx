@@ -66,7 +66,7 @@ export default function ChatPage() {
   const deleteCampaignMutation = useDeleteOpenaiCampaign();
 
   const handleNewConversation = useCallback(() => {
-    setLocation("/");
+    setLocation("/app");
   }, [setLocation]);
 
   const handleDeleteConversation = useCallback(
@@ -76,7 +76,7 @@ export default function ChatPage() {
         {
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
-            if (conversationId === id) setLocation("/");
+            if (conversationId === id) setLocation("/app");
           },
           onError: () => toast.error("Impossible de supprimer la conversation"),
         }
@@ -129,7 +129,7 @@ export default function ChatPage() {
         const newConv = await createMutation.mutateAsync({ data: { title } });
         activeConvId = newConv.id;
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
-        setLocation(`/conversations/${activeConvId}`);
+        setLocation(`/app/conversations/${activeConvId}`);
       } catch {
         toast.error("Impossible de créer la conversation");
         return;

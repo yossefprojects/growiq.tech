@@ -5,14 +5,16 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import ChatPage from "@/pages/chat";
 import LandingPage from "@/pages/landing";
+import HomePage from "@/pages/home";
 
 const queryClient = new QueryClient();
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={ChatPage} />
-      <Route path="/conversations/:id" component={ChatPage} />
+      <Route path="/" component={HomePage} />
+      <Route path="/app" component={ChatPage} />
+      <Route path="/app/conversations/:id" component={ChatPage} />
       <Route path="/landing/:slug" component={LandingPage} />
       <Route component={NotFound} />
     </Switch>
