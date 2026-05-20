@@ -1,4 +1,5 @@
-import { Loader2, Bot, User } from "lucide-react";
+import { useState } from "react";
+import { Loader2, Bot, User, ChevronDown, ChevronUp } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,9 @@ export function ChatArea({ messages, isStreaming, streamingContent, isLoading, s
 
 function MessageItem({ message, isStreaming }: { message: Message; isStreaming?: boolean }) {
   const isUser = message.role === "user";
+  const [collapsed, setCollapsed] = useState(false);
+  const canCollapse = !isUser && !isStreaming && message.content.length > 200;
+  const preview = message.content.replace(/[#*`>_~\-]/g, "").trim().slice(0, 90);
 
   return (
     <div
@@ -69,9 +73,40 @@ function MessageItem({ message, isStreaming }: { message: Message; isStreaming?:
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
         <div className="font-semibold text-sm text-foreground flex items-center gap-2">
-          {isUser ? "You" : "Marketing Agent IA"}
+          <span>{isUser ? "You" : "Marketing Agent IA"}</span>
           {isStreaming && <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />}
+          {canCollapse && (
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground hover:text-foreground transition-colors rounded-md px-2 py-0.5 hover:bg-secondary"
+              data-testid="button-toggle-collapse"
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? "Afficher la réponse complète" : "Réduire la réponse"}
+              title={collapsed ? "Afficher la réponse" : "Réduire la réponse"}
+            >
+              {collapsed ? (
+                <>
+                  <ChevronDown className="w-3.5 h-3.5" />
+                  Afficher
+                </>
+              ) : (
+                <>
+                  <ChevronUp className="w-3.5 h-3.5" />
+                  Réduire
+                </>
+              )}
+            </button>
+          )}
         </div>
+        {collapsed ? (
+          <button
+            onClick={() => setCollapsed(false)}
+            className="text-left w-full text-sm text-muted-foreground italic hover:text-foreground transition-colors"
+            data-testid="collapsed-preview"
+          >
+            {preview}… <span className="not-italic text-primary">cliquer pour développer</span>
+          </button>
+        ) : (
         <div className="text-sm prose prose-sm dark:prose-invert max-w-none text-foreground/90 break-words">
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
@@ -119,7 +154,8 @@ function MessageItem({ message, isStreaming }: { message: Message; isStreaming?:
             </ReactMarkdown>
           )}
         </div>
-        {!isUser && !isStreaming && message.content.length > 300 && (
+        )}
+        {!isUser && !isStreaming && !collapsed && message.content.length > 300 && (
           <CampaignActions content={message.content} title="Campagne marketing" />
         )}
       </div>
