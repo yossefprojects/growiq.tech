@@ -17,6 +17,7 @@ import {
 import { Sidebar } from "@/components/sidebar";
 import { ChatArea } from "@/components/chat-area";
 import { CampaignLaunchModal } from "@/components/campaign-launch-modal";
+import { WelcomeTour, shouldShowWelcomeTour } from "@/components/welcome-tour";
 import { toast } from "sonner";
 import { Rocket, MessageSquarePlus } from "lucide-react";
 
@@ -27,6 +28,13 @@ export default function ChatPage() {
   const queryClient = useQueryClient();
 
   const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    if (!shouldShowWelcomeTour()) return;
+    const t = setTimeout(() => setShowWelcome(true), 400);
+    return () => clearTimeout(t);
+  }, []);
 
   const { data: conversations, isLoading: isConversationsLoading } = useListOpenaiConversations({
     query: { queryKey: getListOpenaiConversationsQueryKey() },
@@ -201,6 +209,7 @@ export default function ChatPage() {
         onLaunchCampaign={() => setShowCampaignModal(true)}
         onDelete={handleDeleteConversation}
         onDeleteCampaign={handleDeleteCampaign}
+        onShowDemo={() => setShowWelcome(true)}
         isLoading={isLoading}
       />
 
@@ -248,6 +257,8 @@ export default function ChatPage() {
         onClose={() => setShowCampaignModal(false)}
         onCampaignCreated={handleCampaignCreated}
       />
+
+      <WelcomeTour open={showWelcome} onClose={() => setShowWelcome(false)} />
     </div>
   );
 }

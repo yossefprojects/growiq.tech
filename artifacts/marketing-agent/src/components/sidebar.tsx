@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench } from "lucide-react";
+import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
 import { ToolboxModal } from "./toolbox-modal";
@@ -27,6 +27,7 @@ interface SidebarProps {
   onLaunchCampaign: () => void;
   onDelete: (id: number) => void;
   onDeleteCampaign: (id: number) => void;
+  onShowDemo?: () => void;
   isLoading: boolean;
 }
 
@@ -38,6 +39,7 @@ export function Sidebar({
   onLaunchCampaign,
   onDelete,
   onDeleteCampaign,
+  onShowDemo,
   isLoading,
 }: SidebarProps) {
   const [toolboxOpen, setToolboxOpen] = useState(false);
@@ -68,6 +70,16 @@ export function Sidebar({
           <Wrench className="w-3.5 h-3.5" />
           Boîte à outils
         </button>
+        {onShowDemo && (
+          <button
+            onClick={onShowDemo}
+            className="w-full flex items-center justify-center gap-2 text-muted-foreground hover:bg-secondary/70 hover:text-foreground rounded-md h-8 px-4 text-xs font-medium transition-colors"
+            data-testid="button-show-demo"
+          >
+            <PlayCircle className="w-3.5 h-3.5" />
+            Voir la démo
+          </button>
+        )}
       </div>
       <ToolboxModal open={toolboxOpen} onClose={() => setToolboxOpen(false)} />
 
