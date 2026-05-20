@@ -258,7 +258,8 @@ export function CampaignLaunchModal({ open, onClose, onCampaignCreated }: Campai
             idx === i ? { ...t, status: "done", conversationId: lastConversationId ?? undefined } : t
           )
         );
-      } catch (_) {
+      } catch (err) {
+        console.warn(`Génération campagne ${tasks[i].type} échouée:`, err);
         setGenerationTasks((prev) =>
           prev.map((t, idx) => (idx === i ? { ...t, status: "error" } : t))
         );
