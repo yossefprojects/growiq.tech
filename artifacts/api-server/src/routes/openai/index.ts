@@ -473,6 +473,91 @@ Inclus LES 7 campagnes, triées par pertinence décroissante pour ce site (prior
   }
 });
 
+router.post("/openai/send-email", async (req, res): Promise<void> => {
+  const { to, subject, body, from } = req.body as {
+    to?: string[] | string;
+    subject?: string;
+    body?: string;
+    from?: string;
+  };
+
+  const recipients = Array.isArray(to) ? to.filter(Boolean) : to ? [to] : [];
+  if (recipients.length === 0 || !subject || !body) {
+    res.status(400).json({ error: "to, subject et body sont requis" });
+    return;
+  }
+
+  const sendgridKey = process.env.SENDGRID_API_KEY;
+  const resendKey = process.env.RESEND_API_KEY;
+  const fromAddress = from || process.env.EMAIL_FROM || "noreply@marketing-agent.app";
+
+  // ─── Sendgrid ───
+  if (sendgridKey) {
+    try {
+      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sendgridKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personalizations: recipients.map((email) => ({ to: [{ email }] })),
+          from: { email: fromAddress, name: "Marketing Agent IA" },
+          subject,
+          content: [{ type: "text/plain", value: body }],
+        }),
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        req.log.error({ status: response.status, errText }, "Sendgrid failed");
+        res.status(502).json({ error: "Sendgrid a refusé l'envoi", details: errText.slice(0, 300), provider: "sendgrid" });
+        return;
+      }
+      res.json({ success: true, provider: "Sendgrid", recipients: recipients.length });
+      return;
+    } catch (e: unknown) {
+      req.log.error({ err: e }, "Sendgrid error");
+      res.status(502).json({ error: "Erreur Sendgrid", provider: "sendgrid" });
+      return;
+    }
+  }
+
+  // ─── Resend (alt) ───
+  if (resendKey) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: recipients,
+          subject,
+          text: body,
+        }),
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        res.status(502).json({ error: "Resend a refusé l'envoi", details: errText.slice(0, 300), provider: "resend" });
+        return;
+      }
+      res.json({ success: true, provider: "Resend", recipients: recipients.length });
+      return;
+    } catch (_) {
+      res.status(502).json({ error: "Erreur Resend", provider: "resend" });
+      return;
+    }
+  }
+
+  // No provider configured
+  res.status(503).json({
+    error: "Aucun fournisseur email connecté. Connectez Sendgrid ou Resend pour activer l'envoi automatique.",
+    provider: "none",
+  });
+});
+
 function buildCampaignPrompt(type: string, ctx: CampaignBusinessContext): string {
   const baseInfo = `
 **Entreprise/Marque :** ${ctx.businessName}

@@ -1,5 +1,6 @@
 import { Loader2, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CampaignActions } from "@/components/campaign-actions";
 
 interface Message {
   id: number;
@@ -72,6 +73,9 @@ function MessageItem({ message, isStreaming }: { message: Message; isStreaming?:
         <div className="text-sm prose prose-sm dark:prose-invert max-w-none text-foreground/90 whitespace-pre-wrap">
           {message.content}
         </div>
+        {!isUser && !isStreaming && message.content.length > 300 && (
+          <CampaignActions content={message.content} title="Campagne marketing" />
+        )}
       </div>
     </div>
   );
