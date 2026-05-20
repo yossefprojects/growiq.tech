@@ -50,7 +50,12 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- **Communication** : en français, pas d'emojis sauf demande explicite, vulgarisation pour utilisateur non-technique
+- **Style code review** : signaler proactivement les compromis et limites techniques avant de coder
+
+## Rappels actifs
+
+- **📅 Lundi 25 mai 2026** — L'utilisateur veut passer à l'**Option A** (intégration Buffer/Hootsuite/Publer) pour permettre à l'agent IA de publier directement sur ses comptes sociaux (Instagram, Facebook, LinkedIn, X, TikTok). Plan : demander quel SaaS il a choisi (Buffer recommandé, ~10€/mois), récupérer son token API, et coder l'intégration dans le scheduler worker (~1h de travail). Dès que vous voyez cette note, relancez-le.
 
 ## Gotchas
 
