@@ -25,7 +25,7 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     icon: Sparkles,
-    title: "Bienvenue dans votre Agent Marketing IA",
+    title: "Bienvenue dans GrowIQ",
     description:
       "Un stratège marketing senior disponible 24/7, qui exécute vos campagnes de A à Z. Laissez-moi vous montrer ce qu'il sait faire en 30 secondes.",
     accent: "from-fuchsia-500 to-purple-600",
