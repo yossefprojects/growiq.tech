@@ -50,7 +50,7 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 - Real-time streaming responses from a marketing expert AI
 - Full conversation history persistence
 - REST API for integration with other tools
-- **Agence automatique** (`/app/agency`) : brief 5 questions → IA génère textes + visuels + calendrier → preview éditable → publication automatique FB/IG + email récap
+- **Agence automatique** (`/app/agency`) : brief 3 questions (produit / cible / objectif via 3 gros boutons) → IA choisit les réseaux et horaires → preview éditable avec mode "Explique-moi" → bouton "Lancer" → publication automatique FB/IG + email récap. UI conçue pour utilisateur non-technique (mamie 70 ans), zéro jargon, ton tutoiement chaleureux avec emojis.
 - Auto-image generation for any scheduled FB/IG post (via Object Storage public bucket)
 
 ## User preferences

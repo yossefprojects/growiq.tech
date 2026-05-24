@@ -8,6 +8,11 @@ export type AgencyBrief = {
   channels: string[];
 };
 
+export type AgencyDecision = {
+  what: string;
+  why: string;
+};
+
 export type AgencyPlannedPost = {
   id: string;
   channel: "facebook" | "instagram";
@@ -29,6 +34,7 @@ export type AgencyPlan = {
   };
   posts: AgencyPlannedPost[];
   recommendations: string[];
+  decisions?: AgencyDecision[];
 };
 
 export const agencyCampaigns = pgTable("agency_campaigns", {

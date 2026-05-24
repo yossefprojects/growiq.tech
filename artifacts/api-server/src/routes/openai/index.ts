@@ -13,6 +13,7 @@ import {
   type AgencyBrief,
   type AgencyPlan,
   type AgencyPlannedPost,
+  type AgencyDecision,
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
@@ -1202,44 +1203,61 @@ if (process.env.NODE_ENV !== "test") {
 // AGENCY — automatic marketing agency workflow
 // ════════════════════════════════════════════════════════════════════════════
 
-const AGENCY_PLAN_PROMPT = `Tu es le directeur de création d'une agence marketing française. À partir du brief client, tu produis UN SEUL objet JSON valide (sans markdown, sans texte autour) qui décrit une mini-campagne sur réseaux sociaux organiques (Facebook et/ou Instagram).
+const AGENCY_PLAN_PROMPT = `Tu es un conseiller marketing qui parle à une personne qui n'y connaît RIEN (imagine une grand-mère de 70 ans qui veut lancer un truc).
 
-Format STRICT attendu :
+RÈGLES DE LANGAGE (impératives) :
+- Zéro jargon. JAMAIS de mots comme : CPC, CTR, CPM, ROI, conversion, audience, ciblage, impressions, organique, payant, engagement, reach.
+- Remplace par des mots simples :
+  • "personnes qui verront ton message" au lieu de "impressions"
+  • "personnes qui cliqueront" au lieu de "clics"
+  • "personnes qui pourraient acheter" au lieu de "conversions"
+  • "les gens qu'on veut toucher" au lieu de "audience cible"
+  • "comment on les trouvera" au lieu de "stratégie de ciblage"
+- Tutoiement chaleureux. Phrases courtes. Emojis bienvenus pour rassurer.
+
+Tu produis UN SEUL objet JSON valide (sans markdown, sans texte autour) :
 {
-  "audienceSummary": "résumé concis (max 2 phrases) de l'audience cible",
-  "targetingNarrative": "comment toucher cette audience sur les canaux choisis (max 3 phrases, concret et actionnable)",
-  "budgetNarrative": "comment répartir le budget annoncé entre publications organiques (gratuites) et éventuelle ads payantes plus tard (max 3 phrases)",
+  "audienceSummary": "1-2 phrases qui décrivent les gens qu'on va toucher, en langage simple",
+  "targetingNarrative": "1-2 phrases : comment on va les trouver, sans jargon",
+  "budgetNarrative": "1-2 phrases : pour cette campagne on utilise uniquement des publications gratuites sur les réseaux sociaux ; on explique pourquoi c'est suffisant pour commencer",
   "estimatedResults": {
-    "impressions": "fourchette réaliste (ex: 2 000 - 5 000)",
-    "clicks": "fourchette (ex: 80 - 200)",
-    "conversions": "fourchette (ex: 5 - 15)"
+    "impressions": "fourchette en personnes (ex: 'entre 2 000 et 5 000 personnes verront ton message')",
+    "clicks": "fourchette (ex: 'entre 80 et 200 personnes cliqueront')",
+    "conversions": "fourchette (ex: 'entre 5 et 15 personnes pourraient acheter')"
   },
   "posts": [
     {
       "id": "p1",
       "channel": "facebook" ou "instagram",
-      "scheduledFor": "ISO-8601 datetime dans les 7 prochains jours, jamais dans le passé",
-      "copy": "texte du post (200-400 caractères, ton adapté au canal, inclure 1-2 emojis pertinents et 2-4 hashtags pour instagram)",
-      "imagePrompt": "description ANGLAISE détaillée pour générer un visuel carré professionnel (style photo réaliste, pas de texte sur l'image)"
+      "scheduledFor": "ISO-8601 datetime dans les 7 prochains jours, JAMAIS dans le passé",
+      "copy": "texte du message (200-400 caractères, ton adapté au réseau, 1-2 emojis pertinents et 2-4 hashtags si Instagram)",
+      "imagePrompt": "description ANGLAISE détaillée pour générer un visuel carré professionnel (photo réaliste, pas de texte sur l'image)"
     }
   ],
-  "recommendations": ["3 à 5 recommandations courtes pour améliorer les résultats"]
+  "recommendations": ["3 à 5 astuces TRÈS courtes et concrètes, sans jargon"],
+  "decisions": [
+    { "what": "phrase ultra-courte de la décision (ex: 'J'ai choisi Instagram')", "why": "phrase simple qui explique pourquoi, comme à un enfant" }
+  ]
 }
 
-Règles :
-- Génère exactement 5 posts répartis sur les canaux demandés.
-- Étale les dates entre demain matin et J+7, à des horaires d'engagement optimaux (FB: 11h-14h, IG: 18h-21h, heure de Paris).
-- Adapte le ton et le copy au canal et à l'objectif (notoriété/ventes/trafic).
-- Si le budget est faible (<100€), n'évoque que l'organique. Si élevé (>500€), suggère un boost ads.
-- Réponds UNIQUEMENT avec le JSON, aucun autre texte.`;
+RÈGLES MÉTIER :
+- TOI tu choisis le ou les réseaux (Facebook et/ou Instagram) en fonction du produit et des gens à toucher. Explique ton choix dans "decisions".
+- TOI tu choisis les heures de publication (FB: 11h-14h, IG: 18h-21h, heure de Paris). Explique pourquoi dans "decisions".
+- Génère exactement 5 messages étalés entre demain et J+7.
+- "decisions" doit contenir 3 à 5 entrées qui expliquent : (1) le choix du/des réseau(x), (2) le choix des horaires, (3) le ton choisi pour les messages, (4) la fréquence de publication, (5) éventuellement le style des visuels.
+- Réponds UNIQUEMENT avec le JSON.`;
 
 function buildAgencyUserPrompt(brief: AgencyBrief): string {
-  return `Brief client :
-- Produit / service : ${brief.product}
-- Cible : ${brief.audience}
-- Budget total disponible : ${brief.budget}
-- Objectif principal : ${brief.objective}
-- Canaux demandés : ${brief.channels.join(", ")}
+  const channelsLine =
+    brief.channels.length > 0
+      ? `- Réseaux suggérés par la personne : ${brief.channels.join(", ")} (mais tu peux décider mieux)`
+      : `- Réseaux : à toi de choisir entre Facebook et/ou Instagram, en fonction du contexte.`;
+  return `Brief :
+- Ce que la personne propose : ${brief.product}
+- Les gens qu'elle veut toucher : ${brief.audience}
+- Son but : ${brief.objective}
+- Budget : ${brief.budget || "non précisé, on part sur du gratuit"}
+${channelsLine}
 
 Date d'aujourd'hui : ${new Date().toISOString()}
 
@@ -1281,14 +1299,22 @@ function normalizePlan(raw: unknown): AgencyPlan {
   const recommendations = Array.isArray(r["recommendations"])
     ? (r["recommendations"] as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 8)
     : [];
+  const decisionsRaw = Array.isArray(r["decisions"]) ? r["decisions"] : [];
+  const decisions: AgencyDecision[] = decisionsRaw
+    .slice(0, 8)
+    .map((d) => {
+      const o = (d ?? {}) as Record<string, unknown>;
+      return { what: cap(o["what"], 200), why: cap(o["why"], 400) };
+    })
+    .filter((d) => d.what && d.why);
   return {
-    audienceSummary: cap(r["audienceSummary"], 500) || "Audience non précisée.",
-    targetingNarrative: cap(r["targetingNarrative"], 800) || "Stratégie de ciblage non précisée.",
-    budgetNarrative: cap(r["budgetNarrative"], 800) || "Répartition budget non précisée.",
+    audienceSummary: cap(r["audienceSummary"], 500) || "À préciser.",
+    targetingNarrative: cap(r["targetingNarrative"], 800) || "—",
+    budgetNarrative: cap(r["budgetNarrative"], 800) || "—",
     estimatedResults: {
-      impressions: cap(er["impressions"], 60) || "—",
-      clicks: cap(er["clicks"], 60) || "—",
-      conversions: cap(er["conversions"], 60) || "—",
+      impressions: cap(er["impressions"], 200) || "—",
+      clicks: cap(er["clicks"], 200) || "—",
+      conversions: cap(er["conversions"], 200) || "—",
     },
     posts: posts.slice(0, 6).map((p, idx): AgencyPlannedPost => {
       const po = (p ?? {}) as Record<string, unknown>;
@@ -1297,11 +1323,12 @@ function normalizePlan(raw: unknown): AgencyPlan {
         id: cap(po["id"], 20) || `p${idx + 1}`,
         channel: ch,
         scheduledFor: clampFutureDate(cap(po["scheduledFor"], 50), (idx + 1) * 24),
-        copy: cap(po["copy"], 1200) || "(copy manquant)",
+        copy: cap(po["copy"], 1200) || "(message manquant)",
         imagePrompt: cap(po["imagePrompt"], 800) || "Professional marketing photo, modern style",
       };
     }),
     recommendations,
+    decisions,
   };
 }
 
@@ -1315,38 +1342,26 @@ router.post("/agency/generate", async (req, res): Promise<void> => {
   }
 
   const brief = req.body as Partial<AgencyBrief>;
-  if (
-    !brief?.product ||
-    !brief?.audience ||
-    !brief?.budget ||
-    !brief?.objective ||
-    !Array.isArray(brief.channels) ||
-    brief.channels.length === 0
-  ) {
-    res.status(400).json({ error: "Brief incomplet : tous les champs sont requis." });
+  if (!brief?.product || !brief?.audience || !brief?.objective) {
+    res.status(400).json({ error: "Réponds aux 3 questions avant de continuer." });
     return;
   }
 
-  const allowedChannels = brief.channels.filter(
+  const channelsArr = Array.isArray(brief.channels) ? brief.channels : [];
+  const allowedChannels = channelsArr.filter(
     (c): c is "facebook" | "instagram" => c === "facebook" || c === "instagram"
   );
-  if (allowedChannels.length === 0) {
-    res.status(400).json({
-      error:
-        "Pour cette version, seuls Facebook et Instagram sont supportés (publication organique). Google Ads et autres viendront en Phase 2.",
-    });
-    return;
-  }
+  // Empty = agent decides (this is the new default for the simplified flow).
 
   const cleanBrief: AgencyBrief = {
     product: cap(brief.product, 500),
     audience: cap(brief.audience, 500),
-    budget: cap(brief.budget, 100),
+    budget: cap(brief.budget, 100) || "petit budget pour commencer",
     objective: cap(brief.objective, 50),
     channels: allowedChannels,
   };
-  if (!cleanBrief.product || !cleanBrief.audience || !cleanBrief.budget || !cleanBrief.objective) {
-    res.status(400).json({ error: "Un des champs est vide après nettoyage." });
+  if (!cleanBrief.product || !cleanBrief.audience || !cleanBrief.objective) {
+    res.status(400).json({ error: "Une des réponses est vide." });
     return;
   }
 
