@@ -9,6 +9,12 @@ import {
   Instagram,
   Calendar,
   Heart,
+  MessageCircle,
+  Send,
+  Bookmark,
+  MoreHorizontal,
+  ThumbsUp,
+  Share2,
   ShoppingBag,
   Megaphone,
   MousePointerClick,
@@ -217,17 +223,27 @@ export default function AgencyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-purple-50">
-      <header className="border-b bg-white/80 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/app" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="w-4 h-4" /> Retour
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-blue-50">
+      <header className="border-b border-violet-100 bg-white/80 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+          <Link href="/app" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground shrink-0">
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Retour</span>
           </Link>
-          <div className="flex items-center gap-2 font-semibold">
-            <Sparkles className="w-4 h-4 text-purple-600" />
-            Ton assistant marketing
-          </div>
-          <div className="flex gap-2">
+          <Link href="/app/agency" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:scale-105 transition-transform">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="leading-tight">
+              <div className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">
+                GrowIQ
+              </div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider hidden sm:block">
+                Ton assistant marketing
+              </div>
+            </div>
+          </Link>
+          <div className="flex gap-2 shrink-0">
             {step !== "dashboard" && (
               <Button variant="ghost" size="sm" onClick={() => setStep("dashboard")} data-testid="link-dashboard">
                 Mes campagnes ({campaigns.length})
@@ -333,31 +349,35 @@ function BriefForm({
   const canProductNext = brief.product.trim().length >= 8;
   const canAudienceNext = brief.audience.trim().length >= 8;
 
+  const progressPercent = ((step + 1) / totalSteps) * 100;
+
   return (
     <div className="space-y-6">
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-500 shadow-lg shadow-purple-500/30">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 shadow-lg shadow-violet-500/40 animate-pop-in">
           <Wand2 className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">On fait connaissance ? ✨</h1>
+        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">On fait connaissance ? ✨</h1>
         <p className="text-muted-foreground text-lg">Une petite question à la fois, c'est promis 🙂</p>
       </div>
 
-      <div className="flex justify-center gap-2" aria-label="progression">
-        {Array.from({ length: totalSteps }).map((_, i) => (
+      <div className="max-w-md mx-auto space-y-2" aria-label="progression">
+        <div className="flex items-center justify-between text-xs font-semibold">
+          <span className="text-violet-700">Étape {step + 1} sur {totalSteps}</span>
+          <span className="text-muted-foreground">{Math.round(progressPercent)}%</span>
+        </div>
+        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
           <div
-            key={i}
-            className={`h-2 rounded-full transition-all duration-500 ${
-              i === step ? "w-10 bg-purple-600" : i < step ? "w-6 bg-purple-300" : "w-6 bg-slate-200"
-            }`}
+            className="h-full bg-gradient-to-r from-violet-600 to-blue-600 rounded-full transition-all duration-700 ease-out shadow-sm"
+            style={{ width: `${progressPercent}%` }}
           />
-        ))}
+        </div>
       </div>
 
       {showEncouragement ? (
         <div className="flex flex-col items-center justify-center py-16 animate-in fade-in zoom-in-95 duration-300" data-testid="encouragement">
           <div className="text-6xl mb-3 animate-bounce">🎉</div>
-          <p className="text-2xl font-bold text-purple-700">{showEncouragement}</p>
+          <p className="text-2xl font-bold bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{showEncouragement}</p>
         </div>
       ) : (
         <div
@@ -414,7 +434,7 @@ function StepProduct({
   return (
     <>
       <div className="space-y-1">
-        <div className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Question 1 sur 3</div>
+        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Question 1 sur 3</div>
         <h2 className="text-2xl font-bold">Tu proposes quoi ? 🤔</h2>
         <p className="text-muted-foreground text-sm">Dis-le avec tes mots, comme si tu en parlais à un ami.</p>
       </div>
@@ -435,7 +455,7 @@ function StepProduct({
               key={ex.label}
               type="button"
               onClick={() => setValue(ex.text)}
-              className="px-3 py-2 rounded-full border bg-white hover:bg-purple-50 hover:border-purple-300 text-sm transition-all hover:scale-105"
+              className="px-3 py-2 rounded-full border bg-white hover:bg-violet-50 hover:border-violet-300 text-sm transition-all hover:scale-105"
               data-testid={`example-product-${ex.label}`}
             >
               {ex.emoji} {ex.label}
@@ -447,7 +467,7 @@ function StepProduct({
         onClick={onNext}
         disabled={!canNext}
         data-testid="button-next-1"
-        className="w-full h-14 text-lg font-bold bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
+        className="w-full h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
       >
         Continuer →
       </Button>
@@ -471,7 +491,7 @@ function StepAudience({
   return (
     <>
       <div className="space-y-1">
-        <div className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Question 2 sur 3</div>
+        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Question 2 sur 3</div>
         <h2 className="text-2xl font-bold">À qui tu veux parler ? 👥</h2>
         <p className="text-muted-foreground text-sm">Décris les gens que tu aimerais avoir comme clients : âge, ce qu'ils aiment, où ils habitent.</p>
       </div>
@@ -492,7 +512,7 @@ function StepAudience({
               key={ex.label}
               type="button"
               onClick={() => setValue(ex.text)}
-              className="px-3 py-2 rounded-full border bg-white hover:bg-purple-50 hover:border-purple-300 text-sm transition-all hover:scale-105"
+              className="px-3 py-2 rounded-full border bg-white hover:bg-violet-50 hover:border-violet-300 text-sm transition-all hover:scale-105"
               data-testid={`example-audience-${ex.label}`}
             >
               {ex.emoji} {ex.label}
@@ -508,7 +528,7 @@ function StepAudience({
           onClick={onNext}
           disabled={!canNext}
           data-testid="button-next-2"
-          className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
+          className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
         >
           Continuer →
         </Button>
@@ -533,7 +553,7 @@ function StepObjective({
   return (
     <>
       <div className="space-y-1">
-        <div className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Question 3 sur 3 — la dernière !</div>
+        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Question 3 sur 3 — la dernière !</div>
         <h2 className="text-2xl font-bold">Qu'est-ce que tu veux obtenir ? 🎯</h2>
         <p className="text-muted-foreground text-sm">Choisis ce qui compte le plus pour toi en ce moment.</p>
       </div>
@@ -548,7 +568,7 @@ function StepObjective({
               data-testid={`objective-${o.value.replace(/\s/g, "-")}`}
               onClick={() => setValue(o.value)}
               className={`text-left p-4 rounded-xl border-2 transition-all hover:scale-[1.02] ${
-                active ? "border-purple-600 bg-purple-50 shadow-md scale-[1.02]" : "border-slate-200 hover:border-purple-300 bg-white"
+                active ? "border-violet-600 bg-violet-50 shadow-md scale-[1.02]" : "border-slate-200 hover:border-violet-300 bg-white"
               }`}
             >
               <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${o.color} flex items-center justify-center mb-2 shadow-sm`}>
@@ -568,7 +588,7 @@ function StepObjective({
           onClick={onSubmit}
           disabled={loading || !value}
           data-testid="button-generate"
-          className="flex-1 h-16 text-xl font-bold bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-700 hover:via-fuchsia-700 hover:to-pink-700 shadow-xl shadow-purple-500/40 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
+          className="flex-1 h-16 text-xl font-bold bg-gradient-to-r from-orange-500 via-orange-600 to-red-500 hover:from-orange-600 hover:via-orange-700 hover:to-red-600 shadow-xl shadow-orange-500/50 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
         >
           {loading ? (
             <Loader2 className="w-6 h-6 animate-spin" />
@@ -647,11 +667,11 @@ function PreviewScreen({
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Voilà ce que j'ai préparé 🎉</h1>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">Voilà ce que j'ai préparé 🎉</h1>
           <p className="text-muted-foreground">Regarde, modifie si tu veux, puis appuie sur le gros bouton vert.</p>
         </div>
         <div className="flex items-center gap-2 bg-white border rounded-full px-4 py-2 shadow-sm">
-          <HelpCircle className="w-4 h-4 text-purple-600" />
+          <HelpCircle className="w-4 h-4 text-violet-600" />
           <Label htmlFor="explain" className="text-sm cursor-pointer">Explique-moi tout</Label>
           <Switch id="explain" checked={explainMode} onCheckedChange={setExplainMode} data-testid="switch-explain" />
         </div>
@@ -801,37 +821,42 @@ function PostCard({
   onCopyChange: (c: string) => void;
   onDateChange: (d: string) => void;
 }) {
-  const Icon = post.channel === "facebook" ? Facebook : Instagram;
-  const channelName = post.channel === "facebook" ? "Facebook" : "Instagram";
   const isoForInput = (() => {
     const d = new Date(post.scheduledFor);
     if (isNaN(d.getTime())) return "";
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   })();
+
+  const dateLabel = new Date(post.scheduledFor).toLocaleString("fr-FR", {
+    weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+
   return (
-    <div className="bg-white rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-md transition">
-      <div className="aspect-square bg-slate-100 relative">
-        {post.imageUrl ? (
-          <img src={post.imageUrl} alt={`Message ${index}`} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-sm gap-2">
-            <Heart className="w-8 h-8" />
-            Image en cours…
-          </div>
-        )}
-        <Badge className="absolute top-3 left-3 gap-1 bg-white text-slate-700 hover:bg-white">
-          <Icon className="w-3 h-3" /> {channelName}
-        </Badge>
-      </div>
-      <div className="p-4 space-y-3 flex-1 flex flex-col">
+    <div className="bg-slate-50 rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-md transition">
+      {post.channel === "instagram" ? (
+        <InstagramMockup post={post} index={index} />
+      ) : (
+        <FacebookMockup post={post} index={index} />
+      )}
+
+      <div className="p-4 space-y-3 bg-white border-t">
+        <div className="flex items-center gap-2 text-xs font-semibold text-violet-700">
+          ✏️ Modifie si tu veux
+        </div>
         {editable ? (
-          <Textarea value={post.copy} onChange={(e) => onCopyChange(e.target.value)} rows={4} className="text-sm" />
+          <Textarea
+            value={post.copy}
+            onChange={(e) => onCopyChange(e.target.value)}
+            rows={3}
+            className="text-sm"
+            data-testid={`post-copy-${post.id}`}
+          />
         ) : (
           <p className="text-sm whitespace-pre-wrap">{post.copy}</p>
         )}
-        <div className="text-xs text-muted-foreground flex items-center gap-2 mt-auto">
-          <Calendar className="w-3 h-3" />
+        <div className="text-xs text-muted-foreground flex items-center gap-2">
+          <Calendar className="w-3.5 h-3.5" />
           {editable ? (
             <input
               type="datetime-local"
@@ -840,10 +865,139 @@ function PostCard({
               className="text-xs border rounded px-2 py-1"
             />
           ) : (
-            <span>{new Date(post.scheduledFor).toLocaleString("fr-FR")}</span>
+            <span>{dateLabel}</span>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function InstagramMockup({ post, index }: { post: PlannedPost; index: number }) {
+  return (
+    <div className="bg-white">
+      <div className="flex items-center justify-between px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2px]">
+            <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-xs font-bold">
+              T
+            </div>
+          </div>
+          <div className="leading-tight">
+            <div className="text-xs font-semibold">ta_marque</div>
+            <div className="text-[10px] text-slate-500">Sponsorisé</div>
+          </div>
+        </div>
+        <MoreHorizontal className="w-4 h-4 text-slate-700" />
+      </div>
+      <div className="aspect-square bg-slate-100 relative">
+        {post.imageUrl ? (
+          <img src={post.imageUrl} alt={`Post ${index}`} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
+            <Instagram className="w-8 h-8" />
+            Image en cours…
+          </div>
+        )}
+      </div>
+      <div className="px-3 py-2 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Heart className="w-5 h-5 text-slate-800" />
+            <MessageCircle className="w-5 h-5 text-slate-800" />
+            <Send className="w-5 h-5 text-slate-800" />
+          </div>
+          <Bookmark className="w-5 h-5 text-slate-800" />
+        </div>
+        <div className="text-xs font-semibold">{124 + index * 17} mentions J'aime</div>
+        <div className="text-xs text-slate-700 line-clamp-2">
+          <span className="font-semibold">ta_marque</span>{" "}
+          <span>{post.copy.split("\n")[0]}</span>
+        </div>
+        <div className="text-[10px] text-slate-400 uppercase">Il y a quelques instants</div>
+      </div>
+    </div>
+  );
+}
+
+function FacebookMockup({ post, index }: { post: PlannedPost; index: number }) {
+  return (
+    <div className="bg-white">
+      <div className="flex items-center justify-between px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-sm font-bold">
+            T
+          </div>
+          <div className="leading-tight">
+            <div className="text-sm font-semibold text-slate-900">Ta marque</div>
+            <div className="text-[11px] text-slate-500 flex items-center gap-1">
+              Sponsorisé · <span className="text-blue-600">🌐</span>
+            </div>
+          </div>
+        </div>
+        <MoreHorizontal className="w-5 h-5 text-slate-600" />
+      </div>
+      <div className="px-3 pb-2.5 text-sm text-slate-800 whitespace-pre-wrap line-clamp-3">
+        {post.copy}
+      </div>
+      <div className="aspect-[4/3] bg-slate-100 relative">
+        {post.imageUrl ? (
+          <img src={post.imageUrl} alt={`Pub ${index}`} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
+            <Facebook className="w-8 h-8" />
+            Image en cours…
+          </div>
+        )}
+      </div>
+      <div className="px-3 py-2 bg-slate-50 flex items-center justify-between">
+        <div className="text-[11px] text-slate-600 font-semibold uppercase tracking-wide">
+          En savoir plus
+        </div>
+        <div className="text-[10px] text-slate-500">tamarque.fr</div>
+      </div>
+      <div className="px-3 py-1.5 flex items-center justify-between text-xs text-slate-600 border-t">
+        <div className="flex items-center gap-1">
+          <span className="w-4 h-4 rounded-full bg-blue-600 inline-flex items-center justify-center">
+            <ThumbsUp className="w-2.5 h-2.5 text-white" />
+          </span>
+          <span>{286 + index * 23}</span>
+        </div>
+        <div className="text-[11px] text-slate-500">{34 + index * 3} commentaires · {12 + index} partages</div>
+      </div>
+      <div className="grid grid-cols-3 border-t text-xs text-slate-600 font-medium">
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><ThumbsUp className="w-3.5 h-3.5" /> J'aime</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><MessageCircle className="w-3.5 h-3.5" /> Commenter</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><Share2 className="w-3.5 h-3.5" /> Partager</button>
+      </div>
+    </div>
+  );
+}
+
+const CONFETTI_EMOJIS = ["🎉", "✨", "🎊", "💜", "💙", "🧡", "⭐", "🚀"];
+
+function Confetti() {
+  const pieces = Array.from({ length: 40 }).map((_, i) => ({
+    emoji: CONFETTI_EMOJIS[i % CONFETTI_EMOJIS.length],
+    left: Math.random() * 100,
+    delay: Math.random() * 1.5,
+    duration: 2.5 + Math.random() * 2,
+  }));
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-50" aria-hidden="true">
+      {pieces.map((p, i) => (
+        <span
+          key={i}
+          className="confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+          }}
+        >
+          {p.emoji}
+        </span>
+      ))}
     </div>
   );
 }
@@ -860,14 +1014,16 @@ function SuccessScreen({
   onDashboard: () => void;
 }) {
   return (
-    <div className="text-center py-16 space-y-8">
+    <div className="text-center py-16 space-y-8 relative">
+      <Confetti />
       <div className="relative inline-block">
-        <div className="w-28 h-28 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-2xl shadow-green-500/40 mx-auto">
+        <div className="w-28 h-28 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-2xl shadow-green-500/40 mx-auto animate-pop-in">
           <span className="text-6xl">🎉</span>
         </div>
+        <div className="absolute inset-0 rounded-full border-4 border-green-300 animate-ping opacity-30" />
       </div>
       <div className="space-y-3">
-        <h1 className="text-4xl font-bold">C'est parti !</h1>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">C'est parti !</h1>
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
           J'ai programmé {campaign.plan.posts.length} messages. Ils partiront tout seuls aux dates prévues. Tu n'as plus rien à faire 😊
         </p>
@@ -885,7 +1041,7 @@ function SuccessScreen({
       </div>
       <div className="flex justify-center gap-3 pt-2 flex-wrap">
         <Button variant="outline" onClick={onDashboard} className="h-11">Voir mes campagnes</Button>
-        <Button onClick={onNew} className="h-11 bg-gradient-to-r from-purple-600 to-fuchsia-600">
+        <Button onClick={onNew} className="h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700">
           <Wand2 className="w-4 h-4 mr-2" /> En lancer une autre
         </Button>
       </div>
@@ -911,7 +1067,7 @@ function Dashboard({
           <h1 className="text-3xl font-bold">Mes campagnes 📋</h1>
           <p className="text-muted-foreground">{campaigns.length === 0 ? "Pas encore de campagne" : `${campaigns.length} campagne${campaigns.length > 1 ? "s" : ""} en tout`}</p>
         </div>
-        <Button onClick={onNew} className="h-11 bg-gradient-to-r from-purple-600 to-fuchsia-600">
+        <Button onClick={onNew} className="h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700">
           <Wand2 className="w-4 h-4 mr-2" /> En lancer une nouvelle
         </Button>
       </div>
