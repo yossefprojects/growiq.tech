@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Loader2, Trash2, Copy, ExternalLink, Users, Calendar, Target, Mail, RefreshCw, Send } from "lucide-react";
+import { Loader2, Trash2, Copy, ExternalLink, Users, Calendar, Target, Mail, RefreshCw, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { MetaPreviewDialog, type MetaPreviewPost } from "./meta-preview-dialog";
 
 interface LandingPage {
   id: number;
@@ -50,6 +51,7 @@ export function ToolboxModal({ open, onClose }: ToolboxModalProps) {
   const [loading, setLoading] = useState(false);
   const [selectedLeadsFor, setSelectedLeadsFor] = useState<number | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [previewPost, setPreviewPost] = useState<MetaPreviewPost | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -90,18 +92,27 @@ export function ToolboxModal({ open, onClose }: ToolboxModalProps) {
     refresh();
   };
 
-  const publishMetaNow = async (p: ScheduledPost) => {
+  const openPreview = (p: ScheduledPost) => {
     if (p.platform !== "facebook" && p.platform !== "instagram") return;
-    if (!confirm(`Publier vraiment maintenant sur ${p.platform === "facebook" ? "Facebook" : "Instagram"} ?`)) return;
+    setPreviewPost({
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      platform: p.platform,
+      imageUrl: p.meta?.imageUrl,
+    });
+  };
+
+  const confirmPublish = async (preview: MetaPreviewPost) => {
     try {
       const r = await fetch("/api/meta/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          platform: p.platform,
-          message: p.content,
-          imageUrl: p.meta?.imageUrl,
-          scheduledPostId: p.id,
+          platform: preview.platform,
+          message: preview.content,
+          imageUrl: preview.imageUrl,
+          scheduledPostId: preview.id,
         }),
       });
       const data = await r.json();
@@ -114,6 +125,7 @@ export function ToolboxModal({ open, onClose }: ToolboxModalProps) {
       toast.success("Publication envoyée !", {
         action: data.permalink ? { label: "Voir", onClick: () => window.open(data.permalink, "_blank") } : undefined,
       });
+      setPreviewPost(null);
       refresh();
     } catch {
       toast.error("Erreur réseau");
@@ -306,11 +318,11 @@ export function ToolboxModal({ open, onClose }: ToolboxModalProps) {
                         <Button
                           size="sm"
                           className="h-7 text-xs"
-                          onClick={() => publishMetaNow(p)}
+                          onClick={() => openPreview(p)}
                           data-testid={`publish-meta-${p.id}`}
                         >
-                          <Send className="w-3 h-3 mr-1" />
-                          Publier maintenant sur {p.platform === "facebook" ? "Facebook" : "Instagram"}
+                          <Eye className="w-3 h-3 mr-1" />
+                          Aperçu et publier sur {p.platform === "facebook" ? "Facebook" : "Instagram"}
                         </Button>
                       </div>
                     )}
@@ -320,6 +332,12 @@ export function ToolboxModal({ open, onClose }: ToolboxModalProps) {
           )}
         </div>
       </DialogContent>
+      <MetaPreviewDialog
+        open={previewPost !== null}
+        post={previewPost}
+        onClose={() => setPreviewPost(null)}
+        onConfirm={confirmPublish}
+      />
     </Dialog>
   );
 }

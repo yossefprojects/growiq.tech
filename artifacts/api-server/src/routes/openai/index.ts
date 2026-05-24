@@ -12,7 +12,7 @@ import {
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
-import { publishToMeta, isMetaConfigured } from "../../lib/meta";
+import { publishToMeta, isMetaConfigured, getMetaProfile } from "../../lib/meta";
 import {
   GetOpenaiConversationParams,
   DeleteOpenaiConversationParams,
@@ -1021,6 +1021,20 @@ router.get("/meta/status", (_req, res) => {
     facebook: isMetaConfigured("facebook"),
     instagram: isMetaConfigured("instagram"),
   });
+});
+
+router.get("/meta/profile", async (req, res): Promise<void> => {
+  const platform = req.query["platform"];
+  if (platform !== "facebook" && platform !== "instagram") {
+    res.status(400).json({ error: "platform doit être 'facebook' ou 'instagram'" });
+    return;
+  }
+  const profile = await getMetaProfile(platform);
+  if (!profile) {
+    res.status(412).json({ error: "Profil indisponible (token ou ID manquant)" });
+    return;
+  }
+  res.json(profile);
 });
 
 router.post("/meta/publish", async (req, res): Promise<void> => {

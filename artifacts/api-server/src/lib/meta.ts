@@ -20,6 +20,41 @@ export function isMetaConfigured(platform: "facebook" | "instagram"): boolean {
   return platform === "facebook" ? !!fbPageId : !!igUserId;
 }
 
+/**
+ * Fetch the public profile (name + picture URL) for the configured FB Page or IG account.
+ * Used to render a realistic preview before publishing.
+ */
+export async function getMetaProfile(
+  platform: "facebook" | "instagram",
+): Promise<{ name: string; pictureUrl: string } | null> {
+  const { token, fbPageId, igUserId } = getConfig();
+  if (!token) return null;
+
+  if (platform === "facebook") {
+    if (!fbPageId) return null;
+    const r = await graphFetch(
+      `/${fbPageId}?fields=name,picture.type(large)`,
+      "GET",
+      token,
+    );
+    if (!r.ok) return null;
+    const name = typeof r.data["name"] === "string" ? r.data["name"] : "Ma Page";
+    const pic = r.data["picture"] as { data?: { url?: string } } | undefined;
+    return { name, pictureUrl: pic?.data?.url ?? "" };
+  }
+
+  if (!igUserId) return null;
+  const r = await graphFetch(
+    `/${igUserId}?fields=username,profile_picture_url`,
+    "GET",
+    token,
+  );
+  if (!r.ok) return null;
+  const name = typeof r.data["username"] === "string" ? `@${r.data["username"]}` : "Mon compte";
+  const pic = typeof r.data["profile_picture_url"] === "string" ? r.data["profile_picture_url"] : "";
+  return { name, pictureUrl: pic };
+}
+
 async function graphFetch(
   path: string,
   method: "GET" | "POST",
