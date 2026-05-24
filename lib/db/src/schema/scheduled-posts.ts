@@ -13,6 +13,7 @@ export type ScheduledPostMeta = {
   metaPermalink?: string;
   notificationEmail?: string;
   campaignName?: string;
+  campaignId?: number;
   originalScheduledFor?: string;
 };
 

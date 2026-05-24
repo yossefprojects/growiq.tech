@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc, desc, and, lte } from "drizzle-orm";
+import { eq, asc, desc, and, or, lte, inArray } from "drizzle-orm";
 import {
   db,
   conversations,
@@ -1303,10 +1303,130 @@ async function processScheduledPosts(): Promise<void> {
         await handlePostFailure(post, (e as Error).message ?? "erreur inconnue", false);
       }
     }
+
+    // 3. After processing, check if any touched campaigns are now fully done
+    // (every post either sent or failed — none still pending/processing) and
+    // fire the final recap email exactly once per campaign.
+    const touchedCampaignIds = new Set<number>();
+    for (const p of due) {
+      const cid = p.meta?.campaignId;
+      if (typeof cid === "number") touchedCampaignIds.add(cid);
+    }
+    for (const cid of touchedCampaignIds) {
+      await maybeSendCampaignRecap(cid).catch((err) => {
+        logger.warn({ err, cid }, "Campaign recap check failed");
+      });
+    }
   } catch (_) {
     // Silent — will retry next tick
   } finally {
     schedulerRunning = false;
+  }
+}
+
+/**
+ * Fires the final "campaign published" email exactly once, when every post of
+ * the campaign has reached a terminal state (sent or failed). Idempotent via
+ * the system_events table — safe to call from every scheduler tick.
+ */
+async function maybeSendCampaignRecap(campaignId: number): Promise<void> {
+  // Drizzle's jsonb operators are awkward; given a campaign has < ~20 posts,
+  // we fetch all FB/IG posts and filter by campaignId in memory.
+  const posts = await db
+    .select()
+    .from(scheduledPosts)
+    .where(inArray(scheduledPosts.platform, ["facebook", "instagram"]));
+  const ours = posts.filter((p) => p.meta?.campaignId === campaignId);
+  if (ours.length === 0) return;
+  // If anything is still in-flight, wait for the next tick.
+  const stillInFlight = ours.some(
+    (p) => p.status === "pending" || p.status === "processing",
+  );
+  if (stillInFlight) return;
+
+  // Claim the recap slot atomically — only one process will pass through.
+  const claimed = await claimSystemEvent(`agency-campaign-recap-${campaignId}`);
+  if (!claimed) return;
+
+  const [campaign] = await db
+    .select()
+    .from(agencyCampaigns)
+    .where(eq(agencyCampaigns.id, campaignId));
+  if (!campaign || !campaign.notificationEmail) return;
+
+  const sent = ours.filter((p) => p.status === "sent");
+  const failed = ours.filter((p) => p.status === "failed");
+
+  const sentLines = sent
+    .map((p) => {
+      const channel = p.platform === "facebook" ? "Facebook" : "Instagram";
+      const when = (p.sentAt ?? p.scheduledFor).toLocaleString("fr-FR");
+      const link = p.meta?.metaPermalink ? `\n  ↳ Voir : ${p.meta.metaPermalink}` : "";
+      return `• ${when} — ${channel}${link}`;
+    })
+    .join("\n");
+
+  const failedLines = failed
+    .map((p) => {
+      const channel = p.platform === "facebook" ? "Facebook" : "Instagram";
+      const reason = p.errorMessage ? ` — ${p.errorMessage}` : "";
+      return `• ${channel}${reason}`;
+    })
+    .join("\n");
+
+  const subject =
+    failed.length === 0
+      ? `✅ Ta campagne "${campaign.name}" est entièrement publiée`
+      : `Ta campagne "${campaign.name}" est terminée (${sent.length}/${ours.length} publiés)`;
+
+  const body = `Bonjour,
+
+Ta campagne « ${campaign.name} » vient de finir de tourner. Voici le bilan.
+
+${sent.length > 0 ? `Posts publiés (${sent.length}) :\n${sentLines}\n` : ""}${failed.length > 0 ? `\nPosts qui n'ont pas pu partir (${failed.length}) :\n${failedLines}\n\nPour ceux-là, jette un œil à l'application pour relancer à la main si tu veux.\n` : ""}
+Tu peux cliquer sur les liens ci-dessus pour aller voir tes posts directement sur Facebook ou Instagram.
+
+— GrowIQ`;
+
+  const result = await sendEmail({
+    to: [campaign.notificationEmail],
+    subject,
+    body,
+  });
+  if (result.success) {
+    logger.info(
+      { campaignId, sent: sent.length, failed: failed.length },
+      "Campaign recap email sent",
+    );
+  } else {
+    // Email send failed — release the claim so a later tick can retry.
+    // The tiny race window where two ticks both pass the claim is acceptable
+    // (worst case: one duplicate email per provider outage).
+    await db
+      .delete(systemEvents)
+      .where(eq(systemEvents.eventKey, `agency-campaign-recap-${campaignId}`));
+    logger.warn(
+      { err: result.error, campaignId },
+      "Campaign recap email failed — claim released for retry",
+    );
+  }
+}
+
+/**
+ * Safety net: scans all launched campaigns and triggers recap for any whose
+ * posts are all in terminal state but were missed by the tick-level check
+ * (e.g. server was down when the last post completed, or campaign was
+ * manually fixed in the DB). Runs once every few minutes.
+ */
+async function sweepCampaignRecaps(): Promise<void> {
+  const launched = await db
+    .select({ id: agencyCampaigns.id })
+    .from(agencyCampaigns)
+    .where(eq(agencyCampaigns.status, "launched"));
+  for (const c of launched) {
+    await maybeSendCampaignRecap(c.id).catch((err) => {
+      logger.warn({ err, cid: c.id }, "Recap sweep failed for campaign");
+    });
   }
 }
 
@@ -1405,9 +1525,14 @@ Comment renouveler (5 minutes) :
 }
 
 if (process.env.NODE_ENV !== "test") {
+  let tickCount = 0;
   setInterval(() => {
+    tickCount += 1;
     void processScheduledPosts();
     void checkMetaTokenHealth();
+    // Every ~5 minutes, run the safety-net recap sweep for any campaigns
+    // whose recap was missed by the tick-level trigger.
+    if (tickCount % 5 === 0) void sweepCampaignRecaps();
   }, 60_000);
 }
 
@@ -1683,7 +1808,10 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
     createdIds = await db.transaction(async (tx) => {
       const ids: number[] = [];
       for (const post of finalPlan.posts) {
-        const postMeta: Record<string, unknown> = { campaignName: campaign.name };
+        const postMeta: Record<string, unknown> = {
+          campaignName: campaign.name,
+          campaignId: campaign.id,
+        };
         if (post.imageUrl) postMeta.imageUrl = post.imageUrl;
         if (notificationEmail) postMeta.notificationEmail = notificationEmail;
         const [sp] = await tx
