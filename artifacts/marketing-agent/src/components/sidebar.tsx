@@ -45,12 +45,12 @@ export function Sidebar({
   const [toolboxOpen, setToolboxOpen] = useState(false);
   return (
     <div className="w-64 border-r bg-card flex flex-col h-full flex-shrink-0">
-      <div className="p-3 border-b flex items-center justify-center">
-        <Link href="/" className="flex items-center gap-2 group" data-testid="link-home-sidebar">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:scale-105 transition-transform">
+      <div className="px-4 py-4 border-b bg-gradient-to-br from-violet-50 to-blue-50 flex items-center justify-center">
+        <Link href="/" className="flex items-center gap-2.5 group" data-testid="link-home-sidebar">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/40 group-hover:scale-105 transition-transform">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">GrowIQ</span>
+          <span className="font-extrabold text-xl tracking-tight text-violet-700">GrowIQ</span>
         </Link>
       </div>
       <div className="p-3 border-b flex flex-col gap-2">
