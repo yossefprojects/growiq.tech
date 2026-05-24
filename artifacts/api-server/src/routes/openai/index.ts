@@ -13,6 +13,7 @@ import {
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
 import { publishToMeta, isMetaConfigured, getMetaProfile } from "../../lib/meta";
+import { uploadPublicBuffer } from "../../lib/objectStorage";
 import {
   GetOpenaiConversationParams,
   DeleteOpenaiConversationParams,
@@ -979,7 +980,7 @@ router.post("/scheduled-posts", async (req, res): Promise<void> => {
     content: string;
     platform: string;
     scheduledFor: string;
-    meta: { recipients?: string[]; subject?: string; notes?: string };
+    meta: { recipients?: string[]; subject?: string; notes?: string; imageUrl?: string };
     conversationId: number;
   }>;
   if (!title || !content || !platform || !scheduledFor) {
@@ -991,6 +992,26 @@ router.post("/scheduled-posts", async (req, res): Promise<void> => {
     res.status(400).json({ error: "scheduledFor invalide" });
     return;
   }
+
+  // Auto-generate a visual for Facebook/Instagram posts that don't already have one.
+  // Non-blocking conceptually but awaited so the response carries the final imageUrl.
+  // If generation fails, we still create the post without an image.
+  const finalMeta: Record<string, unknown> = { ...(meta ?? {}) };
+  const isSocial = platform === "facebook" || platform === "instagram";
+  if (isSocial && !finalMeta["imageUrl"]) {
+    try {
+      const { generateImageBuffer } = await import("@workspace/integrations-openai-ai-server/image");
+      const promptSeed = content.slice(0, 400);
+      const visualPrompt = `Visuel pour réseaux sociaux, style photo professionnelle, ambiance moderne et engageante. Sujet : ${promptSeed}. Pas de texte sur l'image.`;
+      const buffer = await generateImageBuffer(visualPrompt, "1024x1024");
+      const uploaded = await uploadPublicBuffer(buffer, { ext: "png", contentType: "image/png" });
+      finalMeta["imageUrl"] = uploaded.publicUrl;
+      req.log.info({ url: uploaded.publicUrl }, "Auto-generated social image");
+    } catch (err) {
+      req.log.warn({ err }, "Auto image generation failed, scheduling without image");
+    }
+  }
+
   const [created] = await db
     .insert(scheduledPosts)
     .values({
@@ -998,7 +1019,7 @@ router.post("/scheduled-posts", async (req, res): Promise<void> => {
       content,
       platform,
       scheduledFor: date,
-      meta: meta ?? {},
+      meta: finalMeta,
       conversationId: conversationId ?? null,
       status: "pending",
     })
