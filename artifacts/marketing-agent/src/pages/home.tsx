@@ -90,12 +90,12 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-secondary/20 text-foreground">
       <header className="sticky top-0 z-30 backdrop-blur-md bg-background/70 border-b border-border/60">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center shadow-md">
-              <Sparkles className="w-4 h-4 text-white" />
+          <Link href="/" className="flex items-center gap-2 group" data-testid="link-home">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:scale-105 transition-transform">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-base">Marketing Agent IA</span>
-          </div>
+            <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">GrowIQ</span>
+          </Link>
           <Link
             href="/app"
             className="flex items-center gap-1.5 bg-foreground text-background hover:opacity-90 rounded-md px-4 py-2 text-sm font-semibold transition-opacity"
@@ -286,7 +286,7 @@ export default function HomePage() {
             <div className="w-6 h-6 rounded-md bg-gradient-to-br from-fuchsia-500 to-purple-600 flex items-center justify-center">
               <Sparkles className="w-3 h-3 text-white" />
             </div>
-            <span>Marketing Agent IA — {new Date().getFullYear()}</span>
+            <span>GrowIQ — {new Date().getFullYear()}</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/app" className="hover:text-foreground transition-colors">

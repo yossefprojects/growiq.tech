@@ -220,7 +220,7 @@ export default function ChatPage() {
               <MessageSquarePlus className="w-8 h-8" />
             </div>
             <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">
-              Marketing Agent IA
+              GrowIQ
             </h2>
             <p className="text-muted-foreground max-w-md mb-8">
               Votre stratège marketing senior. Posez une question ou laissez l'agent créer une campagne complète pour vous.

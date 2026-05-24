@@ -73,7 +73,7 @@ function MessageItem({ message, isStreaming }: { message: Message; isStreaming?:
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
         <div className="font-semibold text-sm text-foreground flex items-center gap-2">
-          <span>{isUser ? "You" : "Marketing Agent IA"}</span>
+          <span>{isUser ? "Toi" : "GrowIQ"}</span>
           {isStreaming && <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />}
           {canCollapse && (
             <button
