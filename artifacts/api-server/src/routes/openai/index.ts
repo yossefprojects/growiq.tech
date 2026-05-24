@@ -1506,36 +1506,45 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
     return;
   }
 
+  let emailStatus: { sent: boolean; error?: string; provider?: string } = { sent: false };
   if (notificationEmail) {
     try {
       const lines = finalPlan.posts
         .map(
           (p) =>
-            `• ${new Date(p.scheduledFor).toLocaleString("fr-FR")} — ${p.channel.toUpperCase()} : ${p.copy.slice(0, 120)}…`
+            `• ${new Date(p.scheduledFor).toLocaleString("fr-FR")} — ${p.channel === "facebook" ? "Facebook" : "Instagram"} : ${p.copy.slice(0, 120)}…`
         )
         .join("\n");
-      await sendEmail({
+      const result = await sendEmail({
         to: [notificationEmail],
-        subject: `Votre campagne "${campaign.name}" est programmée`,
+        subject: `Ta campagne "${campaign.name}" est lancée 🚀`,
         body: `Bonjour,
 
-Votre campagne marketing automatique vient d'être lancée. Voici le calendrier des ${finalPlan.posts.length} publications :
+Ta campagne vient d'être lancée. Voici ce qui va partir tout seul dans les prochains jours :
 
 ${lines}
 
-Audience ciblée : ${finalPlan.audienceSummary}
+Pour qui on travaille : ${finalPlan.audienceSummary}
 
-Résultats estimés :
-- Impressions : ${finalPlan.estimatedResults.impressions}
-- Clics : ${finalPlan.estimatedResults.clicks}
-- Conversions : ${finalPlan.estimatedResults.conversions}
+Ce que ça pourrait donner :
+- ${finalPlan.estimatedResults.impressions}
+- ${finalPlan.estimatedResults.clicks}
+- ${finalPlan.estimatedResults.conversions}
 
-Vous pouvez suivre l'évolution dans votre tableau de bord.
+Tu peux revenir voir tes campagnes à tout moment dans l'application.
 
-— Agent Marketing IA`,
+— Ton assistant marketing`,
       });
+      emailStatus = { sent: result.success, error: result.error, provider: result.provider };
+      if (result.success) {
+        req.log.info({ provider: result.provider, from: result.from, to: notificationEmail }, "Recap email sent");
+      } else {
+        req.log.warn({ provider: result.provider, error: result.error }, "Recap email failed");
+      }
     } catch (err) {
-      req.log.warn({ err }, "Email confirmation failed");
+      const msg = err instanceof Error ? err.message : String(err);
+      emailStatus = { sent: false, error: msg };
+      req.log.warn({ err }, "Recap email threw");
     }
   }
 
@@ -1543,7 +1552,7 @@ Vous pouvez suivre l'évolution dans votre tableau de bord.
     .select()
     .from(agencyCampaigns)
     .where(eq(agencyCampaigns.id, id));
-  res.json({ campaign: refreshed, scheduledPostIds: createdIds });
+  res.json({ campaign: refreshed, scheduledPostIds: createdIds, emailStatus });
 });
 
 router.get("/agency", async (_req, res) => {

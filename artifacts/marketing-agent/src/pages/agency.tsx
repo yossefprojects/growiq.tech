@@ -95,6 +95,7 @@ export default function AgencyPage() {
   const [notificationEmail, setNotificationEmail] = useState("");
   const [explainMode, setExplainMode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{ sent: boolean; error?: string } | null>(null);
 
   useEffect(() => {
     void loadCampaigns();
@@ -166,6 +167,7 @@ export default function AgencyPage() {
       }
       const data = await r.json();
       setCampaign(data.campaign);
+      setEmailStatus(data.emailStatus ?? null);
       await loadCampaigns();
       setStep("success");
       toast.success("C'est parti ! 🚀");
@@ -257,7 +259,7 @@ export default function AgencyPage() {
             loading={loading}
           />
         )}
-        {step === "success" && campaign && <SuccessScreen campaign={campaign} onNew={resetForNew} onDashboard={() => setStep("dashboard")} />}
+        {step === "success" && campaign && <SuccessScreen campaign={campaign} emailStatus={emailStatus} onNew={resetForNew} onDashboard={() => setStep("dashboard")} />}
         {step === "dashboard" && <Dashboard campaigns={campaigns} onView={(c) => { setCampaign(c); setStep("preview"); }} onDelete={deleteCampaign} onNew={resetForNew} />}
       </main>
     </div>
@@ -640,7 +642,17 @@ function PostCard({
   );
 }
 
-function SuccessScreen({ campaign, onNew, onDashboard }: { campaign: AgencyCampaign; onNew: () => void; onDashboard: () => void }) {
+function SuccessScreen({
+  campaign,
+  emailStatus,
+  onNew,
+  onDashboard,
+}: {
+  campaign: AgencyCampaign;
+  emailStatus: { sent: boolean; error?: string } | null;
+  onNew: () => void;
+  onDashboard: () => void;
+}) {
   return (
     <div className="text-center py-16 space-y-8">
       <div className="relative inline-block">
@@ -653,8 +665,16 @@ function SuccessScreen({ campaign, onNew, onDashboard }: { campaign: AgencyCampa
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
           J'ai programmé {campaign.plan.posts.length} messages. Ils partiront tout seuls aux dates prévues. Tu n'as plus rien à faire 😊
         </p>
-        {campaign.notificationEmail && (
-          <p className="text-sm text-muted-foreground">📧 Je t'ai envoyé un récap par email.</p>
+        {campaign.notificationEmail && emailStatus?.sent && (
+          <p className="text-sm text-green-700">📧 Récap envoyé à {campaign.notificationEmail} (pense à vérifier tes spams).</p>
+        )}
+        {campaign.notificationEmail && emailStatus && !emailStatus.sent && (
+          <div className="max-w-md mx-auto bg-amber-50 border border-amber-200 rounded-lg p-3 text-left text-sm text-amber-900">
+            <p className="font-semibold">📧 L'email récap n'est pas parti.</p>
+            <p className="text-xs mt-1">
+              Ta campagne, elle, est bien lancée ! Côté email, ça vient probablement de l'adresse expéditeur configurée. Détail technique : {emailStatus.error?.slice(0, 200) || "raison inconnue"}.
+            </p>
+          </div>
         )}
       </div>
       <div className="flex justify-center gap-3 pt-2 flex-wrap">
