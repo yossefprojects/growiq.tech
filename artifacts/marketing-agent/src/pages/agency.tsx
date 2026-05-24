@@ -230,7 +230,7 @@ export default function AgencyPage() {
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Retour</span>
           </Link>
-          <Link href="/app" className="flex items-center gap-2.5 group" data-testid="link-home">
+          <Link href="/" className="flex items-center gap-2.5 group" data-testid="link-home">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:scale-105 transition-transform">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
