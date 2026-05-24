@@ -5,3 +5,4 @@ export * from "./landing-pages";
 export * from "./leads";
 export * from "./scheduled-posts";
 export * from "./agency-campaigns";
+export * from "./system-events";

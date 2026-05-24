@@ -14,6 +14,46 @@ function getConfig(): { token?: string; fbPageId?: string; igUserId?: string } {
   };
 }
 
+/**
+ * Check the validity & remaining lifetime of the configured META_ACCESS_TOKEN.
+ * Uses Meta's `/debug_token` endpoint (self-debug: token as both input and access).
+ * Returns null if the token isn't configured or the endpoint can't be reached.
+ */
+export async function getTokenStatus(): Promise<
+  | { valid: true; expiresAt: Date | null; daysRemaining: number | null }
+  | { valid: false; error: string }
+  | null
+> {
+  const { token } = getConfig();
+  if (!token) return null;
+  const r = await graphFetch(
+    `/debug_token?input_token=${encodeURIComponent(token)}`,
+    "GET",
+    token,
+  );
+  // Network / transient errors → return null so we don't fire false "expired" alerts.
+  // Only an explicit `is_valid=false` from Meta should be treated as a hard failure.
+  if (!r.ok) {
+    logger.warn({ err: r.error }, "Meta debug_token call failed (transient)");
+    return null;
+  }
+  const data = (r.data["data"] ?? {}) as {
+    is_valid?: boolean;
+    expires_at?: number;
+    error?: { message?: string };
+  };
+  if (data.is_valid === false) {
+    return { valid: false, error: data.error?.message ?? "Token invalide" };
+  }
+  // expires_at = unix timestamp (seconds). 0 means never expires (rare for user/page tokens).
+  if (!data.expires_at || data.expires_at === 0) {
+    return { valid: true, expiresAt: null, daysRemaining: null };
+  }
+  const expiresAt = new Date(data.expires_at * 1000);
+  const daysRemaining = Math.floor((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  return { valid: true, expiresAt, daysRemaining };
+}
+
 export function isMetaConfigured(platform: "facebook" | "instagram"): boolean {
   const { token, fbPageId, igUserId } = getConfig();
   if (!token) return false;

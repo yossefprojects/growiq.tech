@@ -11,6 +11,9 @@ export type ScheduledPostMeta = {
   imageUrl?: string;
   metaPostId?: string;
   metaPermalink?: string;
+  notificationEmail?: string;
+  campaignName?: string;
+  originalScheduledFor?: string;
 };
 
 export const scheduledPosts = pgTable("scheduled_posts", {
@@ -22,6 +25,8 @@ export const scheduledPosts = pgTable("scheduled_posts", {
   status: text("status").notNull().default("pending"),
   sentAt: timestamp("sent_at", { withTimezone: true }),
   errorMessage: text("error_message"),
+  attempts: integer("attempts").notNull().default(0),
+  processingStartedAt: timestamp("processing_started_at", { withTimezone: true }),
   meta: jsonb("meta").$type<ScheduledPostMeta>().notNull().default({} as ScheduledPostMeta),
   conversationId: integer("conversation_id").references(() => conversations.id, {
     onDelete: "set null",

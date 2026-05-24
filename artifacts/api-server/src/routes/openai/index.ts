@@ -9,6 +9,7 @@ import {
   leads,
   scheduledPosts,
   agencyCampaigns,
+  systemEvents,
   type CampaignBusinessContext,
   type AgencyBrief,
   type AgencyPlan,
@@ -17,8 +18,9 @@ import {
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
-import { publishToMeta, isMetaConfigured, getMetaProfile } from "../../lib/meta";
+import { publishToMeta, isMetaConfigured, getMetaProfile, getTokenStatus } from "../../lib/meta";
 import { uploadPublicBuffer } from "../../lib/objectStorage";
+import { logger } from "../../lib/logger";
 import {
   GetOpenaiConversationParams,
   DeleteOpenaiConversationParams,
@@ -1108,16 +1110,135 @@ router.post("/meta/publish", async (req, res): Promise<void> => {
 });
 
 // ── Scheduler worker ────────────────────────────────────────────────────────
+// Total tries before we give up and email the user. With BACKOFF_MINUTES below
+// we try at T0, T+5min, T+20min, T+65min — then mark as failed.
+const MAX_ATTEMPTS = 4;
+// Backoff between retries — exponential: 5 min, 15 min, 45 min.
+const BACKOFF_MINUTES = [5, 15, 45];
+// If a post sits in "processing" longer than this, assume the worker died
+// mid-publish (server restart / crash) and reclaim it back to "pending".
+const PROCESSING_LEASE_MS = 5 * 60_000;
+// When the Meta token / page id isn't configured, we don't fail the post —
+// we park it for this long and retry, so it auto-resumes once the secret is set.
+const CONFIG_MISSING_BACKOFF_MINUTES = 30;
+
+async function notifyPostFailure(
+  post: typeof scheduledPosts.$inferSelect,
+  errorMsg: string,
+): Promise<void> {
+  const to = post.meta?.notificationEmail;
+  if (!to) return;
+  const channel =
+    post.platform === "facebook" ? "Facebook" : post.platform === "instagram" ? "Instagram" : post.platform;
+  const campaign = post.meta?.campaignName ? ` (campagne « ${post.meta.campaignName} »)` : "";
+  await sendEmail({
+    to: [to],
+    subject: `⚠️ Un post n'a pas pu être publié sur ${channel}`,
+    body: `Bonjour,
+
+Ton assistant marketing a essayé ${MAX_ATTEMPTS} fois de publier un post sur ${channel}${campaign}, sans succès.
+
+Détails du post :
+"${post.content.slice(0, 300)}${post.content.length > 300 ? "…" : ""}"
+
+Raison de l'échec :
+${errorMsg}
+
+Que faire ?
+- Si l'erreur parle de "token" ou "session", ton code d'accès Meta a expiré : il faut le renouveler (5 minutes de manip).
+- Sinon, jette un œil à l'application pour relancer la publication à la main.
+
+— GrowIQ`,
+  }).catch(() => {
+    // Best effort — never let an email failure block the scheduler.
+  });
+}
+
+async function handlePostFailure(
+  post: typeof scheduledPosts.$inferSelect,
+  errorMsg: string,
+  configMissing: boolean,
+): Promise<void> {
+  const trimmedErr = errorMsg.slice(0, 200);
+  const nextAttempt = (post.attempts ?? 0) + 1;
+  // Preserve the originally-planned send time the first time we retry, so we
+  // don't lose the user's intent when scheduledFor gets bumped by backoff.
+  const originalScheduledFor =
+    post.meta?.originalScheduledFor ?? post.scheduledFor.toISOString();
+
+  // Config-missing → park the post and keep retrying with a long backoff so it
+  // auto-resumes once the operator fixes the secret. Don't count this against
+  // MAX_ATTEMPTS (a missing token is an operator problem, not a flaky API).
+  if (configMissing) {
+    const nextTry = new Date(Date.now() + CONFIG_MISSING_BACKOFF_MINUTES * 60_000);
+    await db
+      .update(scheduledPosts)
+      .set({
+        status: "pending",
+        scheduledFor: nextTry,
+        processingStartedAt: null,
+        errorMessage: trimmedErr,
+        meta: { ...(post.meta ?? {}), originalScheduledFor },
+      })
+      .where(eq(scheduledPosts.id, post.id));
+    return;
+  }
+
+  if (nextAttempt >= MAX_ATTEMPTS) {
+    await db
+      .update(scheduledPosts)
+      .set({
+        status: "failed",
+        attempts: nextAttempt,
+        processingStartedAt: null,
+        errorMessage: trimmedErr,
+        meta: { ...(post.meta ?? {}), originalScheduledFor },
+      })
+      .where(eq(scheduledPosts.id, post.id));
+    await notifyPostFailure({ ...post, attempts: nextAttempt }, trimmedErr);
+    return;
+  }
+
+  // Reschedule for retry with exponential backoff (5, 15, 45 min).
+  const minutes = BACKOFF_MINUTES[nextAttempt - 1] ?? 60;
+  const nextTry = new Date(Date.now() + minutes * 60_000);
+  await db
+    .update(scheduledPosts)
+    .set({
+      status: "pending",
+      attempts: nextAttempt,
+      scheduledFor: nextTry,
+      processingStartedAt: null,
+      errorMessage: trimmedErr,
+      meta: { ...(post.meta ?? {}), originalScheduledFor },
+    })
+    .where(eq(scheduledPosts.id, post.id));
+}
+
 let schedulerRunning = false;
 async function processScheduledPosts(): Promise<void> {
   if (schedulerRunning) return; // prevent overlap within the same process
   schedulerRunning = true;
   try {
-    // Atomic claim: pending → processing in a single statement to avoid
+    // 1. Crash recovery: any post that has been "processing" for longer than the
+    // lease window is assumed orphaned (server died mid-publish) and gets put
+    // back into the queue. We don't bump attempts — we just retry once.
+    const staleCutoff = new Date(Date.now() - PROCESSING_LEASE_MS);
+    await db
+      .update(scheduledPosts)
+      .set({ status: "pending", processingStartedAt: null })
+      .where(
+        and(
+          eq(scheduledPosts.status, "processing"),
+          lte(scheduledPosts.processingStartedAt, staleCutoff),
+        ),
+      );
+
+    // 2. Atomic claim: pending → processing in a single statement to avoid
     // duplicate sends when multiple instances or overlapping ticks run.
     const due = await db
       .update(scheduledPosts)
-      .set({ status: "processing" })
+      .set({ status: "processing", processingStartedAt: new Date() })
       .where(and(eq(scheduledPosts.status, "pending"), lte(scheduledPosts.scheduledFor, new Date())))
       .returning();
 
@@ -1133,16 +1254,19 @@ async function processScheduledPosts(): Promise<void> {
           if (result.success) {
             await db
               .update(scheduledPosts)
-              .set({ status: "sent", sentAt: new Date() })
-              .where(eq(scheduledPosts.id, post.id));
-          } else {
-            await db
-              .update(scheduledPosts)
               .set({
-                status: result.provider === "none" ? "ready" : "failed",
-                errorMessage: result.error?.slice(0, 200) ?? "Aucun fournisseur email",
+                status: "sent",
+                sentAt: new Date(),
+                attempts: (post.attempts ?? 0) + 1,
+                processingStartedAt: null,
               })
               .where(eq(scheduledPosts.id, post.id));
+          } else {
+            await handlePostFailure(
+              post,
+              result.error ?? "Aucun fournisseur email",
+              result.provider === "none",
+            );
           }
         } else if (post.platform === "facebook" || post.platform === "instagram") {
           const result = await publishToMeta({
@@ -1156,6 +1280,8 @@ async function processScheduledPosts(): Promise<void> {
               .set({
                 status: "sent",
                 sentAt: new Date(),
+                attempts: (post.attempts ?? 0) + 1,
+                processingStartedAt: null,
                 meta: {
                   ...(post.meta ?? {}),
                   metaPostId: result.postId,
@@ -1164,26 +1290,17 @@ async function processScheduledPosts(): Promise<void> {
               })
               .where(eq(scheduledPosts.id, post.id));
           } else {
-            await db
-              .update(scheduledPosts)
-              .set({
-                status: result.configMissing ? "ready" : "failed",
-                errorMessage: result.error.slice(0, 200),
-              })
-              .where(eq(scheduledPosts.id, post.id));
+            await handlePostFailure(post, result.error, !!result.configMissing);
           }
         } else {
           // Other platforms (linkedin, twitter, tiktok) → mark as ready for manual 1-click publish
           await db
             .update(scheduledPosts)
-            .set({ status: "ready" })
+            .set({ status: "ready", processingStartedAt: null })
             .where(eq(scheduledPosts.id, post.id));
         }
       } catch (e: unknown) {
-        await db
-          .update(scheduledPosts)
-          .set({ status: "failed", errorMessage: (e as Error).message?.slice(0, 200) ?? "erreur inconnue" })
-          .where(eq(scheduledPosts.id, post.id));
+        await handlePostFailure(post, (e as Error).message ?? "erreur inconnue", false);
       }
     }
   } catch (_) {
@@ -1193,9 +1310,104 @@ async function processScheduledPosts(): Promise<void> {
   }
 }
 
+// ── Meta token expiry monitor ────────────────────────────────────────────────
+// Checks once a day. Emails a reminder when the Meta access token has fewer
+// than REMINDER_THRESHOLD_DAYS left, or when it has already expired.
+const REMINDER_THRESHOLD_DAYS = 10;
+
+/**
+ * Durable once-per-key marker. Returns true if this is the first time we've
+ * recorded the given key — false if it was already recorded. We use a PK
+ * insert with onConflictDoNothing so concurrent workers / restarts can't
+ * double-send.
+ */
+async function claimSystemEvent(eventKey: string): Promise<boolean> {
+  const inserted = await db
+    .insert(systemEvents)
+    .values({ eventKey })
+    .onConflictDoNothing()
+    .returning({ eventKey: systemEvents.eventKey });
+  return inserted.length > 0;
+}
+
+async function getReminderRecipient(): Promise<string | null> {
+  // Use the most-recently-launched campaign's notificationEmail as the contact.
+  const [latest] = await db
+    .select({ email: agencyCampaigns.notificationEmail })
+    .from(agencyCampaigns)
+    .where(eq(agencyCampaigns.status, "launched"))
+    .orderBy(desc(agencyCampaigns.launchedAt))
+    .limit(1);
+  return latest?.email ?? null;
+}
+
+async function checkMetaTokenHealth(): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  // Durable daily gate — survives restarts so we don't spam the user.
+  const ranToday = !(await claimSystemEvent(`meta-token-check-${today}`));
+  if (ranToday) return;
+
+  const status = await getTokenStatus();
+  if (!status) return; // Token not configured / transient error → nothing to do.
+
+  let subject: string | null = null;
+  let body: string | null = null;
+  if (!status.valid) {
+    subject = "🚨 Ton code d'accès Meta a expiré";
+    body = `Bonjour,
+
+Ton code d'accès Facebook / Instagram a expiré. Les prochains posts programmés ne pourront pas être publiés tant que tu ne l'auras pas renouvelé.
+
+Comment renouveler (5 minutes) :
+1. Va sur https://developers.facebook.com/tools/explorer/
+2. Connecte-toi, sélectionne ton app, demande un nouveau "Page Access Token" avec les permissions pages_manage_posts, pages_read_engagement, instagram_basic, instagram_content_publish.
+3. Copie-le et colle-le dans les secrets de ton app GrowIQ (clé : META_ACCESS_TOKEN).
+
+Raison technique : ${status.error}
+
+— GrowIQ`;
+  } else if (status.daysRemaining !== null && status.daysRemaining <= REMINDER_THRESHOLD_DAYS) {
+    subject = `⏰ Ton code d'accès Meta expire dans ${status.daysRemaining} jour${status.daysRemaining > 1 ? "s" : ""}`;
+    body = `Bonjour,
+
+Petit rappel amical : ton code d'accès Facebook / Instagram expire dans ${status.daysRemaining} jour${status.daysRemaining > 1 ? "s" : ""} (le ${status.expiresAt?.toLocaleDateString("fr-FR") ?? "?"}).
+
+Sans renouvellement, GrowIQ ne pourra plus publier tes posts automatiquement après cette date.
+
+Comment renouveler (5 minutes) :
+1. Va sur https://developers.facebook.com/tools/explorer/
+2. Connecte-toi, sélectionne ton app, demande un nouveau "Page Access Token" avec les permissions pages_manage_posts, pages_read_engagement, instagram_basic, instagram_content_publish.
+3. Copie-le et colle-le dans les secrets de ton app GrowIQ (clé : META_ACCESS_TOKEN).
+
+— GrowIQ`;
+  }
+
+  if (subject && body) {
+    const to = await getReminderRecipient();
+    if (!to) {
+      logger.warn(
+        { daysRemaining: status.valid ? status.daysRemaining : null },
+        "Meta token reminder needed but no notification email on file",
+      );
+      return;
+    }
+    // Durable per-day-per-reason marker so a restart can't trigger a duplicate.
+    const reasonKey = !status.valid ? "expired" : `expiring-${status.daysRemaining}`;
+    const firstTime = await claimSystemEvent(`meta-token-reminder-${today}-${reasonKey}`);
+    if (!firstTime) return;
+    const result = await sendEmail({ to: [to], subject, body });
+    if (result.success) {
+      logger.info({ to, daysRemaining: status.valid ? status.daysRemaining : null }, "Meta token reminder sent");
+    } else {
+      logger.warn({ err: result.error }, "Failed to send Meta token reminder");
+    }
+  }
+}
+
 if (process.env.NODE_ENV !== "test") {
   setInterval(() => {
     void processScheduledPosts();
+    void checkMetaTokenHealth();
   }, 60_000);
 }
 
@@ -1471,6 +1683,9 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
     createdIds = await db.transaction(async (tx) => {
       const ids: number[] = [];
       for (const post of finalPlan.posts) {
+        const postMeta: Record<string, unknown> = { campaignName: campaign.name };
+        if (post.imageUrl) postMeta.imageUrl = post.imageUrl;
+        if (notificationEmail) postMeta.notificationEmail = notificationEmail;
         const [sp] = await tx
           .insert(scheduledPosts)
           .values({
@@ -1478,7 +1693,7 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
             content: post.copy,
             platform: post.channel,
             scheduledFor: new Date(post.scheduledFor),
-            meta: post.imageUrl ? { imageUrl: post.imageUrl } : {},
+            meta: postMeta,
             status: "pending",
           })
           .returning();
