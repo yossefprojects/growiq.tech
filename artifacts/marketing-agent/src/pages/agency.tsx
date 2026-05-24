@@ -277,6 +277,28 @@ function friendlyError(err: string | undefined): string {
   return "Quelque chose n'a pas marché de notre côté. Réessaie dans un instant.";
 }
 
+const PRODUCT_EXAMPLES = [
+  { emoji: "🍕", label: "Restaurant", text: "Je tiens un restaurant italien dans le centre-ville, avec terrasse et menu du midi." },
+  { emoji: "👗", label: "Boutique en ligne", text: "Je vends des vêtements pour femmes faits par des créateurs français, sur ma boutique en ligne." },
+  { emoji: "💪", label: "Coach sportif", text: "Je suis coach sportif et je propose des séances en visio et à domicile." },
+  { emoji: "🕯️", label: "Artisanat", text: "Je fabrique des bougies parfumées à la main que je vends en boutique et en ligne." },
+  { emoji: "💇", label: "Salon de beauté", text: "Je tiens un salon de coiffure et soins esthétiques de quartier." },
+];
+
+const AUDIENCE_EXAMPLES = [
+  { emoji: "👩", label: "Femmes 30-50 ans", text: "Des femmes entre 30 et 50 ans qui aiment leur intérieur et les belles choses." },
+  { emoji: "🧑‍💼", label: "Jeunes actifs", text: "Des jeunes actifs de 25-35 ans qui habitent en ville et sortent souvent." },
+  { emoji: "👨‍👩‍👧", label: "Familles du coin", text: "Des familles avec enfants qui habitent à moins de 30 minutes." },
+  { emoji: "👵", label: "Seniors", text: "Des personnes de 60 ans et plus qui aiment prendre soin d'elles." },
+  { emoji: "🎓", label: "Étudiants", text: "Des étudiants entre 18 et 25 ans avec un petit budget." },
+];
+
+const ENCOURAGEMENTS = [
+  "Super ! 🎉",
+  "Génial, on y est presque ! 😊",
+  "Parfait, c'est tout bon ! ✨",
+];
+
 function BriefForm({
   brief,
   setBrief,
@@ -288,92 +310,276 @@ function BriefForm({
   onSubmit: () => void;
   loading: boolean;
 }) {
+  const [step, setStep] = useState(0);
+  const [animKey, setAnimKey] = useState(0);
+  const [showEncouragement, setShowEncouragement] = useState<string | null>(null);
+
+  const totalSteps = 3;
+
+  function nextStep(encouragement: string) {
+    setShowEncouragement(encouragement);
+    setTimeout(() => {
+      setShowEncouragement(null);
+      setStep((s) => Math.min(s + 1, totalSteps - 1));
+      setAnimKey((k) => k + 1);
+    }, 900);
+  }
+
+  function prevStep() {
+    setStep((s) => Math.max(s - 1, 0));
+    setAnimKey((k) => k + 1);
+  }
+
+  const canProductNext = brief.product.trim().length >= 8;
+  const canAudienceNext = brief.audience.trim().length >= 8;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="text-center space-y-3">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-500 shadow-lg shadow-purple-500/30">
           <Wand2 className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">Réponds à 3 petites questions ✨</h1>
-        <p className="text-muted-foreground text-lg">Je m'occupe du reste : j'écris tes messages, je crée les images et je les publie tout seul.</p>
+        <h1 className="text-3xl font-bold tracking-tight">On fait connaissance ? ✨</h1>
+        <p className="text-muted-foreground text-lg">Une petite question à la fois, c'est promis 🙂</p>
       </div>
 
-      <div className="bg-white rounded-2xl border shadow-sm p-6 space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="product" className="text-base font-semibold flex items-center gap-2">
-            <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">1</span>
-            Qu'est-ce que tu proposes ?
-          </Label>
-          <Textarea
-            id="product"
-            data-testid="input-product"
-            placeholder="Ex : Je vends des bougies parfumées faites à la main, dans ma boutique à Lyon et en ligne."
-            value={brief.product}
-            onChange={(e) => setBrief({ ...brief, product: e.target.value })}
-            rows={2}
-            className="text-base"
+      <div className="flex justify-center gap-2" aria-label="progression">
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <div
+            key={i}
+            className={`h-2 rounded-full transition-all duration-500 ${
+              i === step ? "w-10 bg-purple-600" : i < step ? "w-6 bg-purple-300" : "w-6 bg-slate-200"
+            }`}
           />
-          <p className="text-xs text-muted-foreground pl-9">💡 Dis-le avec tes mots, comme si tu en parlais à un ami.</p>
-        </div>
+        ))}
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="audience" className="text-base font-semibold flex items-center gap-2">
-            <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">2</span>
-            Qui veux-tu toucher ?
-          </Label>
-          <Textarea
-            id="audience"
-            data-testid="input-audience"
-            placeholder="Ex : Des femmes entre 30 et 50 ans qui aiment leur intérieur et les choses bien faites."
-            value={brief.audience}
-            onChange={(e) => setBrief({ ...brief, audience: e.target.value })}
-            rows={2}
-            className="text-base"
-          />
-          <p className="text-xs text-muted-foreground pl-9">💡 Pense âge approximatif, ce qu'ils aiment, où ils habitent.</p>
+      {showEncouragement ? (
+        <div className="flex flex-col items-center justify-center py-16 animate-in fade-in zoom-in-95 duration-300" data-testid="encouragement">
+          <div className="text-6xl mb-3 animate-bounce">🎉</div>
+          <p className="text-2xl font-bold text-purple-700">{showEncouragement}</p>
         </div>
-
-        <div className="space-y-3">
-          <Label className="text-base font-semibold flex items-center gap-2">
-            <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">3</span>
-            Qu'est-ce que tu veux obtenir ?
-          </Label>
-          <div className="grid sm:grid-cols-3 gap-3">
-            {OBJECTIVES.map((o) => {
-              const Icon = o.icon;
-              const active = brief.objective === o.value;
-              return (
-                <button
-                  key={o.value}
-                  type="button"
-                  data-testid={`objective-${o.value.replace(/\s/g, "-")}`}
-                  onClick={() => setBrief({ ...brief, objective: o.value })}
-                  className={`text-left p-4 rounded-xl border-2 transition-all ${active ? "border-purple-600 bg-purple-50 shadow-md scale-[1.02]" : "border-slate-200 hover:border-slate-300 bg-white"}`}
-                >
-                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${o.color} flex items-center justify-center mb-2 shadow-sm`}>
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="font-semibold text-sm">{o.label}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{o.description}</div>
-                </button>
-              );
-            })}
-          </div>
+      ) : (
+        <div
+          key={animKey}
+          className="bg-white rounded-2xl border shadow-sm p-6 sm:p-8 space-y-6 animate-in fade-in slide-in-from-right-4 duration-500"
+        >
+          {step === 0 && (
+            <StepProduct
+              value={brief.product}
+              setValue={(v) => setBrief({ ...brief, product: v })}
+              canNext={canProductNext}
+              onNext={() => nextStep(ENCOURAGEMENTS[0])}
+            />
+          )}
+          {step === 1 && (
+            <StepAudience
+              value={brief.audience}
+              setValue={(v) => setBrief({ ...brief, audience: v })}
+              canNext={canAudienceNext}
+              onNext={() => nextStep(ENCOURAGEMENTS[1])}
+              onBack={prevStep}
+            />
+          )}
+          {step === 2 && (
+            <StepObjective
+              value={brief.objective}
+              setValue={(v) => setBrief({ ...brief, objective: v })}
+              onSubmit={onSubmit}
+              onBack={prevStep}
+              loading={loading}
+            />
+          )}
         </div>
+      )}
 
+      <p className="text-center text-xs text-muted-foreground">
+        🎁 C'est entièrement gratuit. On publie sur Facebook et Instagram, pas de carte bancaire demandée.
+      </p>
+    </div>
+  );
+}
+
+function StepProduct({
+  value,
+  setValue,
+  canNext,
+  onNext,
+}: {
+  value: string;
+  setValue: (v: string) => void;
+  canNext: boolean;
+  onNext: () => void;
+}) {
+  return (
+    <>
+      <div className="space-y-1">
+        <div className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Question 1 sur 3</div>
+        <h2 className="text-2xl font-bold">Tu proposes quoi ? 🤔</h2>
+        <p className="text-muted-foreground text-sm">Dis-le avec tes mots, comme si tu en parlais à un ami.</p>
+      </div>
+      <Textarea
+        data-testid="input-product"
+        placeholder="Ex : Je vends des bougies parfumées faites à la main, dans ma boutique à Lyon et en ligne."
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        rows={3}
+        className="text-base"
+        autoFocus
+      />
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground">💡 Pas d'idée ? Clique sur un exemple :</p>
+        <div className="flex flex-wrap gap-2">
+          {PRODUCT_EXAMPLES.map((ex) => (
+            <button
+              key={ex.label}
+              type="button"
+              onClick={() => setValue(ex.text)}
+              className="px-3 py-2 rounded-full border bg-white hover:bg-purple-50 hover:border-purple-300 text-sm transition-all hover:scale-105"
+              data-testid={`example-product-${ex.label}`}
+            >
+              {ex.emoji} {ex.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <Button
+        onClick={onNext}
+        disabled={!canNext}
+        data-testid="button-next-1"
+        className="w-full h-14 text-lg font-bold bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
+      >
+        Continuer →
+      </Button>
+    </>
+  );
+}
+
+function StepAudience({
+  value,
+  setValue,
+  canNext,
+  onNext,
+  onBack,
+}: {
+  value: string;
+  setValue: (v: string) => void;
+  canNext: boolean;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <>
+      <div className="space-y-1">
+        <div className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Question 2 sur 3</div>
+        <h2 className="text-2xl font-bold">À qui tu veux parler ? 👥</h2>
+        <p className="text-muted-foreground text-sm">Décris les gens que tu aimerais avoir comme clients : âge, ce qu'ils aiment, où ils habitent.</p>
+      </div>
+      <Textarea
+        data-testid="input-audience"
+        placeholder="Ex : Des femmes entre 30 et 50 ans qui aiment leur intérieur et les choses bien faites."
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        rows={3}
+        className="text-base"
+        autoFocus
+      />
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground">💡 Pas d'idée ? Clique sur un exemple :</p>
+        <div className="flex flex-wrap gap-2">
+          {AUDIENCE_EXAMPLES.map((ex) => (
+            <button
+              key={ex.label}
+              type="button"
+              onClick={() => setValue(ex.text)}
+              className="px-3 py-2 rounded-full border bg-white hover:bg-purple-50 hover:border-purple-300 text-sm transition-all hover:scale-105"
+              data-testid={`example-audience-${ex.label}`}
+            >
+              {ex.emoji} {ex.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onBack} className="h-14 px-6">
+          ←
+        </Button>
+        <Button
+          onClick={onNext}
+          disabled={!canNext}
+          data-testid="button-next-2"
+          className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
+        >
+          Continuer →
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function StepObjective({
+  value,
+  setValue,
+  onSubmit,
+  onBack,
+  loading,
+}: {
+  value: string;
+  setValue: (v: string) => void;
+  onSubmit: () => void;
+  onBack: () => void;
+  loading: boolean;
+}) {
+  return (
+    <>
+      <div className="space-y-1">
+        <div className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Question 3 sur 3 — la dernière !</div>
+        <h2 className="text-2xl font-bold">Qu'est-ce que tu veux obtenir ? 🎯</h2>
+        <p className="text-muted-foreground text-sm">Choisis ce qui compte le plus pour toi en ce moment.</p>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-3">
+        {OBJECTIVES.map((o) => {
+          const Icon = o.icon;
+          const active = value === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              data-testid={`objective-${o.value.replace(/\s/g, "-")}`}
+              onClick={() => setValue(o.value)}
+              className={`text-left p-4 rounded-xl border-2 transition-all hover:scale-[1.02] ${
+                active ? "border-purple-600 bg-purple-50 shadow-md scale-[1.02]" : "border-slate-200 hover:border-purple-300 bg-white"
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${o.color} flex items-center justify-center mb-2 shadow-sm`}>
+                <Icon className="w-5 h-5 text-white" />
+              </div>
+              <div className="font-semibold text-sm">{o.label}</div>
+              <div className="text-xs text-muted-foreground mt-1">{o.description}</div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onBack} disabled={loading} className="h-16 px-6">
+          ←
+        </Button>
         <Button
           onClick={onSubmit}
-          disabled={loading}
+          disabled={loading || !value}
           data-testid="button-generate"
-          className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 shadow-lg shadow-purple-500/30"
+          className="flex-1 h-16 text-xl font-bold bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 hover:from-purple-700 hover:via-fuchsia-700 hover:to-pink-700 shadow-xl shadow-purple-500/40 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
         >
-          {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Wand2 className="w-6 h-6 mr-2" /> C'est parti !</>}
+          {loading ? (
+            <Loader2 className="w-6 h-6 animate-spin" />
+          ) : (
+            <>
+              <Wand2 className="w-6 h-6 mr-2" /> Créer ma campagne 🚀
+            </>
+          )}
         </Button>
-        <p className="text-center text-xs text-muted-foreground">
-          🎁 C'est entièrement gratuit. On publie sur Facebook et Instagram, pas de carte bancaire demandée.
-        </p>
       </div>
-    </div>
+    </>
   );
 }
 
