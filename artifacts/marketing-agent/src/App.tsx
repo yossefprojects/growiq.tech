@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import ChatPage from "@/pages/chat";
 import LandingPage from "@/pages/landing";
 import HomePage from "@/pages/home";
+import AgencyPage from "@/pages/agency";
 
 const queryClient = new QueryClient();
 
@@ -14,6 +15,7 @@ function Router() {
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/app" component={ChatPage} />
+      <Route path="/app/agency" component={AgencyPage} />
       <Route path="/app/conversations/:id" component={ChatPage} />
       <Route path="/landing/:slug" component={LandingPage} />
       <Route component={NotFound} />

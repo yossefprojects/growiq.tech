@@ -29,7 +29,10 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 - `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth)
 - `lib/db/src/schema/conversations.ts` — Conversations table
 - `lib/db/src/schema/messages.ts` — Messages table
-- `artifacts/api-server/src/routes/openai/index.ts` — All chat/AI routes
+- `artifacts/api-server/src/routes/openai/index.ts` — All chat/AI routes + agency workflow (`/agency/generate`, `/agency/:id/launch`, `/agency`)
+- `artifacts/api-server/src/lib/objectStorage.ts` — GCS public bucket helpers (upload + serve)
+- `artifacts/marketing-agent/src/pages/agency.tsx` — Agence automatique multi-step UI
+- `lib/db/src/schema/agency-campaigns.ts` — Agency campaigns table (brief + plan jsonb)
 - `artifacts/marketing-agent/src/` — Frontend React app
 - `lib/integrations-openai-ai-server/` — OpenAI server SDK wrapper
 
@@ -47,6 +50,8 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 - Real-time streaming responses from a marketing expert AI
 - Full conversation history persistence
 - REST API for integration with other tools
+- **Agence automatique** (`/app/agency`) : brief 5 questions → IA génère textes + visuels + calendrier → preview éditable → publication automatique FB/IG + email récap
+- Auto-image generation for any scheduled FB/IG post (via Object Storage public bucket)
 
 ## User preferences
 
@@ -55,7 +60,8 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 
 ## Rappels actifs
 
-- **📅 Lundi 25 mai 2026** — L'utilisateur veut passer à l'**Option A** (intégration Buffer/Hootsuite/Publer) pour permettre à l'agent IA de publier directement sur ses comptes sociaux (Instagram, Facebook, LinkedIn, X, TikTok). Plan : demander quel SaaS il a choisi (Buffer recommandé, ~10€/mois), récupérer son token API, et coder l'intégration dans le scheduler worker (~1h de travail). Dès que vous voyez cette note, relancez-le.
+- **Phase 2 à faire plus tard** : brancher Google Ads API (developer token à demander, 2-6 semaines d'attente) + Meta Marketing API (Business Manager + permission `ads_management` + App Review) pour les vraies pubs payantes et les vrais chiffres de conversion dans le rapport hebdo.
+- **Phase 1.5** (rapide quand demandé) : rapport hebdo automatique avec Meta Insights API (besoin permission `pages_read_engagement` sur le token) pour vues/likes/partages organiques.
 
 ## Gotchas
 

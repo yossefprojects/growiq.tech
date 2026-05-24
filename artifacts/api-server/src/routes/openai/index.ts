@@ -8,7 +8,11 @@ import {
   landingPages,
   leads,
   scheduledPosts,
+  agencyCampaigns,
   type CampaignBusinessContext,
+  type AgencyBrief,
+  type AgencyPlan,
+  type AgencyPlannedPost,
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
@@ -1193,5 +1197,381 @@ if (process.env.NODE_ENV !== "test") {
     void processScheduledPosts();
   }, 60_000);
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// AGENCY — automatic marketing agency workflow
+// ════════════════════════════════════════════════════════════════════════════
+
+const AGENCY_PLAN_PROMPT = `Tu es le directeur de création d'une agence marketing française. À partir du brief client, tu produis UN SEUL objet JSON valide (sans markdown, sans texte autour) qui décrit une mini-campagne sur réseaux sociaux organiques (Facebook et/ou Instagram).
+
+Format STRICT attendu :
+{
+  "audienceSummary": "résumé concis (max 2 phrases) de l'audience cible",
+  "targetingNarrative": "comment toucher cette audience sur les canaux choisis (max 3 phrases, concret et actionnable)",
+  "budgetNarrative": "comment répartir le budget annoncé entre publications organiques (gratuites) et éventuelle ads payantes plus tard (max 3 phrases)",
+  "estimatedResults": {
+    "impressions": "fourchette réaliste (ex: 2 000 - 5 000)",
+    "clicks": "fourchette (ex: 80 - 200)",
+    "conversions": "fourchette (ex: 5 - 15)"
+  },
+  "posts": [
+    {
+      "id": "p1",
+      "channel": "facebook" ou "instagram",
+      "scheduledFor": "ISO-8601 datetime dans les 7 prochains jours, jamais dans le passé",
+      "copy": "texte du post (200-400 caractères, ton adapté au canal, inclure 1-2 emojis pertinents et 2-4 hashtags pour instagram)",
+      "imagePrompt": "description ANGLAISE détaillée pour générer un visuel carré professionnel (style photo réaliste, pas de texte sur l'image)"
+    }
+  ],
+  "recommendations": ["3 à 5 recommandations courtes pour améliorer les résultats"]
+}
+
+Règles :
+- Génère exactement 5 posts répartis sur les canaux demandés.
+- Étale les dates entre demain matin et J+7, à des horaires d'engagement optimaux (FB: 11h-14h, IG: 18h-21h, heure de Paris).
+- Adapte le ton et le copy au canal et à l'objectif (notoriété/ventes/trafic).
+- Si le budget est faible (<100€), n'évoque que l'organique. Si élevé (>500€), suggère un boost ads.
+- Réponds UNIQUEMENT avec le JSON, aucun autre texte.`;
+
+function buildAgencyUserPrompt(brief: AgencyBrief): string {
+  return `Brief client :
+- Produit / service : ${brief.product}
+- Cible : ${brief.audience}
+- Budget total disponible : ${brief.budget}
+- Objectif principal : ${brief.objective}
+- Canaux demandés : ${brief.channels.join(", ")}
+
+Date d'aujourd'hui : ${new Date().toISOString()}
+
+Produis le plan JSON.`;
+}
+
+function clampFutureDate(iso: string, fallbackOffsetHours: number): string {
+  const d = new Date(iso);
+  const now = Date.now();
+  if (isNaN(d.getTime()) || d.getTime() < now + 30 * 60_000) {
+    return new Date(now + fallbackOffsetHours * 3_600_000).toISOString();
+  }
+  return d.toISOString();
+}
+
+// Simple in-memory rate limit for the expensive /agency/generate endpoint.
+// Single-tenant app, no auth — protect against accidental loops or external abuse.
+const agencyGenHits = new Map<string, number[]>();
+const AGENCY_GEN_WINDOW_MS = 60 * 60_000; // 1h window
+const AGENCY_GEN_MAX = 10; // max 10 per hour per IP
+
+function checkAgencyRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const hits = (agencyGenHits.get(ip) ?? []).filter((t) => now - t < AGENCY_GEN_WINDOW_MS);
+  if (hits.length >= AGENCY_GEN_MAX) return false;
+  hits.push(now);
+  agencyGenHits.set(ip, hits);
+  return true;
+}
+
+function cap(s: unknown, max: number): string {
+  return typeof s === "string" ? s.trim().slice(0, max) : "";
+}
+
+function normalizePlan(raw: unknown): AgencyPlan {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const er = (r["estimatedResults"] ?? {}) as Record<string, unknown>;
+  const posts = Array.isArray(r["posts"]) ? r["posts"] : [];
+  const recommendations = Array.isArray(r["recommendations"])
+    ? (r["recommendations"] as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 8)
+    : [];
+  return {
+    audienceSummary: cap(r["audienceSummary"], 500) || "Audience non précisée.",
+    targetingNarrative: cap(r["targetingNarrative"], 800) || "Stratégie de ciblage non précisée.",
+    budgetNarrative: cap(r["budgetNarrative"], 800) || "Répartition budget non précisée.",
+    estimatedResults: {
+      impressions: cap(er["impressions"], 60) || "—",
+      clicks: cap(er["clicks"], 60) || "—",
+      conversions: cap(er["conversions"], 60) || "—",
+    },
+    posts: posts.slice(0, 6).map((p, idx): AgencyPlannedPost => {
+      const po = (p ?? {}) as Record<string, unknown>;
+      const ch = po["channel"] === "instagram" ? "instagram" : "facebook";
+      return {
+        id: cap(po["id"], 20) || `p${idx + 1}`,
+        channel: ch,
+        scheduledFor: clampFutureDate(cap(po["scheduledFor"], 50), (idx + 1) * 24),
+        copy: cap(po["copy"], 1200) || "(copy manquant)",
+        imagePrompt: cap(po["imagePrompt"], 800) || "Professional marketing photo, modern style",
+      };
+    }),
+    recommendations,
+  };
+}
+
+router.post("/agency/generate", async (req, res): Promise<void> => {
+  const ip = (req.ip ?? "anon") + ":generate";
+  if (!checkAgencyRateLimit(ip)) {
+    res.status(429).json({
+      error: "Trop de générations récentes. Réessayez dans une heure (limite : 10/h).",
+    });
+    return;
+  }
+
+  const brief = req.body as Partial<AgencyBrief>;
+  if (
+    !brief?.product ||
+    !brief?.audience ||
+    !brief?.budget ||
+    !brief?.objective ||
+    !Array.isArray(brief.channels) ||
+    brief.channels.length === 0
+  ) {
+    res.status(400).json({ error: "Brief incomplet : tous les champs sont requis." });
+    return;
+  }
+
+  const allowedChannels = brief.channels.filter(
+    (c): c is "facebook" | "instagram" => c === "facebook" || c === "instagram"
+  );
+  if (allowedChannels.length === 0) {
+    res.status(400).json({
+      error:
+        "Pour cette version, seuls Facebook et Instagram sont supportés (publication organique). Google Ads et autres viendront en Phase 2.",
+    });
+    return;
+  }
+
+  const cleanBrief: AgencyBrief = {
+    product: cap(brief.product, 500),
+    audience: cap(brief.audience, 500),
+    budget: cap(brief.budget, 100),
+    objective: cap(brief.objective, 50),
+    channels: allowedChannels,
+  };
+  if (!cleanBrief.product || !cleanBrief.audience || !cleanBrief.budget || !cleanBrief.objective) {
+    res.status(400).json({ error: "Un des champs est vide après nettoyage." });
+    return;
+  }
+
+  let plan: AgencyPlan;
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-5.4",
+      max_completion_tokens: 4000,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: AGENCY_PLAN_PROMPT },
+        { role: "user", content: buildAgencyUserPrompt(cleanBrief) },
+      ],
+    });
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    plan = normalizePlan(JSON.parse(raw));
+  } catch (err) {
+    req.log.error({ err }, "Agency plan generation failed");
+    res.status(500).json({ error: "Échec de la génération du plan. Réessayez." });
+    return;
+  }
+
+  if (plan.posts.length === 0) {
+    res.status(500).json({ error: "Plan généré invalide (aucun post)." });
+    return;
+  }
+
+  const { generateImageBuffer } = await import("@workspace/integrations-openai-ai-server/image");
+  const imageResults = await Promise.allSettled(
+    plan.posts.map(async (p) => {
+      const buf = await generateImageBuffer(p.imagePrompt, "1024x1024");
+      const uploaded = await uploadPublicBuffer(buf, { ext: "png", contentType: "image/png" });
+      return uploaded.publicUrl;
+    })
+  );
+  plan.posts = plan.posts.map((p, i) => {
+    const r = imageResults[i];
+    return { ...p, imageUrl: r.status === "fulfilled" ? r.value : undefined };
+  });
+
+  const [created] = await db
+    .insert(agencyCampaigns)
+    .values({
+      name: cleanBrief.product.slice(0, 80),
+      status: "draft",
+      brief: cleanBrief,
+      plan,
+    })
+    .returning();
+
+  res.status(201).json(created);
+});
+
+router.post("/agency/:id/launch", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "id invalide" });
+    return;
+  }
+  const { notificationEmail, plan: editedPlan } = req.body as {
+    notificationEmail?: string;
+    plan?: AgencyPlan;
+  };
+
+  const [campaign] = await db
+    .select()
+    .from(agencyCampaigns)
+    .where(eq(agencyCampaigns.id, id));
+  if (!campaign) {
+    res.status(404).json({ error: "Campagne introuvable" });
+    return;
+  }
+  if (campaign.status === "launched") {
+    res.status(409).json({ error: "Cette campagne a déjà été lancée." });
+    return;
+  }
+
+  // Normalize incoming edited plan (defensive: client could send anything).
+  const finalPlan: AgencyPlan = editedPlan
+    ? { ...normalizePlan(editedPlan), recommendations: campaign.plan.recommendations }
+    : campaign.plan;
+  // Preserve original imageUrls (client never receives them changed, but be safe).
+  finalPlan.posts = finalPlan.posts.map((p, i) => ({
+    ...p,
+    imageUrl: p.imageUrl ?? campaign.plan.posts[i]?.imageUrl,
+  }));
+
+  if (finalPlan.posts.length === 0) {
+    res.status(400).json({ error: "Aucun post à programmer." });
+    return;
+  }
+
+  // Atomic launch: claim the campaign first via conditional update (prevents double-launch race),
+  // then create all scheduled posts inside a transaction (rolls back if any insert fails).
+  const claimed = await db
+    .update(agencyCampaigns)
+    .set({ status: "launching" })
+    .where(and(eq(agencyCampaigns.id, id), eq(agencyCampaigns.status, "draft")))
+    .returning();
+  if (claimed.length === 0) {
+    res.status(409).json({ error: "Campagne déjà en cours de lancement ou lancée." });
+    return;
+  }
+
+  let createdIds: number[] = [];
+  try {
+    createdIds = await db.transaction(async (tx) => {
+      const ids: number[] = [];
+      for (const post of finalPlan.posts) {
+        const [sp] = await tx
+          .insert(scheduledPosts)
+          .values({
+            title: `${campaign.name} — ${post.channel}`,
+            content: post.copy,
+            platform: post.channel,
+            scheduledFor: new Date(post.scheduledFor),
+            meta: post.imageUrl ? { imageUrl: post.imageUrl } : {},
+            status: "pending",
+          })
+          .returning();
+        ids.push(sp.id);
+        post.scheduledPostId = sp.id;
+      }
+      await tx
+        .update(agencyCampaigns)
+        .set({
+          status: "launched",
+          plan: finalPlan,
+          notificationEmail: notificationEmail ?? null,
+          launchedAt: new Date(),
+        })
+        .where(eq(agencyCampaigns.id, id));
+      return ids;
+    });
+  } catch (err) {
+    req.log.error({ err }, "Launch transaction failed, reverting to draft");
+    await db
+      .update(agencyCampaigns)
+      .set({ status: "draft" })
+      .where(eq(agencyCampaigns.id, id));
+    res.status(500).json({ error: "Échec du lancement. Réessayez." });
+    return;
+  }
+
+  if (notificationEmail) {
+    try {
+      const lines = finalPlan.posts
+        .map(
+          (p) =>
+            `• ${new Date(p.scheduledFor).toLocaleString("fr-FR")} — ${p.channel.toUpperCase()} : ${p.copy.slice(0, 120)}…`
+        )
+        .join("\n");
+      await sendEmail({
+        to: [notificationEmail],
+        subject: `Votre campagne "${campaign.name}" est programmée`,
+        body: `Bonjour,
+
+Votre campagne marketing automatique vient d'être lancée. Voici le calendrier des ${finalPlan.posts.length} publications :
+
+${lines}
+
+Audience ciblée : ${finalPlan.audienceSummary}
+
+Résultats estimés :
+- Impressions : ${finalPlan.estimatedResults.impressions}
+- Clics : ${finalPlan.estimatedResults.clicks}
+- Conversions : ${finalPlan.estimatedResults.conversions}
+
+Vous pouvez suivre l'évolution dans votre tableau de bord.
+
+— Agent Marketing IA`,
+      });
+    } catch (err) {
+      req.log.warn({ err }, "Email confirmation failed");
+    }
+  }
+
+  const [refreshed] = await db
+    .select()
+    .from(agencyCampaigns)
+    .where(eq(agencyCampaigns.id, id));
+  res.json({ campaign: refreshed, scheduledPostIds: createdIds });
+});
+
+router.get("/agency", async (_req, res) => {
+  const list = await db
+    .select()
+    .from(agencyCampaigns)
+    .orderBy(desc(agencyCampaigns.createdAt));
+  res.json(list);
+});
+
+router.get("/agency/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "id invalide" });
+    return;
+  }
+  const [campaign] = await db
+    .select()
+    .from(agencyCampaigns)
+    .where(eq(agencyCampaigns.id, id));
+  if (!campaign) {
+    res.status(404).json({ error: "introuvable" });
+    return;
+  }
+  const postIds = (campaign.plan.posts ?? [])
+    .map((p) => p.scheduledPostId)
+    .filter((x): x is number => typeof x === "number");
+  let scheduled: typeof scheduledPosts.$inferSelect[] = [];
+  if (postIds.length > 0) {
+    scheduled = await db.select().from(scheduledPosts);
+    scheduled = scheduled.filter((s) => postIds.includes(s.id));
+  }
+  res.json({ campaign, scheduledPosts: scheduled });
+});
+
+router.delete("/agency/:id", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "id invalide" });
+    return;
+  }
+  await db.delete(agencyCampaigns).where(eq(agencyCampaigns.id, id));
+  res.status(204).end();
+});
 
 export default router;

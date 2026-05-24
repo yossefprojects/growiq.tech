@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle } from "lucide-react";
+import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
 import { ToolboxModal } from "./toolbox-modal";
@@ -62,6 +62,14 @@ export function Sidebar({
           <Rocket className="w-4 h-4" />
           Lancer une campagne
         </button>
+        <Link
+          href="/app/agency"
+          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white hover:opacity-90 rounded-md h-9 px-4 text-sm font-medium transition-opacity shadow-sm"
+          data-testid="link-agency"
+        >
+          <Sparkles className="w-4 h-4" />
+          Agence automatique
+        </Link>
         <button
           onClick={() => setToolboxOpen(true)}
           className="w-full flex items-center justify-center gap-2 text-muted-foreground hover:bg-secondary/70 hover:text-foreground rounded-md h-8 px-4 text-xs font-medium transition-colors"
