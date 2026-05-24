@@ -158,6 +158,20 @@ function MessageItem({ message, isStreaming }: { message: Message; isStreaming?:
         {!isUser && !isStreaming && !collapsed && message.content.length > 300 && (
           <CampaignActions content={message.content} title="Campagne marketing" />
         )}
+        {canCollapse && !collapsed && (
+          <div className="pt-2 mt-2 border-t border-border flex justify-end">
+            <button
+              onClick={() => setCollapsed(true)}
+              className="flex items-center gap-1 text-xs font-normal text-muted-foreground hover:text-foreground transition-colors rounded-md px-2 py-1 hover:bg-secondary"
+              data-testid="button-toggle-collapse-bottom"
+              aria-label="Réduire la réponse"
+              title="Réduire la réponse"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+              Réduire
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
