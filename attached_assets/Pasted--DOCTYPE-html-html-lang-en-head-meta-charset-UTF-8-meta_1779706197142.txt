@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — GrowIQ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --white: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #6366f1;
+      --border: rgba(15,23,42,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+    header {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 0;
+    }
+    .container {
+      width: min(860px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+    .logo {
+      font-family: 'Sora', sans-serif;
+      font-weight: 700;
+      font-size: 1.3rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .logo span { color: var(--primary); }
+    .hero {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      padding: 60px 0;
+      text-align: center;
+    }
+    .hero h1 {
+      font-family: 'Sora', sans-serif;
+      font-size: clamp(28px, 4vw, 42px);
+      margin-bottom: 12px;
+    }
+    .hero p { opacity: 0.85; font-size: 1rem; }
+    .content {
+      padding: 60px 0;
+    }
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 40px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(15,23,42,0.05);
+    }
+    h2 {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.25rem;
+      margin-bottom: 16px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 20px;
+      background: var(--primary);
+      border-radius: 4px;
+    }
+    p { color: var(--muted); margin-bottom: 12px; }
+    ul { color: var(--muted); padding-left: 20px; margin-bottom: 12px; }
+    ul li { margin-bottom: 6px; }
+    .badge {
+      display: inline-block;
+      background: #ede9fe;
+      color: var(--primary);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+    .updated {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    footer {
+      background: var(--text);
+      color: rgba(255,255,255,0.6);
+      text-align: center;
+      padding: 24px;
+      font-size: 0.9rem;
+    }
+    footer a { color: rgba(255,255,255,0.8); }
+    a { color: var(--primary); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <a href="https://growiqai.replit.app" class="logo">GrowIQ<span>.ai</span></a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="container">
+    <h1>Privacy Policy</h1>
+    <p>How GrowIQ collects, uses, and protects your information</p>
+  </div>
+</div>
+
+<div class="content">
+  <div class="container">
+
+    <div class="card">
+      <span class="badge">Last updated: May 25, 2026</span>
+      <h2>Introduction</h2>
+      <p>GrowIQ ("we", "us", or "our") operates the GrowIQ AI Marketing Agent available at <a href="https://growiqai.replit.app">growiqai.replit.app</a>.</p>
+      <p>This Privacy Policy explains how we collect, use, disclose, and protect your personal information when you use our service. By using GrowIQ, you agree to the terms described in this policy.</p>
+    </div>
+
+    <div class="card">
+      <h2>Information We Collect</h2>
+      <p>We collect the following types of information:</p>
+      <ul>
+        <li><strong>Account information:</strong> First name, last name, and email address when you register</li>
+        <li><strong>Usage data:</strong> How you interact with our platform, campaigns you create, and features you use</li>
+        <li><strong>Social media tokens:</strong> Access tokens for Facebook and Instagram (used only to publish content on your behalf)</li>
+        <li><strong>Campaign data:</strong> Content, images, and text you create through our platform</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>How We Use Your Information</h2>
+      <p>We use your information to:</p>
+      <ul>
+        <li>Provide and operate the GrowIQ service</li>
+        <li>Publish content to your social media accounts on your behalf</li>
+        <li>Create and manage advertising campaigns you request</li>
+        <li>Send you important service notifications</li>
+        <li>Improve our AI marketing features</li>
+        <li>Respond to your support requests</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Data Sharing</h2>
+      <p>We do not sell, rent, or share your personal information with third parties, except:</p>
+      <ul>
+        <li><strong>Meta (Facebook/Instagram):</strong> To publish content and ads on your behalf via official APIs</li>
+        <li><strong>Google Ads:</strong> To create and manage campaigns on your behalf via official APIs</li>
+        <li><strong>OpenAI:</strong> To generate marketing content and images (no personal data shared)</li>
+        <li><strong>Legal requirements:</strong> When required by law or to protect our rights</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Data Security</h2>
+      <p>We implement industry-standard security measures to protect your information:</p>
+      <ul>
+        <li>All data is encrypted in transit using HTTPS/TLS</li>
+        <li>Access tokens are stored securely and never shared</li>
+        <li>We regularly review and update our security practices</li>
+        <li>Access to user data is restricted to authorized personnel only</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Data Retention</h2>
+      <p>We retain your personal information for as long as your account is active or as needed to provide services. You may request deletion of your account and associated data at any time by contacting us.</p>
+    </div>
+
+    <div class="card">
+      <h2>Your Rights</h2>
+      <p>You have the right to:</p>
+      <ul>
+        <li>Access the personal information we hold about you</li>
+        <li>Request correction of inaccurate data</li>
+        <li>Request deletion of your data</li>
+        <li>Withdraw consent at any time</li>
+        <li>Request a copy of your data in a portable format</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Cookies</h2>
+      <p>GrowIQ uses essential cookies to maintain your session and preferences. We do not use tracking or advertising cookies. You can control cookie settings through your browser preferences.</p>
+    </div>
+
+    <div class="card">
+      <h2>Contact Us</h2>
+      <p>If you have questions about this Privacy Policy or wish to exercise your rights, please contact us:</p>
+      <ul>
+        <li><strong>Email:</strong> <a href="mailto:joseph.chaouat@gmail.com">joseph.chaouat@gmail.com</a></li>
+        <li><strong>Website:</strong> <a href="https://growiqai.replit.app">growiqai.replit.app</a></li>
+        <li><strong>Company:</strong> GrowIQ, Tel Aviv, Israel</li>
+      </ul>
+    </div>
+
+    <div class="updated">
+      This Privacy Policy was last updated on May 25, 2026.<br>
+      We may update this policy from time to time. We will notify you of any significant changes by email.
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <p>© 2026 GrowIQ.ai — All rights reserved | <a href="mailto:joseph.chaouat@gmail.com">Contact</a></p>
+</footer>
+
+</body>
+</html>
