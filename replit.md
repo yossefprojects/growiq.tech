@@ -31,6 +31,10 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 - `lib/db/src/schema/messages.ts` — Messages table
 - `artifacts/api-server/src/routes/openai/index.ts` — All chat/AI routes + agency workflow (`/agency/generate`, `/agency/:id/launch`, `/agency`)
 - `artifacts/api-server/src/lib/objectStorage.ts` — GCS public bucket helpers (upload + serve)
+- `artifacts/api-server/src/lib/meta-ads.ts` — Meta Marketing API (boost de posts FB payants)
+- `artifacts/api-server/src/lib/google-ads.ts` — Google Ads REST API (campagnes Search)
+- `artifacts/api-server/src/routes/ads.ts` — Endpoints `/api/ads/*` (status, boost, activate/pause, métriques)
+- `lib/db/src/schema/ad-campaigns.ts` — Suivi des campagnes payantes lancées
 - `artifacts/marketing-agent/src/pages/agency.tsx` — Agence automatique multi-step UI
 - `lib/db/src/schema/agency-campaigns.ts` — Agency campaigns table (brief + plan jsonb)
 - `artifacts/marketing-agent/src/` — Frontend React app
@@ -60,7 +64,10 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 
 ## Rappels actifs
 
-- **Phase 2 à faire plus tard** : brancher Google Ads API (developer token à demander, 2-6 semaines d'attente) + Meta Marketing API (Business Manager + permission `ads_management` + App Review) pour les vraies pubs payantes et les vrais chiffres de conversion dans le rapport hebdo.
+- **Phase 2 en cours d'activation** : code backend prêt (`artifacts/api-server/src/lib/meta-ads.ts`, `google-ads.ts`, routes `/api/ads/*`, table `ad_campaigns`). En attente des validations admin :
+  - Google Ads : developer token (2-6 semaines de validation Google) → secrets à ajouter : `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`, `GOOGLE_ADS_CUSTOMER_ID`, `GOOGLE_ADS_LOGIN_CUSTOMER_ID` (optionnel MCC).
+  - Meta Ads : Business Manager + permission `ads_management` + App Review → secret à ajouter : `META_AD_ACCOUNT_ID` (format `act_xxxxxxxxxx`). Le `META_ACCESS_TOKEN` actuel doit être régénéré avec le scope `ads_management` après l'approbation.
+  - Vérifier le statut : `GET /api/ads/status` retourne `{meta:{configured, missing[]}, google:{configured, missing[]}}`.
 - **Phase 1.5** (rapide quand demandé) : rapport hebdo automatique avec Meta Insights API (besoin permission `pages_read_engagement` sur le token) pour vues/likes/partages organiques.
 
 ## Gotchas

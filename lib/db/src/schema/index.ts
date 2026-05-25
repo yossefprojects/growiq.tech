@@ -6,3 +6,4 @@ export * from "./leads";
 export * from "./scheduled-posts";
 export * from "./agency-campaigns";
 export * from "./system-events";
+export * from "./ad-campaigns";
