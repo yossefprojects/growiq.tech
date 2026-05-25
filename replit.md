@@ -65,7 +65,7 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 ## Rappels actifs
 
 - **Phase 2 en cours d'activation** : code backend prêt (`artifacts/api-server/src/lib/meta-ads.ts`, `google-ads.ts`, routes `/api/ads/*`, table `ad_campaigns`). En attente des validations admin :
-  - Google Ads : developer token (2-6 semaines de validation Google) → secrets à ajouter : `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`, `GOOGLE_ADS_CUSTOMER_ID`, `GOOGLE_ADS_LOGIN_CUSTOMER_ID` (optionnel MCC).
+  - Google Ads : developer token Basic Access **demandé** (dossier `2-7523000040163`, 2-6 semaines de validation Google) → secrets à ajouter : `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`, `GOOGLE_ADS_CUSTOMER_ID`, `GOOGLE_ADS_LOGIN_CUSTOMER_ID` (optionnel MCC).
   - Meta Ads : Business Manager + permission `ads_management` + App Review → secret à ajouter : `META_AD_ACCOUNT_ID` (format `act_xxxxxxxxxx`). Le `META_ACCESS_TOKEN` actuel doit être régénéré avec le scope `ads_management` après l'approbation.
   - Vérifier le statut : `GET /api/ads/status` retourne `{meta:{configured, missing[]}, google:{configured, missing[]}}`.
 - **Phase 1.5** (rapide quand demandé) : rapport hebdo automatique avec Meta Insights API (besoin permission `pages_read_engagement` sur le token) pour vues/likes/partages organiques.
