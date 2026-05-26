@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { toastError } from "@/lib/toast-helpers";
 import {
   useGetOpenaiBusinessProfile,
   useUpsertOpenaiBusinessProfile,
@@ -110,8 +111,8 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
           toast.success("Profil enregistré ! L'agent va personnaliser ses conseils.");
           onComplete();
         },
-        onError: () => {
-          toast.error("Impossible d'enregistrer ton profil. Réessaie dans quelques instants.");
+        onError: (err) => {
+          toastError(err, "Impossible d'enregistrer ton profil. Réessaie dans quelques instants.");
         },
       },
     );

@@ -20,6 +20,7 @@ import { ChatArea } from "@/components/chat-area";
 import { CampaignLaunchModal } from "@/components/campaign-launch-modal";
 import { WelcomeTour, shouldShowWelcomeTour } from "@/components/welcome-tour";
 import { toast } from "sonner";
+import { toastError } from "@/lib/toast-helpers";
 import { Rocket } from "lucide-react";
 
 export default function ChatPage() {
@@ -79,7 +80,7 @@ export default function ChatPage() {
             queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
             if (conversationId === id) setLocation("/app/chat");
           },
-          onError: () => toast.error("Impossible de supprimer la conversation"),
+          onError: (err) => toastError(err, "Impossible de supprimer la conversation"),
         }
       );
     },
@@ -95,7 +96,7 @@ export default function ChatPage() {
             queryClient.invalidateQueries({ queryKey: getListOpenaiCampaignsQueryKey() });
             queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
           },
-          onError: () => toast.error("Impossible de supprimer la campagne"),
+          onError: (err) => toastError(err, "Impossible de supprimer la campagne"),
         }
       );
     },
@@ -131,8 +132,8 @@ export default function ChatPage() {
         activeConvId = newConv.id;
         queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
         setLocation(`/app/conversations/${activeConvId}`);
-      } catch {
-        toast.error("Impossible de créer la conversation");
+      } catch (err) {
+        toastError(err, "Impossible de créer la conversation");
         return;
       }
     }
@@ -191,8 +192,8 @@ export default function ChatPage() {
       setIsStreaming(false);
       setStreamingContent("");
       queryClient.invalidateQueries({ queryKey: getListOpenaiMessagesQueryKey(activeConvId) });
-    } catch {
-      toast.error("Erreur lors de l'envoi du message");
+    } catch (err) {
+      toastError(err, "L'envoi du message a échoué. Réessaie dans un instant.");
       setIsStreaming(false);
       setStreamingContent("");
     }

@@ -11,7 +11,8 @@ import {
   getListOpenaiCampaignsQueryKey,
   getGetOpenaiBusinessProfileQueryKey,
 } from "@workspace/api-client-react";
-import { toast } from "sonner";
+import { toastError } from "@/lib/toast-helpers";
+import { HelpTip } from "@/components/help-tip";
 import {
   Rocket,
   CalendarClock,
@@ -39,6 +40,7 @@ type ActionCard = {
   iconBg: string;
   onClick: () => void;
   testId: string;
+  help?: string;
 };
 
 export default function DashboardPage() {
@@ -89,7 +91,7 @@ export default function DashboardPage() {
         {
           onSuccess: () =>
             queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() }),
-          onError: () => toast.error("Impossible de supprimer la conversation"),
+          onError: (err) => toastError(err, "Impossible de supprimer la conversation"),
         },
       );
     },
@@ -105,7 +107,7 @@ export default function DashboardPage() {
             queryClient.invalidateQueries({ queryKey: getListOpenaiCampaignsQueryKey() });
             queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
           },
-          onError: () => toast.error("Impossible de supprimer la campagne"),
+          onError: (err) => toastError(err, "Impossible de supprimer la campagne"),
         },
       );
     },
@@ -121,6 +123,7 @@ export default function DashboardPage() {
       iconBg: "bg-white/20",
       onClick: () => setLocation("/app/agency"),
       testId: "action-launch-campaign",
+      help: "L'agence automatique te pose 3 questions, choisit les réseaux et horaires, génère les visuels et le texte, puis publie sur Facebook et Instagram à ta validation.",
     },
     {
       title: "Programmer un post",
@@ -130,6 +133,7 @@ export default function DashboardPage() {
       iconBg: "bg-white/20",
       onClick: () => setToolboxOpen(true),
       testId: "action-schedule-post",
+      help: "Ouvre la boîte à outils pour programmer un post simple (texte + image) à une date et heure précises, sans passer par l'agence complète.",
     },
     {
       title: "Parler à l'agent",
@@ -139,6 +143,7 @@ export default function DashboardPage() {
       iconBg: "bg-white/20",
       onClick: () => setLocation("/app/chat"),
       testId: "action-open-chat",
+      help: "Une conversation libre avec un stratège marketing senior. Idéal pour réfléchir, poser des questions précises ou faire valider une idée.",
     },
     {
       title: "Mes campagnes",
@@ -151,6 +156,7 @@ export default function DashboardPage() {
         el?.scrollIntoView({ behavior: "smooth", block: "start" });
       },
       testId: "action-my-campaigns",
+      help: "Toutes tes campagnes générées par l'agence, avec leur statut (en cours, programmée, publiée) et la possibilité de les rouvrir.",
     },
   ];
 
@@ -242,6 +248,11 @@ export default function DashboardPage() {
                 <div className="font-bold text-base sm:text-lg leading-snug mb-1">{a.title}</div>
                 <div className="text-xs sm:text-sm opacity-85 leading-relaxed">{a.description}</div>
                 <ArrowRight className="absolute top-5 right-5 w-4 h-4 opacity-60 group-hover:translate-x-1 transition-transform" />
+                {a.help && (
+                  <span className="absolute bottom-3 right-3">
+                    <HelpTip text={a.help} side="top" className="text-white/70 hover:text-white hover:bg-white/15" />
+                  </span>
+                )}
               </button>
             ))}
           </section>
