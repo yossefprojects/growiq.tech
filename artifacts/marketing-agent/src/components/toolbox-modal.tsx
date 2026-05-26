@@ -4,6 +4,7 @@ import { Loader2, Trash2, Copy, ExternalLink, Users, Calendar, Target, Mail, Ref
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { MetaPreviewDialog, type MetaPreviewPost } from "./meta-preview-dialog";
+import { humanizeError } from "@/lib/humanize-error";
 
 interface LandingPage {
   id: number;
@@ -294,9 +295,18 @@ export function ToolboxModal({ open, onClose }: ToolboxModalProps) {
                         <span>•</span>
                         <span>{new Date(p.scheduledFor).toLocaleString("fr-FR")}</span>
                       </div>
-                      {p.errorMessage && (
-                        <div className="text-xs text-amber-600 mt-1">⚠️ {p.errorMessage}</div>
-                      )}
+                      {(() => {
+                        const h = humanizeError(p.errorMessage);
+                        if (!h) return null;
+                        return (
+                          <div className="text-xs text-amber-700 mt-1 leading-relaxed">
+                            <div>⚠️ {h.message}</div>
+                            {h.hint && (
+                              <div className="text-amber-600/80 mt-0.5">{h.hint}</div>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {p.meta?.metaPermalink && (
                         <a
                           href={p.meta.metaPermalink}
