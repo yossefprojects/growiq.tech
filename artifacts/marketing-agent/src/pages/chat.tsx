@@ -67,7 +67,7 @@ export default function ChatPage() {
   const deleteCampaignMutation = useDeleteOpenaiCampaign();
 
   const handleNewConversation = useCallback(() => {
-    setLocation("/app");
+    setLocation("/app/chat");
   }, [setLocation]);
 
   const handleDeleteConversation = useCallback(
@@ -77,7 +77,7 @@ export default function ChatPage() {
         {
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
-            if (conversationId === id) setLocation("/app");
+            if (conversationId === id) setLocation("/app/chat");
           },
           onError: () => toast.error("Impossible de supprimer la conversation"),
         }

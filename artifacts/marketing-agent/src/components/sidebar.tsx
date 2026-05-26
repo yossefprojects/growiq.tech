@@ -114,7 +114,7 @@ export function Sidebar({
                     const typeInfo = CAMPAIGN_TYPES.find((t) => t.id === campaign.type);
                     const href = campaign.conversationId
                       ? `/app/conversations/${campaign.conversationId}`
-                      : "/app";
+                      : "/app/chat";
                     return (
                       <div
                         key={campaign.id}
