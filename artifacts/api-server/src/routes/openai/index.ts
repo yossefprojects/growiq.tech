@@ -11,6 +11,7 @@ import {
   agencyCampaigns,
   systemEvents,
   businessProfiles,
+  seoKeywordSets,
   type CampaignBusinessContext,
   type AgencyBrief,
   type AgencyPlan,
@@ -1121,15 +1122,30 @@ async function getBusinessContextPrompt(userId: string): Promise<string> {
       .from(businessProfiles)
       .where(eq(businessProfiles.userId, userId))
       .limit(1);
-    if (!profile) return "";
     const parts: string[] = [];
-    if (profile.businessName) parts.push(`Nom : ${profile.businessName}`);
-    if (profile.activity) parts.push(`Activité : ${profile.activity}`);
-    if (profile.targetAudience) parts.push(`Cible : ${profile.targetAudience}`);
-    if (profile.tone) parts.push(`Ton souhaité : ${profile.tone}`);
-    if (profile.primaryGoal) parts.push(`Objectif prioritaire : ${profile.primaryGoal}`);
-    if (parts.length === 0) return "";
-    return `\n\n---\n\n## CONTEXTE DE L'UTILISATEUR (profil business)\n\nAdapte systématiquement tes recommandations à ce contexte :\n${parts.map((p) => `- ${p}`).join("\n")}`;
+    if (profile?.businessName) parts.push(`Nom : ${profile.businessName}`);
+    if (profile?.activity) parts.push(`Activité : ${profile.activity}`);
+    if (profile?.targetAudience) parts.push(`Cible : ${profile.targetAudience}`);
+    if (profile?.tone) parts.push(`Ton souhaité : ${profile.tone}`);
+    if (profile?.primaryGoal) parts.push(`Objectif prioritaire : ${profile.primaryGoal}`);
+    let out = "";
+    if (parts.length > 0) {
+      out = `\n\n---\n\n## CONTEXTE DE L'UTILISATEUR (profil business)\n\nAdapte systématiquement tes recommandations à ce contexte :\n${parts.map((p) => `- ${p}`).join("\n")}`;
+    }
+    // Append SEO context: top keywords from the most recent generated set.
+    const [latestKw] = await db
+      .select()
+      .from(seoKeywordSets)
+      .where(eq(seoKeywordSets.userId, userId))
+      .orderBy(desc(seoKeywordSets.createdAt))
+      .limit(1);
+    if (latestKw?.data?.keywords?.length) {
+      const top = latestKw.data.keywords.slice(0, 10).map((k) => k.keyword).filter(Boolean);
+      if (top.length > 0) {
+        out += `\n\n## MOTS-CLÉS SEO PRIORITAIRES\n\nQuand tu rédiges des posts sociaux, articles, méta-descriptions ou hashtags, intègre NATURELLEMENT (sans bourrage) ces mots-clés cibles de l'utilisateur :\n${top.map((k) => `- ${k}`).join("\n")}\n\nPour les posts Facebook/Instagram, ajoute aussi 3 à 5 hashtags dérivés de ces mots-clés.`;
+      }
+    }
+    return out;
   } catch (err) {
     logger.warn({ err }, "getBusinessContextPrompt failed, falling back to empty");
     return "";
@@ -1801,7 +1817,7 @@ router.post("/agency/generate", async (req, res): Promise<void> => {
       max_completion_tokens: 4000,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: AGENCY_PLAN_PROMPT },
+        { role: "system", content: AGENCY_PLAN_PROMPT + (await getBusinessContextPrompt(uid(req))) },
         { role: "user", content: buildAgencyUserPrompt(cleanBrief) },
       ],
     });

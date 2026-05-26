@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Megaphone } from "lucide-react";
+import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Megaphone, Search } from "lucide-react";
 import { UserButton } from "@clerk/react";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
@@ -194,6 +194,14 @@ export function Sidebar({
       </div>
 
       <div className="border-t p-3 flex flex-col gap-2">
+        <Link
+          href="/app/seo"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-md px-2 py-1.5 transition-colors"
+          data-testid="link-seo"
+        >
+          <Search className="w-4 h-4" />
+          <span>SEO</span>
+        </Link>
         <Link
           href="/app/integrations"
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-md px-2 py-1.5 transition-colors"

@@ -9,3 +9,6 @@ export * from "./system-events";
 export * from "./ad-campaigns";
 export * from "./business-profile";
 export * from "./local-users";
+export * from "./seo-audits";
+export * from "./seo-keywords";
+export * from "./seo-content-plans";
