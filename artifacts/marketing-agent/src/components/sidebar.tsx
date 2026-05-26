@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles } from "lucide-react";
+import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Megaphone } from "lucide-react";
 import { UserButton } from "@clerk/react";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
@@ -193,9 +193,19 @@ export function Sidebar({
         )}
       </div>
 
-      <div className="border-t p-3 flex items-center gap-3" data-testid="sidebar-user">
-        <UserButton />
-        <span className="text-xs text-muted-foreground">Mon compte</span>
+      <div className="border-t p-3 flex flex-col gap-2">
+        <Link
+          href="/app/integrations"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-md px-2 py-1.5 transition-colors"
+          data-testid="link-integrations"
+        >
+          <Megaphone className="w-4 h-4" />
+          <span>Publicités payantes</span>
+        </Link>
+        <div className="flex items-center gap-3" data-testid="sidebar-user">
+          <UserButton />
+          <span className="text-xs text-muted-foreground">Mon compte</span>
+        </div>
       </div>
     </div>
   );
