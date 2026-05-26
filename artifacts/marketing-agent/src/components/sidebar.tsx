@@ -4,6 +4,7 @@ import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Spark
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
 import { ToolboxModal } from "./toolbox-modal";
+import { BrandLogo } from "./brand-logo";
 
 interface Conversation {
   id: number;
@@ -45,12 +46,9 @@ export function Sidebar({
   const [toolboxOpen, setToolboxOpen] = useState(false);
   return (
     <div className="w-64 border-r bg-card flex flex-col h-full flex-shrink-0">
-      <div className="px-4 py-4 border-b bg-gradient-to-br from-violet-50 to-blue-50 flex items-center justify-center">
-        <Link href="/" className="flex items-center gap-2.5 group" data-testid="link-home-sidebar">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/40 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-extrabold text-xl tracking-tight text-violet-700">GrowIQ</span>
+      <div className="px-4 py-4 border-b bg-gradient-to-br from-[#ede9fe] to-[#d1fae5]/60 flex items-center justify-center">
+        <Link href="/" className="group transition-transform group-hover:scale-105" data-testid="link-home-sidebar">
+          <BrandLogo iconSize={36} wordmarkClassName="text-xl" />
         </Link>
       </div>
       <div className="p-3 border-b flex flex-col gap-2">

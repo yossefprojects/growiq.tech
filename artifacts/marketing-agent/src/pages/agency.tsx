@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -231,13 +232,9 @@ export default function AgencyPage() {
             <span className="hidden sm:inline">Retour</span>
           </Link>
           <Link href="/" className="flex items-center gap-2.5 group" data-testid="link-home">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:scale-105 transition-transform">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
+            <BrandIcon size={36} className="shrink-0 drop-shadow-sm" />
             <div className="leading-tight">
-              <div className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">
-                GrowIQ
-              </div>
+              <BrandWordmark className="text-lg" />
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider hidden sm:block">
                 Ton assistant marketing
               </div>

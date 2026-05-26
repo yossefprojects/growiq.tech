@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   Sparkles,
   Rocket,
@@ -90,11 +91,8 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-secondary/20 text-foreground">
       <header className="sticky top-0 z-30 backdrop-blur-md bg-background/70 border-b border-border/60">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group" data-testid="link-home">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:scale-105 transition-transform">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">GrowIQ</span>
+          <Link href="/" className="group" data-testid="link-home">
+            <BrandLogo iconSize={34} wordmarkClassName="text-lg" />
           </Link>
           <Link
             href="/app"

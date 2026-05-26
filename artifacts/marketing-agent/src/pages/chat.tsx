@@ -15,11 +15,12 @@ import {
   getListOpenaiCampaignsQueryKey,
 } from "@workspace/api-client-react";
 import { Sidebar } from "@/components/sidebar";
+import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
 import { ChatArea } from "@/components/chat-area";
 import { CampaignLaunchModal } from "@/components/campaign-launch-modal";
 import { WelcomeTour, shouldShowWelcomeTour } from "@/components/welcome-tour";
 import { toast } from "sonner";
-import { Rocket, MessageSquarePlus } from "lucide-react";
+import { Rocket } from "lucide-react";
 
 export default function ChatPage() {
   const [, setLocation] = useLocation();
@@ -216,11 +217,9 @@ export default function ChatPage() {
       <div className="flex flex-1 flex-col relative h-full">
         {!conversationId && !createMutation.isPending ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
-            <div className="bg-primary/10 p-4 rounded-full mb-6 text-primary">
-              <MessageSquarePlus className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">
-              GrowIQ
+            <BrandIcon size={72} className="mb-5 drop-shadow-md" />
+            <h2 className="mb-2">
+              <BrandWordmark className="text-2xl" />
             </h2>
             <p className="text-muted-foreground max-w-md mb-8">
               Votre stratège marketing senior. Posez une question ou laissez l'agent créer une campagne complète pour vous.
