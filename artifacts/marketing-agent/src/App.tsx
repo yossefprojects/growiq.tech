@@ -13,6 +13,7 @@ import HomePage from "@/pages/home";
 import AgencyPage from "@/pages/agency";
 import IntegrationsPage from "@/pages/integrations";
 import SeoPage from "@/pages/seo";
+import AdminPage from "@/pages/admin";
 import DashboardPage from "@/pages/dashboard";
 import AccessPendingPage from "@/pages/access-pending";
 import { SignInPage, SignUpPage } from "@/pages/auth-pages";
@@ -209,6 +210,7 @@ function Router() {
       <Route path="/app/agency">{() => <RequireAuth><AgencyPage /></RequireAuth>}</Route>
       <Route path="/app/integrations">{() => <RequireAuth><IntegrationsPage /></RequireAuth>}</Route>
       <Route path="/app/seo">{() => <RequireAuth><SeoPage /></RequireAuth>}</Route>
+      <Route path="/app/admin">{() => <RequireAuth><AdminPage /></RequireAuth>}</Route>
       <Route path="/app/conversations/:id">{() => <RequireAuth><ChatPage /></RequireAuth>}</Route>
       <Route path="/landing/:slug" component={LandingPage} />
       <Route component={NotFound} />

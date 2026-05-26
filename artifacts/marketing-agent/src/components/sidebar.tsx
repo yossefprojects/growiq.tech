@@ -1,11 +1,41 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Megaphone, Search } from "lucide-react";
-import { UserButton } from "@clerk/react";
+import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Megaphone, Search, Shield } from "lucide-react";
+import { UserButton, useAuth } from "@clerk/react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
 import { ToolboxModal } from "./toolbox-modal";
 import { BrandLogo } from "./brand-logo";
+
+const sidebarBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function AdminLink() {
+  const { getToken } = useAuth();
+  const { data } = useQuery<{ isAdmin: boolean }>({
+    queryKey: ["me"],
+    queryFn: async () => {
+      const token = await getToken();
+      const res = await fetch(`${sidebarBasePath}/api/me`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return { isAdmin: false };
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  if (!data?.isAdmin) return null;
+  return (
+    <Link
+      href="/app/admin"
+      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-md px-2 py-1.5 transition-colors"
+      data-testid="link-admin"
+    >
+      <Shield className="w-4 h-4" />
+      <span>Admin CRM</span>
+    </Link>
+  );
+}
 
 interface Conversation {
   id: number;
@@ -210,6 +240,8 @@ export function Sidebar({
           <Megaphone className="w-4 h-4" />
           <span>Publicités payantes</span>
         </Link>
+        <AdminLink />
+        
         <div className="flex items-center gap-3" data-testid="sidebar-user">
           <UserButton />
           <span className="text-xs text-muted-foreground">Mon compte</span>
