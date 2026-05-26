@@ -5,9 +5,10 @@
  * degrade gracefully (HTTP 503 with a clear French message) when the
  * corresponding secrets aren't set yet, so the rest of the app keeps working.
  */
-import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { Router, type IRouter, type Request } from "express";
+import { and, eq } from "drizzle-orm";
 import { db, adCampaigns, scheduledPosts } from "@workspace/db";
+import type { AuthedRequest } from "../middlewares/auth";
 import {
   isMetaAdsConfigured,
   boostFacebookPost,
@@ -20,6 +21,10 @@ import {
   setGoogleCampaignStatus,
   getGoogleCampaignMetrics,
 } from "../lib/google-ads";
+
+function uid(req: Request): string {
+  return (req as AuthedRequest).userId;
+}
 
 const router: IRouter = Router();
 
@@ -58,7 +63,7 @@ router.post("/ads/meta/boost", async (req, res): Promise<void> => {
   const [post] = await db
     .select()
     .from(scheduledPosts)
-    .where(eq(scheduledPosts.id, scheduledPostId));
+    .where(and(eq(scheduledPosts.id, scheduledPostId), eq(scheduledPosts.userId, uid(req))));
   if (!post) {
     res.status(404).json({ error: "Post programmé introuvable" });
     return;
@@ -84,6 +89,7 @@ router.post("/ads/meta/boost", async (req, res): Promise<void> => {
       status: "draft",
       budgetCents: dailyBudgetCents * durationDays,
       durationDays,
+      userId: uid(req),
       meta: {
         scheduledPostId: post.id,
         agencyCampaignId: post.meta?.campaignId,
@@ -130,25 +136,27 @@ router.post("/ads/meta/boost", async (req, res): Promise<void> => {
 
 // ── Meta Ads: activate / pause ──────────────────────────────────────────────
 router.post("/ads/meta/:id/activate", async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
-  await toggleMetaStatus(id, "ACTIVE", res);
+  await toggleMetaStatus(Number(req.params.id), "ACTIVE", uid(req), res);
 });
 
 router.post("/ads/meta/:id/pause", async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
-  await toggleMetaStatus(id, "PAUSED", res);
+  await toggleMetaStatus(Number(req.params.id), "PAUSED", uid(req), res);
 });
 
 async function toggleMetaStatus(
   id: number,
   status: "ACTIVE" | "PAUSED",
+  userId: string,
   res: import("express").Response,
 ): Promise<void> {
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "id invalide" });
     return;
   }
-  const [record] = await db.select().from(adCampaigns).where(eq(adCampaigns.id, id));
+  const [record] = await db
+    .select()
+    .from(adCampaigns)
+    .where(and(eq(adCampaigns.id, id), eq(adCampaigns.userId, userId)));
   if (!record || !record.providerCampaignId) {
     res.status(404).json({ error: "Campagne introuvable ou pas encore créée chez Meta" });
     return;
@@ -217,6 +225,7 @@ router.post("/ads/google/launch", async (req, res): Promise<void> => {
       status: "draft",
       budgetCents: body.dailyBudgetCents * body.durationDays,
       durationDays: body.durationDays,
+      userId: uid(req),
       meta: {
         agencyCampaignId: body.agencyCampaignId,
         notificationEmail: body.notificationEmail,
@@ -259,23 +268,27 @@ router.post("/ads/google/launch", async (req, res): Promise<void> => {
 
 // ── Google Ads: activate / pause ────────────────────────────────────────────
 router.post("/ads/google/:id/activate", async (req, res): Promise<void> => {
-  await toggleGoogleStatus(Number(req.params.id), "ENABLED", res);
+  await toggleGoogleStatus(Number(req.params.id), "ENABLED", uid(req), res);
 });
 
 router.post("/ads/google/:id/pause", async (req, res): Promise<void> => {
-  await toggleGoogleStatus(Number(req.params.id), "PAUSED", res);
+  await toggleGoogleStatus(Number(req.params.id), "PAUSED", uid(req), res);
 });
 
 async function toggleGoogleStatus(
   id: number,
   status: "ENABLED" | "PAUSED",
+  userId: string,
   res: import("express").Response,
 ): Promise<void> {
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "id invalide" });
     return;
   }
-  const [record] = await db.select().from(adCampaigns).where(eq(adCampaigns.id, id));
+  const [record] = await db
+    .select()
+    .from(adCampaigns)
+    .where(and(eq(adCampaigns.id, id), eq(adCampaigns.userId, userId)));
   if (!record || !record.providerCampaignId) {
     res.status(404).json({ error: "Campagne introuvable ou pas encore créée chez Google" });
     return;
@@ -297,8 +310,11 @@ async function toggleGoogleStatus(
 }
 
 // ── Listing + metrics ───────────────────────────────────────────────────────
-router.get("/ads", async (_req, res) => {
-  const rows = await db.select().from(adCampaigns);
+router.get("/ads", async (req, res) => {
+  const rows = await db
+    .select()
+    .from(adCampaigns)
+    .where(eq(adCampaigns.userId, uid(req)));
   res.json(rows);
 });
 
@@ -308,7 +324,10 @@ router.get("/ads/:id/metrics", async (req, res): Promise<void> => {
     res.status(400).json({ error: "id invalide" });
     return;
   }
-  const [record] = await db.select().from(adCampaigns).where(eq(adCampaigns.id, id));
+  const [record] = await db
+    .select()
+    .from(adCampaigns)
+    .where(and(eq(adCampaigns.id, id), eq(adCampaigns.userId, uid(req))));
   if (!record || !record.providerCampaignId) {
     res.status(404).json({ error: "Campagne introuvable" });
     return;

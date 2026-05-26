@@ -1,0 +1,9 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GrowIQ">
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="#5b54d6" />
+  <rect x="10" y="38" width="9" height="14" rx="2" fill="#c4b8e8" />
+  <rect x="22" y="28" width="9" height="24" rx="2" fill="#ffffff" />
+  <rect x="34" y="20" width="9" height="32" rx="2" fill="#ffffff" />
+  <rect x="46" y="12" width="9" height="40" rx="2" fill="#3dbf8e" />
+  <path d="M14 30 L26 22 L38 26 L52 14" stroke="#ffffff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+  <circle cx="52" cy="14" r="3" fill="#3dbf8e" stroke="#ffffff" stroke-width="1.5"/>
+</svg>

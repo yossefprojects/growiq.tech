@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles } from "lucide-react";
+import { UserButton } from "@clerk/react";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
 import { ToolboxModal } from "./toolbox-modal";
@@ -190,6 +191,11 @@ export function Sidebar({
             )}
           </>
         )}
+      </div>
+
+      <div className="border-t p-3 flex items-center gap-3" data-testid="sidebar-user">
+        <UserButton />
+        <span className="text-xs text-muted-foreground">Mon compte</span>
       </div>
     </div>
   );

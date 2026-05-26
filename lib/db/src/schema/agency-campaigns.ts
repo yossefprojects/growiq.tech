@@ -1,4 +1,4 @@
-import { jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 
 export type AgencyBrief = {
   product: string;
@@ -37,15 +37,20 @@ export type AgencyPlan = {
   decisions?: AgencyDecision[];
 };
 
-export const agencyCampaigns = pgTable("agency_campaigns", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  status: text("status").notNull().default("draft"),
-  brief: jsonb("brief").$type<AgencyBrief>().notNull(),
-  plan: jsonb("plan").$type<AgencyPlan>().notNull(),
-  notificationEmail: text("notification_email"),
-  launchedAt: timestamp("launched_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const agencyCampaigns = pgTable(
+  "agency_campaigns",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id"),
+    name: text("name").notNull(),
+    status: text("status").notNull().default("draft"),
+    brief: jsonb("brief").$type<AgencyBrief>().notNull(),
+    plan: jsonb("plan").$type<AgencyPlan>().notNull(),
+    notificationEmail: text("notification_email"),
+    launchedAt: timestamp("launched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("agency_campaigns_user_id_idx").on(t.userId)],
+);
 
 export type AgencyCampaign = typeof agencyCampaigns.$inferSelect;

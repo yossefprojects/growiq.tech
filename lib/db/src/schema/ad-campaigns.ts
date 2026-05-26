@@ -1,4 +1,4 @@
-import { integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 
 export type AdCampaignMetrics = {
   impressions?: number;
@@ -16,20 +16,25 @@ export type AdCampaignMeta = {
   notes?: string;
 };
 
-export const adCampaigns = pgTable("ad_campaigns", {
-  id: serial("id").primaryKey(),
-  provider: text("provider").notNull(), // "meta" | "google"
-  providerCampaignId: text("provider_campaign_id"), // id returned by the provider
-  status: text("status").notNull().default("draft"), // draft | active | paused | failed | completed
-  budgetCents: integer("budget_cents").notNull(),
-  currency: text("currency").notNull().default("EUR"),
-  durationDays: integer("duration_days").notNull().default(7),
-  startedAt: timestamp("started_at", { withTimezone: true }),
-  pausedAt: timestamp("paused_at", { withTimezone: true }),
-  lastMetrics: jsonb("last_metrics").$type<AdCampaignMetrics>(),
-  errorMessage: text("error_message"),
-  meta: jsonb("meta").$type<AdCampaignMeta>().notNull().default({} as AdCampaignMeta),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const adCampaigns = pgTable(
+  "ad_campaigns",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id"),
+    provider: text("provider").notNull(),
+    providerCampaignId: text("provider_campaign_id"),
+    status: text("status").notNull().default("draft"),
+    budgetCents: integer("budget_cents").notNull(),
+    currency: text("currency").notNull().default("EUR"),
+    durationDays: integer("duration_days").notNull().default(7),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    lastMetrics: jsonb("last_metrics").$type<AdCampaignMetrics>(),
+    errorMessage: text("error_message"),
+    meta: jsonb("meta").$type<AdCampaignMeta>().notNull().default({} as AdCampaignMeta),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("ad_campaigns_user_id_idx").on(t.userId)],
+);
 
 export type AdCampaign = typeof adCampaigns.$inferSelect;

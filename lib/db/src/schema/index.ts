@@ -8,3 +8,4 @@ export * from "./agency-campaigns";
 export * from "./system-events";
 export * from "./ad-campaigns";
 export * from "./business-profile";
+export * from "./local-users";

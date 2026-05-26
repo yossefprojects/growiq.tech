@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { eq, asc, desc, and, or, lte, inArray } from "drizzle-orm";
 import {
   db,
@@ -18,6 +18,11 @@ import {
   type AgencyDecision,
   type BusinessProfile,
 } from "@workspace/db";
+import type { AuthedRequest } from "../../middlewares/auth";
+
+function uid(req: Request): string {
+  return (req as AuthedRequest).userId;
+}
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
 import { publishToMeta, isMetaConfigured, getMetaProfile, getTokenStatus } from "../../lib/meta";
@@ -271,10 +276,11 @@ Tu peux exécuter de vraies actions marketing pour l'utilisateur (pas seulement 
 Quand l'utilisateur veut publier sur Facebook ou Instagram, propose-lui d'utiliser la boîte à outils (bouton « Programmer ») ou le bouton « Publier maintenant ». Instagram exige une image accessible publiquement (URL HTTPS).
 `;
 
-router.get("/openai/conversations", async (_req, res): Promise<void> => {
+router.get("/openai/conversations", async (req, res): Promise<void> => {
   const convos = await db
     .select()
     .from(conversations)
+    .where(eq(conversations.userId, uid(req)))
     .orderBy(asc(conversations.createdAt));
   res.json(convos.map((c) => ({ ...c, createdAt: c.createdAt.toISOString() })));
 });
@@ -288,7 +294,7 @@ router.post("/openai/conversations", async (req, res): Promise<void> => {
 
   const [convo] = await db
     .insert(conversations)
-    .values({ title: parsed.data.title })
+    .values({ title: parsed.data.title, userId: uid(req) })
     .returning();
 
   res.status(201).json({ ...convo, createdAt: convo.createdAt.toISOString() });
@@ -304,7 +310,7 @@ router.get("/openai/conversations/:id", async (req, res): Promise<void> => {
   const [convo] = await db
     .select()
     .from(conversations)
-    .where(eq(conversations.id, params.data.id));
+    .where(and(eq(conversations.id, params.data.id), eq(conversations.userId, uid(req))));
 
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
@@ -333,7 +339,7 @@ router.delete("/openai/conversations/:id", async (req, res): Promise<void> => {
 
   const [deleted] = await db
     .delete(conversations)
-    .where(eq(conversations.id, params.data.id))
+    .where(and(eq(conversations.id, params.data.id), eq(conversations.userId, uid(req))))
     .returning();
 
   if (!deleted) {
@@ -348,6 +354,15 @@ router.get("/openai/conversations/:id/messages", async (req, res): Promise<void>
   const params = ListOpenaiMessagesParams.safeParse({ id: req.params.id });
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [convo] = await db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(and(eq(conversations.id, params.data.id), eq(conversations.userId, uid(req))));
+  if (!convo) {
+    res.status(404).json({ error: "Conversation not found" });
     return;
   }
 
@@ -376,7 +391,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   const [convo] = await db
     .select()
     .from(conversations)
-    .where(eq(conversations.id, params.data.id));
+    .where(and(eq(conversations.id, params.data.id), eq(conversations.userId, uid(req))));
 
   if (!convo) {
     res.status(404).json({ error: "Conversation not found" });
@@ -387,6 +402,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     conversationId: params.data.id,
     role: "user",
     content: parsed.data.content,
+    userId: uid(req),
   });
 
   const history = await db
@@ -396,7 +412,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     .orderBy(asc(messages.createdAt));
 
   const chatMessages = [
-    { role: "system" as const, content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt()) },
+    { role: "system" as const, content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt(uid(req))) },
     ...history.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -428,6 +444,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     conversationId: params.data.id,
     role: "assistant",
     content: fullResponse,
+    userId: uid(req),
   });
 
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
@@ -490,7 +507,7 @@ Inclus LES 7 campagnes, triées par pertinence décroissante pour ce site (prior
     model: "gpt-5.4",
     max_completion_tokens: 1500,
     messages: [
-      { role: "system", content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt()) },
+      { role: "system", content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt(uid(req))) },
       { role: "user", content: analysisPrompt },
     ],
   });
@@ -728,8 +745,12 @@ Génère TOUT le contenu ci-dessus, complet et prêt à lancer.`,
   return prompts[type] ?? prompts["content"];
 }
 
-router.get("/openai/campaigns", async (_req, res): Promise<void> => {
-  const result = await db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
+router.get("/openai/campaigns", async (req, res): Promise<void> => {
+  const result = await db
+    .select()
+    .from(campaigns)
+    .where(eq(campaigns.userId, uid(req)))
+    .orderBy(desc(campaigns.createdAt));
   res.json(result.map((c) => ({ ...c, createdAt: c.createdAt.toISOString() })));
 });
 
@@ -739,7 +760,10 @@ router.delete("/openai/campaigns/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid campaign id" });
     return;
   }
-  const [deleted] = await db.delete(campaigns).where(eq(campaigns.id, id)).returning();
+  const [deleted] = await db
+    .delete(campaigns)
+    .where(and(eq(campaigns.id, id), eq(campaigns.userId, uid(req))))
+    .returning();
   if (!deleted) {
     res.status(404).json({ error: "Campaign not found" });
     return;
@@ -759,11 +783,11 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
     return;
   }
 
-  const [convo] = await db.insert(conversations).values({ title }).returning();
+  const [convo] = await db.insert(conversations).values({ title, userId: uid(req) }).returning();
 
   const [campaign] = await db
     .insert(campaigns)
-    .values({ title, type, businessContext, conversationId: convo.id })
+    .values({ title, type, businessContext, conversationId: convo.id, userId: uid(req) })
     .returning();
 
   const userPrompt = buildCampaignPrompt(type, businessContext);
@@ -772,6 +796,7 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
     conversationId: convo.id,
     role: "user",
     content: userPrompt,
+    userId: uid(req),
   });
 
   res.setHeader("Content-Type", "text/event-stream");
@@ -784,7 +809,7 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
     model: "gpt-5.4",
     max_completion_tokens: 8192,
     messages: [
-      { role: "system", content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt()) },
+      { role: "system", content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt(uid(req))) },
       { role: "user", content: userPrompt },
     ],
     stream: true,
@@ -802,6 +827,7 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
     conversationId: convo.id,
     role: "assistant",
     content: fullResponse,
+    userId: uid(req),
   });
 
   res.write(
@@ -843,8 +869,12 @@ router.post("/openai/generate-image", async (req, res): Promise<void> => {
 // LANDING PAGES (lead capture)
 // ════════════════════════════════════════════════════════════════════════════
 
-router.get("/landing-pages", async (_req, res) => {
-  const list = await db.select().from(landingPages).orderBy(desc(landingPages.createdAt));
+router.get("/landing-pages", async (req, res) => {
+  const list = await db
+    .select()
+    .from(landingPages)
+    .where(eq(landingPages.userId, uid(req)))
+    .orderBy(desc(landingPages.createdAt));
   res.json(list);
 });
 
@@ -884,6 +914,7 @@ router.post("/landing-pages", async (req, res) => {
         fields: fields ?? ["name", "email"],
         style: style ?? {},
         conversationId: conversationId ?? null,
+        userId: uid(req),
       })
       .returning();
     res.status(201).json(created);
@@ -894,92 +925,42 @@ router.post("/landing-pages", async (req, res) => {
 
 router.delete("/landing-pages/:id", async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  await db.delete(landingPages).where(eq(landingPages.id, id));
+  await db
+    .delete(landingPages)
+    .where(and(eq(landingPages.id, id), eq(landingPages.userId, uid(req))));
   res.json({ success: true });
 });
 
-router.get("/landing-pages/:id/leads", async (req, res) => {
+router.get("/landing-pages/:id/leads", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
-  const rows = await db.select().from(leads).where(eq(leads.landingPageId, id)).orderBy(desc(leads.createdAt));
+  const [page] = await db
+    .select({ id: landingPages.id })
+    .from(landingPages)
+    .where(and(eq(landingPages.id, id), eq(landingPages.userId, uid(req))));
+  if (!page) {
+    res.status(404).json({ error: "Page introuvable" });
+    return;
+  }
+  const rows = await db
+    .select()
+    .from(leads)
+    .where(eq(leads.landingPageId, id))
+    .orderBy(desc(leads.createdAt));
   res.json(rows);
 });
 
-// Public endpoints (no auth)
-router.get("/public/landing/:slug", async (req, res): Promise<void> => {
-  const slug = req.params.slug;
-  const [page] = await db.select().from(landingPages).where(eq(landingPages.slug, slug));
-  if (!page || !page.active) {
-    res.status(404).json({ error: "Page introuvable" });
-    return;
-  }
-  res.json({
-    slug: page.slug,
-    title: page.title,
-    headline: page.headline,
-    subheadline: page.subheadline,
-    ctaLabel: page.ctaLabel,
-    successMessage: page.successMessage,
-    fields: page.fields,
-    style: page.style,
-  });
-});
-
-// Simple in-memory rate limiter for public submit (per IP+slug)
-const submitHits = new Map<string, number[]>();
-const SUBMIT_WINDOW_MS = 60_000;
-const SUBMIT_MAX = 5;
-const ALLOWED_LEAD_FIELDS = new Set(["name", "email", "phone", "message", "company"]);
-
-router.post("/public/landing/:slug/submit", async (req, res): Promise<void> => {
-  const slug = req.params.slug;
-  const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0].trim() || req.ip || "anon");
-  const key = `${ip}:${slug}`;
-  const now = Date.now();
-  const hits = (submitHits.get(key) ?? []).filter((t) => now - t < SUBMIT_WINDOW_MS);
-  if (hits.length >= SUBMIT_MAX) {
-    res.status(429).json({ error: "Trop de soumissions. Réessayez dans 1 minute." });
-    return;
-  }
-  hits.push(now);
-  submitHits.set(key, hits);
-
-  const [page] = await db.select().from(landingPages).where(eq(landingPages.slug, slug));
-  if (!page || !page.active) {
-    res.status(404).json({ error: "Page introuvable" });
-    return;
-  }
-  const raw = (req.body ?? {}) as Record<string, unknown>;
-  // Strict whitelist + length cap
-  const data: Record<string, string> = {};
-  for (const k of Object.keys(raw)) {
-    if (!ALLOWED_LEAD_FIELDS.has(k)) continue;
-    const v = raw[k];
-    if (typeof v !== "string") continue;
-    data[k] = v.slice(0, 500).trim();
-  }
-  const email = (data.email ?? "").toLowerCase();
-  const name = data.name ?? "";
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
-    res.status(400).json({ error: "Email invalide" });
-    return;
-  }
-  data.email = email;
-  await db.insert(leads).values({
-    landingPageId: page.id,
-    email,
-    name,
-    data,
-    source: (req.headers.referer ?? "").toString().slice(0, 500),
-  });
-  res.json({ success: true, message: page.successMessage });
-});
+// Public landing routes are mounted via `routes/public-landing.ts` BEFORE auth.
 
 // ════════════════════════════════════════════════════════════════════════════
 // SCHEDULED POSTS
 // ════════════════════════════════════════════════════════════════════════════
 
-router.get("/scheduled-posts", async (_req, res) => {
-  const list = await db.select().from(scheduledPosts).orderBy(asc(scheduledPosts.scheduledFor));
+router.get("/scheduled-posts", async (req, res) => {
+  const list = await db
+    .select()
+    .from(scheduledPosts)
+    .where(eq(scheduledPosts.userId, uid(req)))
+    .orderBy(asc(scheduledPosts.scheduledFor));
   res.json(list);
 });
 
@@ -1031,6 +1012,7 @@ router.post("/scheduled-posts", async (req, res): Promise<void> => {
       meta: finalMeta,
       conversationId: conversationId ?? null,
       status: "pending",
+      userId: uid(req),
     })
     .returning();
   res.status(201).json(created);
@@ -1038,7 +1020,9 @@ router.post("/scheduled-posts", async (req, res): Promise<void> => {
 
 router.delete("/scheduled-posts/:id", async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  await db.delete(scheduledPosts).where(eq(scheduledPosts.id, id));
+  await db
+    .delete(scheduledPosts)
+    .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.userId, uid(req))));
   res.json({ success: true });
 });
 
@@ -1046,8 +1030,12 @@ router.delete("/scheduled-posts/:id", async (req, res) => {
 // META (Facebook / Instagram) — direct publish
 // ════════════════════════════════════════════════════════════════════════════
 
-router.get("/openai/business-profile", async (_req, res): Promise<void> => {
-  const [profile] = await db.select().from(businessProfiles).limit(1);
+router.get("/openai/business-profile", async (req, res): Promise<void> => {
+  const [profile] = await db
+    .select()
+    .from(businessProfiles)
+    .where(eq(businessProfiles.userId, uid(req)))
+    .limit(1);
   if (!profile) {
     res.json({
       id: null,
@@ -1080,7 +1068,11 @@ router.put("/openai/business-profile", async (req, res): Promise<void> => {
     primaryGoal: string | null;
     onboardingCompleted: boolean;
   }>;
-  const [existing] = await db.select().from(businessProfiles).orderBy(asc(businessProfiles.id)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(businessProfiles)
+    .where(eq(businessProfiles.userId, uid(req)))
+    .limit(1);
   // Merge: only overwrite fields explicitly provided; preserve everything else.
   const pick = <K extends keyof typeof body>(k: K, fallback: BusinessProfile[K & keyof BusinessProfile] | null) =>
     k in body ? (body[k] as BusinessProfile[K & keyof BusinessProfile] | null) : (existing?.[k as keyof BusinessProfile] ?? fallback) as BusinessProfile[K & keyof BusinessProfile] | null;
@@ -1105,7 +1097,10 @@ router.put("/openai/business-profile", async (req, res): Promise<void> => {
       .where(eq(businessProfiles.id, existing.id))
       .returning();
   } else {
-    [saved] = await db.insert(businessProfiles).values(values).returning();
+    [saved] = await db
+      .insert(businessProfiles)
+      .values({ ...values, userId: uid(req) })
+      .returning();
   }
   res.json({
     id: saved.id,
@@ -1118,13 +1113,13 @@ router.put("/openai/business-profile", async (req, res): Promise<void> => {
   });
 });
 
-async function getBusinessContextPrompt(): Promise<string> {
+async function getBusinessContextPrompt(userId: string): Promise<string> {
   // Fail-open: any DB issue here must NOT break the chat. Return empty string and log.
   try {
     const [profile] = await db
       .select()
       .from(businessProfiles)
-      .orderBy(asc(businessProfiles.id))
+      .where(eq(businessProfiles.userId, userId))
       .limit(1);
     if (!profile) return "";
     const parts: string[] = [];
@@ -1182,12 +1177,12 @@ router.post("/meta/publish", async (req, res): Promise<void> => {
     res.status(result.configMissing ? 412 : 502).json({ error: result.error });
     return;
   }
-  // If a scheduled post id is supplied, mark it as sent
+  // If a scheduled post id is supplied, mark it as sent (only if owned by user)
   if (typeof scheduledPostId === "number") {
     const [existing] = await db
       .select()
       .from(scheduledPosts)
-      .where(eq(scheduledPosts.id, scheduledPostId));
+      .where(and(eq(scheduledPosts.id, scheduledPostId), eq(scheduledPosts.userId, uid(req))));
     if (existing) {
       await db
         .update(scheduledPosts)
@@ -1767,8 +1762,8 @@ function normalizePlan(raw: unknown): AgencyPlan {
 }
 
 router.post("/agency/generate", async (req, res): Promise<void> => {
-  const ip = (req.ip ?? "anon") + ":generate";
-  if (!checkAgencyRateLimit(ip)) {
+  const rateKey = uid(req) + ":generate";
+  if (!checkAgencyRateLimit(rateKey)) {
     res.status(429).json({
       error: "Trop de générations récentes. Réessayez dans une heure (limite : 10/h).",
     });
@@ -1843,6 +1838,7 @@ router.post("/agency/generate", async (req, res): Promise<void> => {
       status: "draft",
       brief: cleanBrief,
       plan,
+      userId: uid(req),
     })
     .returning();
 
@@ -1863,7 +1859,7 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
   const [campaign] = await db
     .select()
     .from(agencyCampaigns)
-    .where(eq(agencyCampaigns.id, id));
+    .where(and(eq(agencyCampaigns.id, id), eq(agencyCampaigns.userId, uid(req))));
   if (!campaign) {
     res.status(404).json({ error: "Campagne introuvable" });
     return;
@@ -1893,7 +1889,11 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
   const claimed = await db
     .update(agencyCampaigns)
     .set({ status: "launching" })
-    .where(and(eq(agencyCampaigns.id, id), eq(agencyCampaigns.status, "draft")))
+    .where(and(
+      eq(agencyCampaigns.id, id),
+      eq(agencyCampaigns.status, "draft"),
+      eq(agencyCampaigns.userId, uid(req)),
+    ))
     .returning();
   if (claimed.length === 0) {
     res.status(409).json({ error: "Campagne déjà en cours de lancement ou lancée." });
@@ -1920,6 +1920,7 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
             scheduledFor: new Date(post.scheduledFor),
             meta: postMeta,
             status: "pending",
+            userId: uid(req),
           })
           .returning();
         ids.push(sp.id);
@@ -1995,10 +1996,11 @@ Tu peux revenir voir tes campagnes à tout moment dans l'application.
   res.json({ campaign: refreshed, scheduledPostIds: createdIds, emailStatus });
 });
 
-router.get("/agency", async (_req, res) => {
+router.get("/agency", async (req, res) => {
   const list = await db
     .select()
     .from(agencyCampaigns)
+    .where(eq(agencyCampaigns.userId, uid(req)))
     .orderBy(desc(agencyCampaigns.createdAt));
   res.json(list);
 });
@@ -2012,7 +2014,7 @@ router.get("/agency/:id", async (req, res): Promise<void> => {
   const [campaign] = await db
     .select()
     .from(agencyCampaigns)
-    .where(eq(agencyCampaigns.id, id));
+    .where(and(eq(agencyCampaigns.id, id), eq(agencyCampaigns.userId, uid(req))));
   if (!campaign) {
     res.status(404).json({ error: "introuvable" });
     return;
@@ -2034,7 +2036,9 @@ router.delete("/agency/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: "id invalide" });
     return;
   }
-  await db.delete(agencyCampaigns).where(eq(agencyCampaigns.id, id));
+  await db
+    .delete(agencyCampaigns)
+    .where(and(eq(agencyCampaigns.id, id), eq(agencyCampaigns.userId, uid(req))));
   res.status(204).end();
 });
 
