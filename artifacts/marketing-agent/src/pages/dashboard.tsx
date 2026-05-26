@@ -6,8 +6,10 @@ import {
   useListOpenaiCampaigns,
   useDeleteOpenaiConversation,
   useDeleteOpenaiCampaign,
+  useGetOpenaiBusinessProfile,
   getListOpenaiConversationsQueryKey,
   getListOpenaiCampaignsQueryKey,
+  getGetOpenaiBusinessProfileQueryKey,
 } from "@workspace/api-client-react";
 import { toast } from "sonner";
 import {
@@ -23,6 +25,7 @@ import { Sidebar } from "@/components/sidebar";
 import { CampaignLaunchModal } from "@/components/campaign-launch-modal";
 import { ToolboxModal } from "@/components/toolbox-modal";
 import { WelcomeTour, shouldShowWelcomeTour } from "@/components/welcome-tour";
+import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding-wizard";
 import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -46,12 +49,26 @@ export default function DashboardPage() {
   const [toolboxOpen, setToolboxOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const { data: profile, isLoading: profileLoading } = useGetOpenaiBusinessProfile({
+    query: { queryKey: getGetOpenaiBusinessProfileQueryKey() },
+  });
 
   useEffect(() => {
+    if (profileLoading) return;
+    const onboardingPending = shouldShowOnboarding(
+      true,
+      profile?.onboardingCompleted ?? false,
+    );
+    if (onboardingPending) {
+      const t = setTimeout(() => setShowOnboarding(true), 300);
+      return () => clearTimeout(t);
+    }
     if (!shouldShowWelcomeTour()) return;
     const t = setTimeout(() => setShowWelcome(true), 400);
     return () => clearTimeout(t);
-  }, []);
+  }, [profileLoading, profile?.onboardingCompleted]);
 
   const { data: conversations = [], isLoading: convLoading } =
     useListOpenaiConversations({
@@ -341,6 +358,11 @@ export default function DashboardPage() {
         }}
       />
       <ToolboxModal open={toolboxOpen} onClose={() => setToolboxOpen(false)} />
+      <OnboardingWizard
+        open={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onComplete={() => setShowOnboarding(false)}
+      />
       <WelcomeTour open={showWelcome} onClose={() => setShowWelcome(false)} />
     </div>
   );

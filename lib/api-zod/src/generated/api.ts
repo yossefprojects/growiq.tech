@@ -117,6 +117,52 @@ export const DeleteOpenaiCampaignParams = zod.object({
 
 
 /**
+ * @summary Get the current business profile (singleton)
+ */
+export const GetOpenaiBusinessProfileResponse = zod.object({
+  "id": zod.number().nullish(),
+  "businessName": zod.string().nullish(),
+  "activity": zod.string().nullish(),
+  "targetAudience": zod.string().nullish(),
+  "tone": zod.string().nullish(),
+  "primaryGoal": zod.string().nullish(),
+  "onboardingCompleted": zod.boolean()
+})
+
+
+/**
+ * @summary Create or update the business profile
+ */
+export const UpsertOpenaiBusinessProfileBody = zod.object({
+  "businessName": zod.string().nullish(),
+  "activity": zod.string().nullish(),
+  "targetAudience": zod.string().nullish(),
+  "tone": zod.string().nullish(),
+  "primaryGoal": zod.string().nullish(),
+  "onboardingCompleted": zod.boolean().optional()
+})
+
+export const UpsertOpenaiBusinessProfileResponse = zod.object({
+  "id": zod.number().nullish(),
+  "businessName": zod.string().nullish(),
+  "activity": zod.string().nullish(),
+  "targetAudience": zod.string().nullish(),
+  "tone": zod.string().nullish(),
+  "primaryGoal": zod.string().nullish(),
+  "onboardingCompleted": zod.boolean()
+})
+
+
+/**
+ * @summary Check which Meta platforms are configured
+ */
+export const GetMetaStatusResponse = zod.object({
+  "facebook": zod.boolean(),
+  "instagram": zod.boolean()
+})
+
+
+/**
  * @summary Generate an image from a text prompt
  */
 export const GenerateOpenaiImageBody = zod.object({

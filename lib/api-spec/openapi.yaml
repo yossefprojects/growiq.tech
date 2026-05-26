@@ -175,6 +175,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OpenaiError"
+  /openai/business-profile:
+    get:
+      operationId: getOpenaiBusinessProfile
+      tags: [openai]
+      summary: Get the current business profile (singleton)
+      responses:
+        "200":
+          description: Business profile (empty object if not yet created)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiBusinessProfile"
+    put:
+      operationId: upsertOpenaiBusinessProfile
+      tags: [openai]
+      summary: Create or update the business profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenaiBusinessProfileInput"
+      responses:
+        "200":
+          description: Updated business profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiBusinessProfile"
+  /meta/status:
+    get:
+      operationId: getMetaStatus
+      tags: [openai]
+      summary: Check which Meta platforms are configured
+      responses:
+        "200":
+          description: Configuration status for Facebook and Instagram
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetaStatus"
   /openai/generate-image:
     post:
       operationId: generateOpenaiImage
@@ -202,6 +243,61 @@ components:
           type: string
       required:
         - status
+    OpenaiBusinessProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          nullable: true
+        businessName:
+          type: string
+          nullable: true
+        activity:
+          type: string
+          nullable: true
+        targetAudience:
+          type: string
+          nullable: true
+        tone:
+          type: string
+          nullable: true
+        primaryGoal:
+          type: string
+          nullable: true
+        onboardingCompleted:
+          type: boolean
+      required:
+        - onboardingCompleted
+    OpenaiBusinessProfileInput:
+      type: object
+      properties:
+        businessName:
+          type: string
+          nullable: true
+        activity:
+          type: string
+          nullable: true
+        targetAudience:
+          type: string
+          nullable: true
+        tone:
+          type: string
+          nullable: true
+        primaryGoal:
+          type: string
+          nullable: true
+        onboardingCompleted:
+          type: boolean
+    MetaStatus:
+      type: object
+      properties:
+        facebook:
+          type: boolean
+        instagram:
+          type: boolean
+      required:
+        - facebook
+        - instagram
     OpenaiConversation:
       type: object
       properties:

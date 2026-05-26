@@ -21,6 +21,9 @@ import type {
 
 import type {
   HealthStatus,
+  MetaStatus,
+  OpenaiBusinessProfile,
+  OpenaiBusinessProfileInput,
   OpenaiCampaign,
   OpenaiConversation,
   OpenaiConversationInput,
@@ -712,6 +715,231 @@ export const useDeleteOpenaiCampaign = <TError = ErrorType<OpenaiError>,
       > => {
       return useMutation(getDeleteOpenaiCampaignMutationOptions(options));
     }
+
+export const getGetOpenaiBusinessProfileUrl = () => {
+
+
+
+
+  return `/api/openai/business-profile`
+}
+
+/**
+ * @summary Get the current business profile (singleton)
+ */
+export const getOpenaiBusinessProfile = async ( options?: RequestInit): Promise<OpenaiBusinessProfile> => {
+
+  return customFetch<OpenaiBusinessProfile>(getGetOpenaiBusinessProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOpenaiBusinessProfileQueryKey = () => {
+    return [
+    `/api/openai/business-profile`
+    ] as const;
+    }
+
+
+export const getGetOpenaiBusinessProfileQueryOptions = <TData = Awaited<ReturnType<typeof getOpenaiBusinessProfile>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpenaiBusinessProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOpenaiBusinessProfileQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOpenaiBusinessProfile>>> = ({ signal }) => getOpenaiBusinessProfile({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOpenaiBusinessProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOpenaiBusinessProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getOpenaiBusinessProfile>>>
+export type GetOpenaiBusinessProfileQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the current business profile (singleton)
+ */
+
+export function useGetOpenaiBusinessProfile<TData = Awaited<ReturnType<typeof getOpenaiBusinessProfile>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpenaiBusinessProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOpenaiBusinessProfileQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpsertOpenaiBusinessProfileUrl = () => {
+
+
+
+
+  return `/api/openai/business-profile`
+}
+
+/**
+ * @summary Create or update the business profile
+ */
+export const upsertOpenaiBusinessProfile = async (openaiBusinessProfileInput: OpenaiBusinessProfileInput, options?: RequestInit): Promise<OpenaiBusinessProfile> => {
+
+  return customFetch<OpenaiBusinessProfile>(getUpsertOpenaiBusinessProfileUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      openaiBusinessProfileInput,)
+  }
+);}
+
+
+
+
+export const getUpsertOpenaiBusinessProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertOpenaiBusinessProfile>>, TError,{data: BodyType<OpenaiBusinessProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof upsertOpenaiBusinessProfile>>, TError,{data: BodyType<OpenaiBusinessProfileInput>}, TContext> => {
+
+const mutationKey = ['upsertOpenaiBusinessProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof upsertOpenaiBusinessProfile>>, {data: BodyType<OpenaiBusinessProfileInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  upsertOpenaiBusinessProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpsertOpenaiBusinessProfileMutationResult = NonNullable<Awaited<ReturnType<typeof upsertOpenaiBusinessProfile>>>
+    export type UpsertOpenaiBusinessProfileMutationBody = BodyType<OpenaiBusinessProfileInput>
+    export type UpsertOpenaiBusinessProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create or update the business profile
+ */
+export const useUpsertOpenaiBusinessProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof upsertOpenaiBusinessProfile>>, TError,{data: BodyType<OpenaiBusinessProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof upsertOpenaiBusinessProfile>>,
+        TError,
+        {data: BodyType<OpenaiBusinessProfileInput>},
+        TContext
+      > => {
+      return useMutation(getUpsertOpenaiBusinessProfileMutationOptions(options));
+    }
+
+export const getGetMetaStatusUrl = () => {
+
+
+
+
+  return `/api/meta/status`
+}
+
+/**
+ * @summary Check which Meta platforms are configured
+ */
+export const getMetaStatus = async ( options?: RequestInit): Promise<MetaStatus> => {
+
+  return customFetch<MetaStatus>(getGetMetaStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMetaStatusQueryKey = () => {
+    return [
+    `/api/meta/status`
+    ] as const;
+    }
+
+
+export const getGetMetaStatusQueryOptions = <TData = Awaited<ReturnType<typeof getMetaStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMetaStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMetaStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMetaStatus>>> = ({ signal }) => getMetaStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMetaStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMetaStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getMetaStatus>>>
+export type GetMetaStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check which Meta platforms are configured
+ */
+
+export function useGetMetaStatus<TData = Awaited<ReturnType<typeof getMetaStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMetaStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMetaStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGenerateOpenaiImageUrl = () => {
 

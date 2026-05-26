@@ -9,6 +9,30 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface OpenaiBusinessProfile {
+  id?: number | null;
+  businessName?: string | null;
+  activity?: string | null;
+  targetAudience?: string | null;
+  tone?: string | null;
+  primaryGoal?: string | null;
+  onboardingCompleted: boolean;
+}
+
+export interface OpenaiBusinessProfileInput {
+  businessName?: string | null;
+  activity?: string | null;
+  targetAudience?: string | null;
+  tone?: string | null;
+  primaryGoal?: string | null;
+  onboardingCompleted?: boolean;
+}
+
+export interface MetaStatus {
+  facebook: boolean;
+  instagram: boolean;
+}
+
 export interface OpenaiConversation {
   id: number;
   title: string;

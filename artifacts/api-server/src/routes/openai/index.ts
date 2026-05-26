@@ -10,11 +10,13 @@ import {
   scheduledPosts,
   agencyCampaigns,
   systemEvents,
+  businessProfiles,
   type CampaignBusinessContext,
   type AgencyBrief,
   type AgencyPlan,
   type AgencyPlannedPost,
   type AgencyDecision,
+  type BusinessProfile,
 } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
@@ -394,7 +396,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     .orderBy(asc(messages.createdAt));
 
   const chatMessages = [
-    { role: "system" as const, content: MARKETING_SYSTEM_PROMPT },
+    { role: "system" as const, content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt()) },
     ...history.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -488,7 +490,7 @@ Inclus LES 7 campagnes, triées par pertinence décroissante pour ce site (prior
     model: "gpt-5.4",
     max_completion_tokens: 1500,
     messages: [
-      { role: "system", content: MARKETING_SYSTEM_PROMPT },
+      { role: "system", content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt()) },
       { role: "user", content: analysisPrompt },
     ],
   });
@@ -782,7 +784,7 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
     model: "gpt-5.4",
     max_completion_tokens: 8192,
     messages: [
-      { role: "system", content: MARKETING_SYSTEM_PROMPT },
+      { role: "system", content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt()) },
       { role: "user", content: userPrompt },
     ],
     stream: true,
@@ -1043,6 +1045,101 @@ router.delete("/scheduled-posts/:id", async (req, res) => {
 // ════════════════════════════════════════════════════════════════════════════
 // META (Facebook / Instagram) — direct publish
 // ════════════════════════════════════════════════════════════════════════════
+
+router.get("/openai/business-profile", async (_req, res): Promise<void> => {
+  const [profile] = await db.select().from(businessProfiles).limit(1);
+  if (!profile) {
+    res.json({
+      id: null,
+      businessName: null,
+      activity: null,
+      targetAudience: null,
+      tone: null,
+      primaryGoal: null,
+      onboardingCompleted: false,
+    });
+    return;
+  }
+  res.json({
+    id: profile.id,
+    businessName: profile.businessName,
+    activity: profile.activity,
+    targetAudience: profile.targetAudience,
+    tone: profile.tone,
+    primaryGoal: profile.primaryGoal,
+    onboardingCompleted: profile.onboardingCompleted === "true",
+  });
+});
+
+router.put("/openai/business-profile", async (req, res): Promise<void> => {
+  const body = (req.body ?? {}) as Partial<{
+    businessName: string | null;
+    activity: string | null;
+    targetAudience: string | null;
+    tone: string | null;
+    primaryGoal: string | null;
+    onboardingCompleted: boolean;
+  }>;
+  const [existing] = await db.select().from(businessProfiles).orderBy(asc(businessProfiles.id)).limit(1);
+  // Merge: only overwrite fields explicitly provided; preserve everything else.
+  const pick = <K extends keyof typeof body>(k: K, fallback: BusinessProfile[K & keyof BusinessProfile] | null) =>
+    k in body ? (body[k] as BusinessProfile[K & keyof BusinessProfile] | null) : (existing?.[k as keyof BusinessProfile] ?? fallback) as BusinessProfile[K & keyof BusinessProfile] | null;
+
+  const values = {
+    businessName: pick("businessName", null),
+    activity: pick("activity", null),
+    targetAudience: pick("targetAudience", null),
+    tone: pick("tone", null),
+    primaryGoal: pick("primaryGoal", null),
+    onboardingCompleted:
+      "onboardingCompleted" in body
+        ? (body.onboardingCompleted ? "true" : "false")
+        : (existing?.onboardingCompleted ?? "false"),
+    updatedAt: new Date(),
+  };
+  let saved: BusinessProfile;
+  if (existing) {
+    [saved] = await db
+      .update(businessProfiles)
+      .set(values)
+      .where(eq(businessProfiles.id, existing.id))
+      .returning();
+  } else {
+    [saved] = await db.insert(businessProfiles).values(values).returning();
+  }
+  res.json({
+    id: saved.id,
+    businessName: saved.businessName,
+    activity: saved.activity,
+    targetAudience: saved.targetAudience,
+    tone: saved.tone,
+    primaryGoal: saved.primaryGoal,
+    onboardingCompleted: saved.onboardingCompleted === "true",
+  });
+});
+
+async function getBusinessContextPrompt(): Promise<string> {
+  // Fail-open: any DB issue here must NOT break the chat. Return empty string and log.
+  try {
+    const [profile] = await db
+      .select()
+      .from(businessProfiles)
+      .orderBy(asc(businessProfiles.id))
+      .limit(1);
+    if (!profile) return "";
+    const parts: string[] = [];
+    if (profile.businessName) parts.push(`Nom : ${profile.businessName}`);
+    if (profile.activity) parts.push(`Activité : ${profile.activity}`);
+    if (profile.targetAudience) parts.push(`Cible : ${profile.targetAudience}`);
+    if (profile.tone) parts.push(`Ton souhaité : ${profile.tone}`);
+    if (profile.primaryGoal) parts.push(`Objectif prioritaire : ${profile.primaryGoal}`);
+    if (parts.length === 0) return "";
+    return `\n\n---\n\n## CONTEXTE DE L'UTILISATEUR (profil business)\n\nAdapte systématiquement tes recommandations à ce contexte :\n${parts.map((p) => `- ${p}`).join("\n")}`;
+  } catch (err) {
+    logger.warn({ err }, "getBusinessContextPrompt failed, falling back to empty");
+    return "";
+  }
+}
 
 router.get("/meta/status", (_req, res) => {
   res.json({
