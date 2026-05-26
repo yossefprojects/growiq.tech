@@ -2024,8 +2024,13 @@ router.get("/agency/:id", async (req, res): Promise<void> => {
     .filter((x): x is number => typeof x === "number");
   let scheduled: typeof scheduledPosts.$inferSelect[] = [];
   if (postIds.length > 0) {
-    scheduled = await db.select().from(scheduledPosts);
-    scheduled = scheduled.filter((s) => postIds.includes(s.id));
+    scheduled = await db
+      .select()
+      .from(scheduledPosts)
+      .where(and(
+        eq(scheduledPosts.userId, uid(req)),
+        inArray(scheduledPosts.id, postIds),
+      ));
   }
   res.json({ campaign, scheduledPosts: scheduled });
 });

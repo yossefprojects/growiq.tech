@@ -112,34 +112,54 @@ function HomeRedirect() {
   );
 }
 
+type MeResponse = { userId: string; email: string | null; isAdmin: boolean };
+type MeState =
+  | { kind: "ok"; data: MeResponse }
+  | { kind: "unauthenticated" }
+  | { kind: "network_error" };
+
 function AdminGate({ children }: { children: React.ReactNode }) {
   const { getToken } = useAuth();
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading } = useQuery<MeState>({
     queryKey: ["me"],
     queryFn: async () => {
       const token = await getToken();
       const res = await fetch(`${basePath}/api/me`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (res.status === 401) return null;
-      if (!res.ok) throw new Error("Failed to load profile");
-      return (await res.json()) as { userId: string; email: string | null; isAdmin: boolean };
+      if (res.status === 401) return { kind: "unauthenticated" };
+      if (!res.ok) return { kind: "network_error" };
+      return { kind: "ok", data: (await res.json()) as MeResponse };
     },
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
-  if (isLoading) {
+  if (isLoading || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-[#5b54d6]" />
       </div>
     );
   }
-  if (isError || !data) {
-    return <AccessPendingPage email={null} />;
+  if (data.kind === "unauthenticated") {
+    return <Redirect to="/sign-in" />;
   }
-  if (!data.isAdmin) {
-    return <AccessPendingPage email={data.email} />;
+  if (data.kind === "network_error") {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md text-center">
+          <p className="text-[#1e1b4b] font-semibold mb-2">
+            Connexion au serveur impossible.
+          </p>
+          <p className="text-sm text-[#6b7280]">
+            Vérifie ta connexion et recharge la page.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (!data.data.isAdmin) {
+    return <AccessPendingPage email={data.data.email} />;
   }
   return <>{children}</>;
 }

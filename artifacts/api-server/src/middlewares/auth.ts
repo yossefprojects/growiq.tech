@@ -88,6 +88,18 @@ async function runBackfillIfNeeded(userId: string, alreadyClaimed: boolean): Pro
   if (alreadyClaimed) return;
   try {
     await db.transaction(async (tx) => {
+      // Serialize concurrent admin logins with a Postgres advisory lock so
+      // exactly one transaction can claim the legacy NULL-userId rows globally.
+      // Lock key is an arbitrary but stable constant for "growiq:backfill".
+      await tx.execute(sql`select pg_advisory_xact_lock(727182917)`);
+
+      // Re-check inside the lock: another admin may have already claimed.
+      const [me] = await tx
+        .select({ backfillClaimed: localUsers.backfillClaimed })
+        .from(localUsers)
+        .where(eq(localUsers.id, userId));
+      if (me?.backfillClaimed) return;
+
       const tables = [
         conversations,
         messages,
@@ -105,10 +117,11 @@ async function runBackfillIfNeeded(userId: string, alreadyClaimed: boolean): Pro
           .set({ userId } as never)
           .where(isNull((t as never as { userId: typeof conversations.userId }).userId));
       }
+      // Mark ALL admin rows as claimed so other admins skip backfill too.
       await tx
         .update(localUsers)
         .set({ backfillClaimed: true })
-        .where(eq(localUsers.id, userId));
+        .where(eq(localUsers.backfillClaimed, false));
     });
     logger.info({ userId }, "Backfill claimed orphaned rows for admin");
   } catch (err) {
