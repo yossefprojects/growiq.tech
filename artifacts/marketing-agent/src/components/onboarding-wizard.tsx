@@ -7,6 +7,7 @@ import {
   Check,
   Facebook,
   Instagram,
+  Linkedin,
   Sparkles,
   Target,
   Megaphone,
@@ -22,7 +23,8 @@ import {
   getGetOpenaiBusinessProfileQueryKey,
   getGetMetaStatusQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/react";
 import { cn } from "@/lib/utils";
 
 interface OnboardingWizardProps {
@@ -49,6 +51,12 @@ const GOALS: { id: string; label: string; emoji: string }[] = [
 ];
 
 const ONBOARDING_KEY = "growiq:onboarding-skipped";
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+type LinkedinStatus = {
+  configured: boolean;
+  connected: boolean;
+};
 
 export function shouldShowOnboarding(profileLoaded: boolean, completed: boolean): boolean {
   if (!profileLoaded) return false;
@@ -59,6 +67,7 @@ export function shouldShowOnboarding(profileLoaded: boolean, completed: boolean)
 
 export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizardProps) {
   const qc = useQueryClient();
+  const { getToken } = useAuth();
   const [step, setStep] = useState(0);
 
   const { data: profile } = useGetOpenaiBusinessProfile({
@@ -66,6 +75,18 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
   });
   const { data: metaStatus, isLoading: metaLoading } = useGetMetaStatus({
     query: { queryKey: getGetMetaStatusQueryKey(), enabled: open },
+  });
+  const { data: linkedinStatus, isLoading: linkedinLoading } = useQuery<LinkedinStatus>({
+    queryKey: ["linkedin-status"],
+    enabled: open,
+    queryFn: async () => {
+      const token = await getToken();
+      const res = await fetch(`${basePath}/api/linkedin/status`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return { configured: false, connected: false };
+      return res.json() as Promise<LinkedinStatus>;
+    },
   });
 
   const upsert = useUpsertOpenaiBusinessProfile();
@@ -135,7 +156,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
       icon: Sparkles,
       content: (
         <div className="space-y-3">
-          {metaLoading ? (
+          {metaLoading || linkedinLoading ? (
             <div className="flex items-center justify-center py-8 text-muted-foreground text-sm gap-2">
               <Loader2 className="w-4 h-4 animate-spin" /> Vérification…
             </div>
@@ -153,7 +174,13 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                 connected={!!metaStatus?.instagram}
                 color="from-[#e1306c] via-[#fd1d1d] to-[#fcb045]"
               />
-              {(!metaStatus?.facebook || !metaStatus?.instagram) && (
+              <SocialRow
+                icon={Linkedin}
+                label="LinkedIn"
+                connected={!!linkedinStatus?.connected}
+                color="from-[#0a66c2] to-[#004182]"
+              />
+              {(!metaStatus?.facebook || !metaStatus?.instagram || !linkedinStatus?.connected) && (
                 <div className="flex items-start gap-2 mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>
