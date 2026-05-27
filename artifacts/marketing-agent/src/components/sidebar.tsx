@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
 import { ToolboxModal } from "./toolbox-modal";
 import { BrandLogo } from "./brand-logo";
+import { AdminIconButton } from "./admin-button";
 
 const sidebarBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -77,10 +78,11 @@ export function Sidebar({
   const [toolboxOpen, setToolboxOpen] = useState(false);
   return (
     <div className="w-64 border-r bg-card flex flex-col h-full flex-shrink-0">
-      <div className="px-4 py-4 border-b bg-gradient-to-br from-[#ede9fe] to-[#d1fae5]/60 flex items-center justify-center">
+      <div className="px-4 py-4 border-b bg-gradient-to-br from-[#ede9fe] to-[#d1fae5]/60 flex items-center justify-between gap-2">
         <Link href="/" className="group transition-transform group-hover:scale-105" data-testid="link-home-sidebar">
           <BrandLogo iconSize={36} wordmarkClassName="text-xl" />
         </Link>
+        <AdminIconButton variant="ghost" />
       </div>
       <div className="p-3 border-b flex flex-col gap-2">
         <button

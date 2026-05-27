@@ -28,6 +28,7 @@ import { ToolboxModal } from "@/components/toolbox-modal";
 import { WelcomeTour, shouldShowWelcomeTour } from "@/components/welcome-tour";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding-wizard";
 import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
+import { AdminIconButton } from "@/components/admin-button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
@@ -209,23 +210,26 @@ export default function DashboardPage() {
               <BrandIcon size={28} className="drop-shadow-sm" />
               <BrandWordmark className="text-base" />
             </Link>
-            <div className="w-9" />
+            <AdminIconButton variant="ghost" />
           </div>
         </header>
 
         <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 sm:py-10 max-w-5xl mx-auto w-full">
           {/* Greeting */}
-          <div className="mb-6 sm:mb-8">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#5b54d6]/10 text-[#5b54d6] text-xs font-semibold mb-3">
-              <Sparkles className="w-3.5 h-3.5" />
-              Stratège marketing senior, disponible 24/7
+          <div className="mb-6 sm:mb-8 flex items-start justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#5b54d6]/10 text-[#5b54d6] text-xs font-semibold mb-3">
+                <Sparkles className="w-3.5 h-3.5" />
+                Stratège marketing senior, disponible 24/7
+              </div>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground">
+                Bonjour ! Que veux-tu faire aujourd'hui ?
+              </h1>
+              <p className="text-muted-foreground mt-2 text-sm sm:text-base">
+                Choisis une action ci-dessous, ou décris simplement ton besoin dans le chat.
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground">
-              Bonjour ! Que veux-tu faire aujourd'hui ?
-            </h1>
-            <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-              Choisis une action ci-dessous, ou décris simplement ton besoin dans le chat.
-            </p>
+            <AdminIconButton variant="solid" className="mt-1" />
           </div>
 
           {/* Action cards */}
