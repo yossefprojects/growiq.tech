@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Loader2, Send, X, ThumbsUp, MessageCircle, Share2, Heart, Bookmark } from "lucide-react";
+import { Loader2, Send, X, ThumbsUp, MessageCircle, Share2, Heart, Bookmark, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useConnectedChannels } from "@/hooks/use-connected-channels";
 
 export interface MetaPreviewPost {
   id: number;
@@ -27,6 +28,13 @@ export function MetaPreviewDialog({ open, post, onClose, onConfirm }: MetaPrevie
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const channels = useConnectedChannels(open);
+  const channelConnected = post
+    ? post.platform === "facebook"
+      ? channels.facebook
+      : channels.instagram
+    : false;
+  const channelLabel = post?.platform === "instagram" ? "Instagram" : "Facebook";
 
   useEffect(() => {
     if (!open || !post) {
@@ -104,12 +112,28 @@ export function MetaPreviewDialog({ open, post, onClose, onConfirm }: MetaPrevie
           )}
         </div>
 
+        {!channels.loading && !channelConnected && (
+          <div
+            className="flex items-start gap-2 px-4 py-3 border-t bg-amber-50 text-amber-900 text-sm"
+            data-testid="meta-preview-no-channel"
+          >
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <p>
+              Tu dois connecter ton compte {channelLabel} dans ton profil avant de pouvoir publier.
+            </p>
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 px-4 py-3 border-t bg-background">
           <Button variant="outline" onClick={onClose} disabled={publishing} data-testid="meta-preview-cancel">
             <X className="w-4 h-4 mr-1.5" />
             Annuler
           </Button>
-          <Button onClick={handleConfirm} disabled={publishing} data-testid="meta-preview-publish">
+          <Button
+            onClick={handleConfirm}
+            disabled={publishing || channels.loading || !channelConnected}
+            data-testid="meta-preview-publish"
+          >
             {publishing ? (
               <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
             ) : (

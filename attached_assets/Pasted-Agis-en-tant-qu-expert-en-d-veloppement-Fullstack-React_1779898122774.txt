@@ -1,0 +1,25 @@
+Agis en tant qu'expert en développement Fullstack (React + Vite). J'ai un bug critique de sécurité et de logique sur mon application GrowIQ que nous devons corriger immédiatement. 
+
+CONTEXTE DU BUG :
+Un utilisateur test (ludovic@renoma-energy.fr) s'est connecté. Comme l'application n'est pas encore validée par Meta (App Review), la connexion Facebook/Instagram a dysfonctionné : l'utilisateur a vu mes propres pages Facebook/Instagram connectées à la place des siennes sur son profil. De plus, il a pu valider et lancer une campagne marketing "dans le vide" alors qu'aucun réseau n'était réellement configuré pour lui.
+
+POUR CORRIGER CELA, NOUS ALLONS APPLIQUER L'OPTION A (Sécurisation immédiate) :
+Je veux restreindre Facebook et Instagram uniquement à mon compte administrateur (joseph.chaouat@gmail.com). Pour tous les autres utilisateurs, nous allons masquer ces réseaux et autoriser uniquement LinkedIn.
+
+Voici les modifications strictes à appliquer dans le code :
+
+1. RESTRICTION DU PROFIL ET DE L'ONBOARDING (Frontend - React) :
+- Modifie les composants du profil, des réglages et du tunnel de création de campagne.
+- Ajoute une condition basée sur l'email de l'utilisateur connecté :
+  * SI l'utilisateur est 'joseph.chaouat@gmail.com', il peut voir et connecter Facebook, Instagram et LinkedIn.
+  * POUR TOUS LES AUTRES UTILISATEURS (comme Ludovic) : cache complètement les boutons et les options de connexion pour Facebook et Instagram. Ils ne doivent voir, connecter et utiliser QUE LinkedIn.
+
+2. VERROUILLAGE ET BLOCAGE DU LANCEMENT DE CAMPAGNE :
+- Modifie le bouton "Lancer la campagne" (Frontend) et la fonction de validation (Backend/API).
+- Ajoute une sécurité : Si un utilisateur n'a aucun token ou réseau social actif connecté sur son propre compte, le bouton "Lancer la campagne" doit être désactivé (<button disabled>).
+- Affiche un message d'erreur clair à l'écran : "⚠️ Veuillez connecter votre compte LinkedIn dans votre profil avant de pouvoir lancer une campagne."
+
+3. NETTOYAGE DES SESSIONS :
+- Assure-toi que les états globaux (React Context, Redux ou LocalStorage) réinitialisent correctement les informations des réseaux sociaux lors d'un changement d'utilisateur, pour éviter qu'un compte ne lise les données d'un autre.
+
+Génère-moi les modifications de code nécessaires pour sécuriser l'application dès maintenant.

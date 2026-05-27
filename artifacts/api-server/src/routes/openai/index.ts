@@ -2007,6 +2007,22 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
     return;
   }
 
+  // Double-check côté serveur : l'utilisateur doit avoir au moins un canal
+  // de diffusion connecté pour chaque type de post qu'on s'apprête à programmer.
+  // Évite que le worker tente de publier sur une page non liée (rejet silencieux).
+  const channelsUsed = new Set(finalPlan.posts.map((p) => p.channel));
+  const channelsMissing: string[] = [];
+  if (channelsUsed.has("facebook") && !isMetaConfigured("facebook")) channelsMissing.push("Facebook");
+  if (channelsUsed.has("instagram") && !isMetaConfigured("instagram")) channelsMissing.push("Instagram");
+  if (channelsMissing.length > 0) {
+    res.status(400).json({
+      error: `Aucun canal de diffusion connecté pour : ${channelsMissing.join(", ")}. Va dans ton profil et connecte ces comptes avant de lancer.`,
+      code: "no_connected_channel",
+      missing: channelsMissing,
+    });
+    return;
+  }
+
   // Atomic launch: claim the campaign first via conditional update (prevents double-launch race),
   // then create all scheduled posts inside a transaction (rolls back if any insert fails).
   const claimed = await db

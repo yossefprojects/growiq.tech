@@ -27,6 +27,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
+import { useConnectedChannels } from "@/hooks/use-connected-channels";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -659,6 +660,17 @@ function PreviewScreen({
   const launched = campaign.status === "launched";
   const { plan } = campaign;
   const channelsUsed = Array.from(new Set(plan.posts.map((p) => p.channel)));
+  const channels = useConnectedChannels(!launched);
+  // Verify the user has at least one channel connected that matches what the
+  // plan will publish on. Without this, "Lancer" would queue posts that the
+  // worker would silently reject (or — before the multi-tenant fix — publish
+  // on the admin's pages).
+  const planNeedsFacebook = channelsUsed.includes("facebook");
+  const planNeedsInstagram = channelsUsed.includes("instagram");
+  const missingChannels: string[] = [];
+  if (planNeedsFacebook && !channels.facebook) missingChannels.push("Facebook");
+  if (planNeedsInstagram && !channels.instagram) missingChannels.push("Instagram");
+  const canLaunch = !channels.loading && missingChannels.length === 0;
 
   return (
     <div className="space-y-6">
@@ -750,6 +762,25 @@ function PreviewScreen({
 
       {!launched && (
         <div className="bg-white rounded-2xl border-2 border-purple-100 p-5 space-y-4 sticky bottom-4 shadow-xl">
+          {!canLaunch && !channels.loading && (
+            <div
+              className="flex items-start gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 p-4"
+              data-testid="launch-blocked-warning"
+            >
+              <Lightbulb className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-amber-900 space-y-1">
+                <p className="font-semibold">
+                  Tu dois connecter {missingChannels.join(" et ")} pour pouvoir lancer cette campagne.
+                </p>
+                <p>
+                  Va dans ton profil et connecte le ou les comptes manquants. Sans ça, tes messages ne pourront pas partir.{" "}
+                  <Link href="/app/account" className="underline font-medium">
+                    Ouvrir mon profil →
+                  </Link>
+                </p>
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="email" className="font-semibold">📧 Ton email (facultatif)</Label>
             <input
@@ -768,9 +799,9 @@ function PreviewScreen({
             </Button>
             <Button
               onClick={onLaunch}
-              disabled={loading}
+              disabled={loading || !canLaunch}
               data-testid="button-launch"
-              className="flex-[2] h-14 text-lg font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/30"
+              className="flex-[2] h-14 text-lg font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/30 disabled:from-slate-400 disabled:to-slate-500 disabled:shadow-none"
             >
               {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <>🚀 Lancer</>}
             </Button>
