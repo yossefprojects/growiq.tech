@@ -1,8 +1,35 @@
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+
+/**
+ * Cache strategy for the production preview server:
+ *  - index.html (and any HTML response) → no-cache so browsers always check
+ *    for a new version. This prevents stale UI after a deploy.
+ *  - /assets/* (hashed by Vite) → immutable, 1 year. Safe because the
+ *    filename changes on every build.
+ */
+const cacheHeadersPlugin: PluginOption = {
+  name: "growiq-cache-headers",
+  configurePreviewServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const url = req.url ?? "";
+      if (url.startsWith("/assets/")) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else {
+        res.setHeader(
+          "Cache-Control",
+          "no-cache, no-store, must-revalidate",
+        );
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      }
+      next();
+    });
+  },
+};
 
 const rawPort = process.env.PORT;
 
@@ -32,6 +59,7 @@ export default defineConfig({
     react(),
     tailwindcss({ optimize: false }),
     runtimeErrorOverlay(),
+    cacheHeadersPlugin,
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [
