@@ -37,6 +37,9 @@ app.use(
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
+// Resend webhook signature must verify against RAW bytes — mount raw parser
+// BEFORE express.json so this specific route receives a Buffer.
+app.use("/api/webhooks/resend", express.raw({ type: "application/json", limit: "5mb" }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 

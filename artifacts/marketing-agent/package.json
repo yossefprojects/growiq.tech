@@ -45,6 +45,7 @@
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
+    "@types/dompurify": "^3.2.0",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -79,6 +80,7 @@
   "dependencies": {
     "@clerk/react": "^6.7.1",
     "@clerk/themes": "^2.4.57",
+    "dompurify": "^3.4.6",
     "express": "^5.2.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"

@@ -32,6 +32,7 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { sanitizeEmailHtml } from "@/lib/sanitize-html";
 import { Button } from "@/components/ui/button";
 import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
 import { useConnectedChannels } from "@/hooks/use-connected-channels";
@@ -106,7 +107,26 @@ interface AgencyCampaign {
   createdAt: string;
 }
 
-type Step = "form" | "loading" | "preview" | "success" | "dashboard" | "coming-soon";
+type Step = "form" | "loading" | "preview" | "success" | "dashboard" | "coming-soon" | "email-preview" | "email-success";
+
+interface EmailCampaignRow {
+  id: number;
+  name: string;
+  subject: string;
+  bodyHtml: string;
+  bodyText: string;
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+}
+
+interface EmailContactRow {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  subscribed: boolean;
+}
 
 const API = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 
@@ -159,7 +179,7 @@ const CAMPAIGN_TYPES = [
     description: "Envoie un message direct à tes contacts. Idéal pour fidéliser ou annoncer une nouveauté.",
     icon: Mail,
     color: "from-blue-500 to-cyan-600",
-    available: false,
+    available: true,
     details: [
       "Email rédigé pour toi selon ton objectif",
       "Envoi à ta base de contacts (à connecter)",
@@ -326,6 +346,8 @@ export default function AgencyPage() {
   const [explainMode, setExplainMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [emailStatus, setEmailStatus] = useState<{ sent: boolean; error?: string } | null>(null);
+  const [emailCampaign, setEmailCampaign] = useState<EmailCampaignRow | null>(null);
+  const [emailSendResult, setEmailSendResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
 
   useEffect(() => {
     void loadCampaigns();
@@ -353,11 +375,43 @@ export default function AgencyPage() {
       toast.error("Choisis ce que tu veux obtenir 🎯");
       return;
     }
-    // Backend ne sait générer que des posts sociaux FB/IG aujourd'hui.
-    // Ads et Email atterrissent sur l'écran "Bientôt" — on enregistre le brief
-    // en local seulement, rien n'est appelé côté serveur.
-    if (brief.campaignType === "ads" || brief.campaignType === "email") {
+    // Ads reste sur "Bientôt" (validations Meta/Google externes en cours).
+    if (brief.campaignType === "ads") {
       setStep("coming-soon");
+      return;
+    }
+    // Email : nouveau flow — on génère un email via /api/email/campaigns/generate
+    // puis on bascule sur l'écran de preview + sélecteur de destinataires.
+    if (brief.campaignType === "email") {
+      setLoading(true);
+      setStep("loading");
+      try {
+        const r = await fetch(API("/email/campaigns/generate"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product: brief.subject?.trim()
+              ? `${brief.product.trim()}\n\nSujet : ${brief.subject.trim()}`
+              : brief.product,
+            audience: brief.audience,
+            objective: brief.objective,
+          }),
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({ error: "Oups" }));
+          toast.error(friendlyError(err.error));
+          setStep("form");
+          return;
+        }
+        const created: EmailCampaignRow = await r.json();
+        setEmailCampaign(created);
+        setStep("email-preview");
+      } catch {
+        toast.error("La connexion a coupé. On réessaie ?");
+        setStep("form");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
     setLoading(true);
@@ -531,6 +585,24 @@ export default function AgencyPage() {
             onLaunch={launchCampaign}
             onBack={() => setStep("form")}
             loading={loading}
+          />
+        )}
+        {step === "email-preview" && emailCampaign && (
+          <EmailPreviewScreen
+            campaign={emailCampaign}
+            setCampaign={setEmailCampaign}
+            onSent={(result) => {
+              setEmailSendResult(result);
+              setStep("email-success");
+            }}
+            onBack={() => setStep("form")}
+          />
+        )}
+        {step === "email-success" && emailCampaign && emailSendResult && (
+          <EmailSuccessScreen
+            campaign={emailCampaign}
+            result={emailSendResult}
+            onNew={resetForNew}
           />
         )}
         {step === "success" && campaign && <SuccessScreen campaign={campaign} emailStatus={emailStatus} onNew={resetForNew} onDashboard={() => setStep("dashboard")} />}
@@ -2034,6 +2106,276 @@ function Dashboard({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Écran preview email + sélection destinataires + envoi
+// ─────────────────────────────────────────────────────────────────────────────
+
+function EmailPreviewScreen({
+  campaign,
+  setCampaign,
+  onSent,
+  onBack,
+}: {
+  campaign: EmailCampaignRow;
+  setCampaign: (c: EmailCampaignRow) => void;
+  onSent: (result: { sent: number; failed: number; total: number }) => void;
+  onBack: () => void;
+}) {
+  const [contacts, setContacts] = useState<EmailContactRow[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [allSubscribed, setAllSubscribed] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [subject, setSubject] = useState(campaign.subject);
+  const [bodyText, setBodyText] = useState(campaign.bodyText);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const r = await fetch(API("/email/contacts"));
+        if (r.ok) {
+          const rows: EmailContactRow[] = await r.json();
+          setContacts(rows);
+        }
+      } catch { /* silent */ }
+      finally { setLoadingContacts(false); }
+    })();
+  }, []);
+
+  function toggle(id: number) {
+    setAllSubscribed(false);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function saveEdits() {
+    try {
+      const r = await fetch(API(`/email/campaigns/${campaign.id}`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, bodyText }),
+      });
+      if (r.ok) {
+        const updated: EmailCampaignRow = await r.json();
+        setCampaign(updated);
+        setEditing(false);
+        toast.success("Modifications enregistrées");
+      } else {
+        toast.error("Impossible d'enregistrer");
+      }
+    } catch {
+      toast.error("La connexion a coupé");
+    }
+  }
+
+  async function send() {
+    const subscribedContacts = contacts.filter((c) => c.subscribed);
+    if (subscribedContacts.length === 0) {
+      toast.error("Tu n'as pas encore de contacts. Ajoute-les depuis l'onglet Emails.");
+      return;
+    }
+    const willSend = allSubscribed
+      ? subscribedContacts.length
+      : selected.size;
+    if (willSend === 0) {
+      toast.error("Sélectionne au moins un destinataire");
+      return;
+    }
+    if (!confirm(`Envoyer cet email à ${willSend} destinataire(s) ?`)) return;
+    setSending(true);
+    try {
+      const r = await fetch(API(`/email/campaigns/${campaign.id}/send`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          allSubscribed
+            ? { allSubscribed: true }
+            : { contactIds: Array.from(selected) },
+        ),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: "Oups" }));
+        toast.error(friendlyError(err.error));
+        return;
+      }
+      const data: { sent: number; failed: number; total: number } = await r.json();
+      onSent(data);
+    } catch {
+      toast.error("La connexion a coupé. On réessaie ?");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const subscribedCount = contacts.filter((c) => c.subscribed).length;
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg">
+          <Mail className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-3xl font-bold">Ton email est prêt ✨</h1>
+        <p className="text-muted-foreground">Relis, ajuste, choisis tes destinataires, puis on envoie.</p>
+      </div>
+
+      <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm uppercase text-gray-500">Aperçu</h3>
+          <Button variant={editing ? "secondary" : "ghost"} size="sm" onClick={() => setEditing((v) => !v)}>
+            {editing ? "Annuler" : "Modifier"}
+          </Button>
+        </div>
+        {editing ? (
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Sujet</Label>
+              <input
+                className="w-full mt-1 px-3 py-2 border rounded-md"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Contenu (texte brut)</Label>
+              <Textarea
+                className="mt-1 min-h-60"
+                value={bodyText}
+                onChange={(e) => setBodyText(e.target.value)}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Note : on garde la mise en page HTML d'origine. Seul le sujet et la version texte sont édités ici.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={saveEdits}>Enregistrer</Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div>
+              <p className="text-xs text-gray-500 uppercase">Sujet</p>
+              <p className="font-semibold text-lg">{campaign.subject}</p>
+            </div>
+            <div className="border rounded-lg p-4 bg-gray-50 prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(campaign.bodyHtml) }}
+            />
+          </>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm uppercase text-gray-500">Destinataires</h3>
+          <Link href="/app/emails" className="text-xs text-violet-600 hover:underline">
+            Gérer mes contacts
+          </Link>
+        </div>
+        {loadingContacts ? (
+          <div className="py-6 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></div>
+        ) : contacts.length === 0 ? (
+          <div className="text-center py-6 text-sm text-gray-500">
+            Tu n'as pas encore de contacts. <Link href="/app/emails" className="text-violet-600 font-semibold hover:underline">Ajoute-les</Link> avant d'envoyer.
+          </div>
+        ) : (
+          <>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allSubscribed}
+                onChange={(e) => {
+                  setAllSubscribed(e.target.checked);
+                  if (e.target.checked) setSelected(new Set());
+                }}
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium">
+                Envoyer à tous mes abonnés ({subscribedCount})
+              </span>
+            </label>
+            {!allSubscribed && (
+              <div className="max-h-72 overflow-y-auto border rounded-lg divide-y">
+                {contacts.filter((c) => c.subscribed).map((c) => (
+                  <label key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(c.id)}
+                      onChange={() => toggle(c.id)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm flex-1">{c.email}</span>
+                    {(c.firstName || c.lastName) && (
+                      <span className="text-xs text-gray-500">{c.firstName} {c.lastName}</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="ghost" onClick={onBack}>← Retour au brief</Button>
+        <Button
+          onClick={send}
+          disabled={sending || contacts.length === 0}
+          className="h-12 px-8 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700"
+        >
+          {sending ? (
+            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Envoi en cours…</>
+          ) : (
+            <><Send className="w-4 h-4 mr-2" /> Envoyer maintenant</>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function EmailSuccessScreen({
+  campaign,
+  result,
+  onNew,
+}: {
+  campaign: EmailCampaignRow;
+  result: { sent: number; failed: number; total: number };
+  onNew: () => void;
+}) {
+  return (
+    <div className="text-center space-y-6 py-10">
+      <div className="w-28 h-28 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-2xl shadow-green-500/40 mx-auto">
+        <CheckCircle2 className="w-14 h-14 text-white" />
+      </div>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold">Email envoyé !</h1>
+        <p className="text-muted-foreground">
+          {result.sent} email(s) partis sur {result.total}.
+          {result.failed > 0 && ` ${result.failed} échec(s).`}
+        </p>
+        <p className="text-sm text-gray-500">
+          « {campaign.subject} »
+        </p>
+      </div>
+      <div className="flex justify-center gap-3 pt-2 flex-wrap">
+        <Link href="/app/emails">
+          <Button variant="outline" className="h-11">Voir les stats</Button>
+        </Link>
+        <Button onClick={onNew} className="h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700">
+          <Wand2 className="w-4 h-4 mr-2" /> En lancer une autre
+        </Button>
+      </div>
+      <p className="text-xs text-gray-500 max-w-md mx-auto">
+        Les ouvertures et clics apparaîtront dans tes stats au fur et à mesure (si le webhook Resend est configuré).
+      </p>
     </div>
   );
 }

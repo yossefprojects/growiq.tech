@@ -13,6 +13,7 @@ import HomePage from "@/pages/home";
 import AgencyPage from "@/pages/agency";
 import IntegrationsPage from "@/pages/integrations";
 import SeoPage from "@/pages/seo";
+import EmailsPage from "@/pages/emails";
 import AdminPage from "@/pages/admin";
 import AccountPage from "@/pages/account";
 import DashboardPage from "@/pages/dashboard";
@@ -207,6 +208,7 @@ function Router() {
       <Route path="/app/agency">{() => <RequireAuth><AgencyPage /></RequireAuth>}</Route>
       <Route path="/app/integrations">{() => <RequireAuth><IntegrationsPage /></RequireAuth>}</Route>
       <Route path="/app/seo">{() => <RequireAuth><SeoPage /></RequireAuth>}</Route>
+      <Route path="/app/emails">{() => <RequireAuth><EmailsPage /></RequireAuth>}</Route>
       <Route path="/app/admin">{() => <RequireAuth><AdminPage /></RequireAuth>}</Route>
       <Route path="/app/account">{() => <RequireAuth><AccountPage /></RequireAuth>}</Route>
       <Route path="/app/conversations/:id">{() => <RequireAuth><ChatPage /></RequireAuth>}</Route>

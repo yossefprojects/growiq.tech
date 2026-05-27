@@ -21,6 +21,7 @@ import {
   Menu,
   ArrowRight,
   Sparkles,
+  Mail,
 } from "lucide-react";
 import { Sidebar } from "@/components/sidebar";
 import { CampaignLaunchModal } from "@/components/campaign-launch-modal";
@@ -145,6 +146,16 @@ export default function DashboardPage() {
       onClick: () => setLocation("/app/chat"),
       testId: "action-open-chat",
       help: "Une conversation libre avec un stratège marketing senior. Idéal pour réfléchir, poser des questions précises ou faire valider une idée.",
+    },
+    {
+      title: "Emails & contacts",
+      description: "Gère ta base d'abonnés et retrouve les stats de tes campagnes emailing.",
+      icon: Mail,
+      bg: "bg-gradient-to-br from-[#fef3c7] to-[#fde68a] text-[#1e1b4b]",
+      iconBg: "bg-[#d97706]/15 text-[#d97706]",
+      onClick: () => setLocation("/app/emails"),
+      testId: "action-emails",
+      help: "Ajoute ou importe tes contacts, et consulte ouvertures et clics des campagnes que tu as envoyées depuis l'agence.",
     },
     {
       title: "Mes campagnes",

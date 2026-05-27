@@ -37,6 +37,11 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 - `lib/db/src/schema/ad-campaigns.ts` — Suivi des campagnes payantes lancées
 - `artifacts/marketing-agent/src/pages/agency.tsx` — Agence automatique multi-step UI
 - `lib/db/src/schema/agency-campaigns.ts` — Agency campaigns table (brief + plan jsonb)
+- `lib/db/src/schema/email-contacts.ts`, `email-campaigns.ts`, `email-events.ts` — Emailing (contacts, campagnes IA, events Resend avec idempotency)
+- `artifacts/api-server/src/routes/email.ts` — CRUD contacts + génération IA + envoi Resend (atomic status transition, retry-safe)
+- `artifacts/api-server/src/routes/webhooks.ts` — Webhook Resend (raw body + signature Svix + onConflictDoNothing)
+- `artifacts/marketing-agent/src/pages/emails.tsx` — Page Emails (contacts + campagnes avec stats opens/clicks)
+- `artifacts/marketing-agent/src/lib/sanitize-html.ts` — DOMPurify wrapper pour HTML email (allowlist tags/attrs)
 - `artifacts/marketing-agent/src/` — Frontend React app
 - `lib/integrations-openai-ai-server/` — OpenAI server SDK wrapper
 
@@ -76,6 +81,17 @@ Meta (FB/IG) et les Ads (Meta + Google) utilisent des **identifiants globaux dan
 **LinkedIn est OK** : OAuth par-utilisateur, tokens stockés par `userId`. Idem chat / conversations / business profile / scheduled posts non-Meta.
 
 Si on ajoute une nouvelle route qui appelle `publishToMeta`, `*MetaAds*`, ou `*GoogleAds*` → ajouter le gate `isAdmin`.
+
+## Emailing — fonctionnement
+
+- **Par-utilisateur** : contacts, campagnes, events scopés par `userId` (pas admin-only).
+- **Tunnel agency** : path `email` génère un email IA → preview éditable → sélecteur destinataires (contacts ou tag ou tous abonnés) → envoi Resend.
+- **Page dédiée** : `/app/emails` pour CRUD contacts (ajout, import CSV, suppression) + liste campagnes avec stats live.
+- **Anti double-envoi** : route `/send` fait une transition atomique `draft|partially_failed → sending` via `UPDATE ... WHERE status IN (...) RETURNING`. Try/finally garantit statut terminal (`sent`/`failed`/`partially_failed`).
+- **Retry** : sur `partially_failed`, exclut les contacts déjà reçus avec succès (event `sent` présent).
+- **Webhook Resend** : `POST /api/webhooks/resend` vérifie signature Svix sur **bytes bruts** (`express.raw` monté avant `express.json` sur cette route). Idempotency via unique index sur `(resend_message_id, type)` + `onConflictDoNothing`. Compteurs `openCount`/`clickCount` incrémentés UNIQUEMENT si l'insert n'a pas été dédupliqué.
+- **Secret requis pour activer le tracking** : `RESEND_WEBHOOK_SECRET` (sinon `/webhooks/resend` renvoie 503). Sans ce secret, l'envoi marche mais pas les events ouvertures/clics.
+- **HTML email** : preview rendue avec `dangerouslySetInnerHTML` après passage par `sanitizeEmailHtml` (DOMPurify, allowlist).
 
 ## Rappels actifs
 

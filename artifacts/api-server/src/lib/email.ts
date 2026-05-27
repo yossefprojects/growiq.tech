@@ -9,7 +9,15 @@ export interface SendEmailInput {
   to: string[];
   subject: string;
   body: string;
+  // HTML optionnel. Si présent, Resend l'envoie en plus du texte plain et active
+  // le tracking d'ouverture (pixel) + de clics (rewrite des liens).
+  html?: string;
   from?: string;
+  // Tags propagés à Resend pour le filtrage en dashboard / webhooks.
+  // Format Resend : { name, value }
+  tags?: Array<{ name: string; value: string }>;
+  // Permet à l'utilisateur de se désinscrire en un clic (RFC 8058).
+  unsubscribeUrl?: string;
 }
 
 export interface SendEmailResult {
@@ -17,6 +25,8 @@ export interface SendEmailResult {
   provider: "resend-connector" | "resend-env" | "sendgrid-env" | "none";
   error?: string;
   from?: string;
+  // ID Resend du message envoyé, utilisé pour matcher les webhooks.
+  messageId?: string;
 }
 
 interface ResendCreds {
@@ -63,12 +73,30 @@ async function callResend(
   input: SendEmailInput,
   provider: "resend-connector" | "resend-env"
 ): Promise<SendEmailResult> {
+  const headers: Record<string, string> = {};
+  if (input.unsubscribeUrl) {
+    // Permet à Gmail/Outlook d'afficher un lien Désinscription natif.
+    headers["List-Unsubscribe"] = `<${input.unsubscribeUrl}>`;
+    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+  }
+  const body: Record<string, unknown> = {
+    from,
+    to: input.to,
+    subject: input.subject,
+    text: input.body,
+  };
+  if (input.html) body.html = input.html;
+  if (input.tags && input.tags.length > 0) body.tags = input.tags;
+  if (Object.keys(headers).length > 0) body.headers = headers;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: input.to, subject: input.subject, text: input.body }),
+    body: JSON.stringify(body),
   });
-  if (response.ok) return { success: true, provider, from };
+  if (response.ok) {
+    const data = (await response.json().catch(() => ({}))) as { id?: string };
+    return { success: true, provider, from, messageId: data.id };
+  }
   const errText = await response.text().catch(() => "");
   return { success: false, provider, error: errText.slice(0, 400), from };
 }
