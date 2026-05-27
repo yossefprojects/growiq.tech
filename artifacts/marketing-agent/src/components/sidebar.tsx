@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Megaphone, Search, Shield } from "lucide-react";
-import { UserButton, useAuth } from "@clerk/react";
+import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Megaphone, Search, Shield, User as UserIcon } from "lucide-react";
+import { useAuth, useUser } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
@@ -10,6 +10,32 @@ import { BrandLogo } from "./brand-logo";
 import { AdminIconButton } from "./admin-button";
 
 const sidebarBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function AccountLink() {
+  const { user } = useUser();
+  const initial = (user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0] ?? "?").toUpperCase();
+  const label = user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "Mon compte";
+  return (
+    <Link
+      href="/app/account"
+      className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-md px-2 py-1.5 transition-colors"
+      data-testid="link-account"
+    >
+      {user?.imageUrl ? (
+        <img src={user.imageUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+      ) : (
+        <div className="w-7 h-7 rounded-full bg-[#ff7a3c] text-white flex items-center justify-center text-xs font-bold shrink-0">
+          {initial}
+        </div>
+      )}
+      <div className="flex flex-col min-w-0">
+        <span className="text-xs font-semibold text-foreground truncate">Mon compte</span>
+        <span className="text-[10px] text-muted-foreground truncate">{label}</span>
+      </div>
+      <UserIcon className="w-4 h-4 ml-auto shrink-0" />
+    </Link>
+  );
+}
 
 function AdminLink() {
   const { getToken } = useAuth();
@@ -244,16 +270,7 @@ export function Sidebar({
         </Link>
         <AdminLink />
         
-        <div className="flex items-center gap-3" data-testid="sidebar-user">
-          <UserButton />
-          <Link
-            href="/app/account"
-            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-            data-testid="link-account"
-          >
-            Mon compte
-          </Link>
-        </div>
+        <AccountLink />
       </div>
     </div>
   );
