@@ -1,0 +1,41 @@
+Agis en tant qu'expert en développement Web, React, Next.js et SEO. Je dois optimiser le code de mon application (https://growiq.tech/) en me basant rigoureusement sur les résultats d'un audit SEO qui m'indique un score insuffisant de 65/100 ("À améliorer"). 
+
+Voici le contexte technique et les corrections strictes à appliquer dans mon projet Next.js :
+
+1. CONFIGURATION DE LA LANGUE (Priorité Moyenne) :
+- L'audit détecte la langue 'en' (anglais) alors que tout mon contenu est en français. 
+- Si j'utilise Next.js (Pages Router), aide-moi à configurer le fichier 'next.config.js' ou le composant '_document.js' pour forcer <html lang="fr">.
+- Si j'utilise l'App Router (Next.js 13+), assure-toi que le fichier 'app/layout.js' possède bien <html lang="fr">.
+
+2. BALISES METADATAS (Priorité Moyenne) :
+- Modifie ou ajoute l'objet 'metadata' (App Router) ou le composant <Head> (Pages Router) avec les critères suivants issus de l'audit :
+  * TITRE : Conserve un titre clair d'environ 32 caractères (ex: "GrowIQ | Vos campagnes marketing avec l'IA").
+  * DESCRIPTION : L'ancienne description de 83 caractères est trop courte. Rédige une nouvelle Meta Description persuasive d'environ 150 caractères. Elle doit détailler la promesse de valeur, le gain de temps, la simplicité et la performance des campagnes marketing grâce à l'IA.
+
+3. BALISE H1 - TITRE PRINCIPAL VISIBLE (Priorité Haute) :
+- L'audit indique : "0 balise H1 détectée". 
+- Ajoute une balise <h1> visible, stylisée et placée tout en haut de la page d'accueil. Ce titre doit expliquer clairement ce que fait GrowIQ.
+- Utilise précisément l'exemple recommandé par l'audit : "Lance tes campagnes marketing plus vite avec l'IA" (ou une variante très proche et percutante).
+
+4. STRUCTURE SÉMANTIQUE ET BALISES H2 (Priorité Haute) :
+- L'audit indique qu'il n'y a aucun sous-titre H2. 
+- Découpe la page en blocs et structure le contenu en utilisant des balises <h2> faciles à lire. Intègre obligatoirement des sections utilisant ces titres (ou équivalents) :
+  * <h2>Comment ça marche ?</h2>
+  * <h2>Pourquoi choisir GrowIQ ?</h2>
+  * <h2>Résultats obtenus</h2>
+  * <h2>Questions fréquentes (FAQ)</h2>
+
+5. AJOUT DE TEXTE UTILE (Priorité Haute) :
+- Attention critique : le robot d'audit n'a détecté que 5 mots sur toute la page d'accueil ! La page est actuellement vide pour un moteur de recherche.
+- Rédige et intègre du contenu textuel simple, visible et concret sous forme de paragraphes (<p>) sous les H2. Le texte doit expliquer explicitement :
+  * À qui s'adresse l'outil GrowIQ.
+  * Quels problèmes précis il résout.
+  * Comment il fonctionne au quotidien.
+  * Quels résultats concrets l'utilisateur peut attendre (gain de temps, simplicité, performance).
+- Fais en sorte que la page soit parfaitement compréhensible immédiatement par un visiteur sans qu'il ait besoin de cliquer ailleurs ou de se connecter.
+
+6. ACCESSIBILITÉ DES VISUELS (Bonus) :
+- Intègre des emplacements pour des images de l'application (captures d'écran du dashboard, visuels explicatifs).
+- Pour chaque image <img> ou composant <Image /> de Next.js, ajoute impérativement un attribut 'alt' contenant une description textuelle courte et claire de ce que le visuel montre, pour les robots de Google et les lecteurs d'écran.
+
+Génère-moi le code complet (ou les modifications par fichier) pour appliquer ces corrections SEO.
