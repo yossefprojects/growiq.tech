@@ -10,6 +10,7 @@ import {
   leads,
   scheduledPosts,
   agencyCampaigns,
+  localUsers,
   systemEvents,
   businessProfiles,
   seoKeywordSets,
@@ -1182,7 +1183,15 @@ async function getBusinessContextPrompt(userId: string): Promise<string> {
   }
 }
 
-router.get("/meta/status", (_req, res) => {
+router.get("/meta/status", (req, res) => {
+  // Meta credentials are global admin env secrets, not per-user.
+  // Non-admin users must never see Meta as "connected" — otherwise they would
+  // publish on the admin's own Facebook/Instagram pages.
+  const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
+  if (!isAdmin) {
+    res.json({ facebook: false, instagram: false });
+    return;
+  }
   res.json({
     facebook: isMetaConfigured("facebook"),
     instagram: isMetaConfigured("instagram"),
@@ -1190,6 +1199,12 @@ router.get("/meta/status", (_req, res) => {
 });
 
 router.get("/meta/profile", async (req, res): Promise<void> => {
+  // Don't leak the admin's FB Page / IG account identity to non-admin users.
+  const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
+  if (!isAdmin) {
+    res.status(404).json({ error: "Profil indisponible" });
+    return;
+  }
   const platform = req.query["platform"];
   if (platform !== "facebook" && platform !== "instagram") {
     res.status(400).json({ error: "platform doit être 'facebook' ou 'instagram'" });
@@ -1204,6 +1219,13 @@ router.get("/meta/profile", async (req, res): Promise<void> => {
 });
 
 router.post("/meta/publish", async (req, res): Promise<void> => {
+  const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
+  if (!isAdmin) {
+    res.status(403).json({
+      error: "La publication Facebook/Instagram n'est pas disponible sur ton compte. Utilise LinkedIn pour publier.",
+    });
+    return;
+  }
   const { platform, message, imageUrl, scheduledPostId } = req.body as Partial<{
     platform: "facebook" | "instagram";
     message: string;
@@ -1407,6 +1429,37 @@ async function processScheduledPosts(): Promise<void> {
             );
           }
         } else if (post.platform === "facebook" || post.platform === "instagram") {
+          // SECURITY: Meta credentials are global admin env secrets. We MUST
+          // refuse to publish FB/IG posts owned by non-admin users — otherwise
+          // their scheduled posts would publish on the admin's own pages.
+          let ownerIsAdmin = false;
+          if (post.userId) {
+            const [owner] = await db
+              .select({ isAdmin: localUsers.isAdmin })
+              .from(localUsers)
+              .where(eq(localUsers.id, post.userId));
+            ownerIsAdmin = owner?.isAdmin === true;
+          } else {
+            // Legacy NULL-userId rows were created before auth; treat as admin-owned.
+            ownerIsAdmin = true;
+          }
+          if (!ownerIsAdmin) {
+            await db
+              .update(scheduledPosts)
+              .set({
+                status: "failed",
+                attempts: (post.attempts ?? 0) + 1,
+                processingStartedAt: null,
+                errorMessage:
+                  "Publication Facebook/Instagram bloquée : compte non autorisé sur les pages GrowIQ.",
+              })
+              .where(eq(scheduledPosts.id, post.id));
+            logger.warn(
+              { postId: post.id, userId: post.userId, platform: post.platform },
+              "Blocked Meta publish: non-admin owner",
+            );
+            continue;
+          }
           const result = await publishToMeta({
             platform: post.platform,
             message: post.content,
@@ -1808,6 +1861,19 @@ function normalizePlan(raw: unknown): AgencyPlan {
 }
 
 router.post("/agency/generate", async (req, res): Promise<void> => {
+  // Agency currently publishes only on Facebook/Instagram via global admin
+  // credentials. Until per-user Meta OAuth (or LinkedIn-only agency mode) ships,
+  // we must not let non-admins generate or launch campaigns — otherwise their
+  // posts would publish on the admin's own pages.
+  const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
+  if (!isAdmin) {
+    res.status(403).json({
+      error:
+        "L'Agence automatique publie sur Facebook/Instagram et n'est pas encore disponible sur ton compte. En attendant, utilise le chat pour créer et publier sur LinkedIn.",
+      code: "agency_admin_only",
+    });
+    return;
+  }
   const rateKey = uid(req) + ":generate";
   if (!checkAgencyRateLimit(rateKey)) {
     res.status(429).json({
@@ -1892,6 +1958,17 @@ router.post("/agency/generate", async (req, res): Promise<void> => {
 });
 
 router.post("/agency/:id/launch", async (req, res): Promise<void> => {
+  // Same guard as /agency/generate: launching schedules FB/IG posts that would
+  // hit the admin's pages with the global Meta token.
+  const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
+  if (!isAdmin) {
+    res.status(403).json({
+      error:
+        "Le lancement de campagne Facebook/Instagram n'est pas disponible sur ton compte. Utilise le chat pour publier sur LinkedIn.",
+      code: "agency_admin_only",
+    });
+    return;
+  }
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "id invalide" });

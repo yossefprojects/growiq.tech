@@ -28,6 +28,35 @@ function uid(req: Request): string {
 
 const router: IRouter = Router();
 
+// SECURITY: Meta Ads + Google Ads use GLOBAL admin env credentials
+// (META_AD_ACCOUNT_ID, GOOGLE_ADS_*). A non-admin user calling these would
+// spend the admin's ad budget on their own campaigns. Gate the entire router
+// to admins; non-admins get an empty/false status so the UI degrades cleanly.
+router.use((req, res, next) => {
+  const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
+  if (isAdmin) {
+    next();
+    return;
+  }
+  if (req.method === "GET" && req.path === "/ads/status") {
+    res.json({
+      meta: { configured: false, missing: [] },
+      google: { configured: false, missing: [] },
+    });
+    return;
+  }
+  if (req.method === "GET") {
+    // Read-only listing endpoints — return empty for non-admins.
+    res.json([]);
+    return;
+  }
+  res.status(403).json({
+    error:
+      "Les campagnes publicitaires payantes ne sont pas disponibles sur ton compte.",
+    code: "ads_admin_only",
+  });
+});
+
 // ── Status ──────────────────────────────────────────────────────────────────
 router.get("/ads/status", (_req, res) => {
   res.json({

@@ -62,6 +62,21 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 - **Communication** : en français, pas d'emojis sauf demande explicite, vulgarisation pour utilisateur non-technique
 - **Style code review** : signaler proactivement les compromis et limites techniques avant de coder
 
+## Multi-tenant — règles de gating admin
+
+Meta (FB/IG) et les Ads (Meta + Google) utilisent des **identifiants globaux dans les env secrets** (le compte admin GrowIQ). Ils ne sont PAS par-utilisateur. Tout endpoint qui les touche doit être gated `isAdmin`:
+
+- `/api/openai/meta/status` → renvoie `{facebook:false, instagram:false}` pour non-admins
+- `/api/openai/meta/profile` → 404 pour non-admins (sinon fuite identité page admin)
+- `/api/openai/meta/publish` → 403 pour non-admins
+- `/api/openai/agency/generate` + `/agency/:id/launch` → 403 (génère uniquement FB/IG aujourd'hui)
+- `/api/ads/*` → middleware global qui bloque tous les non-admins (sinon ils dépenseraient le budget admin)
+- Worker `processScheduledPosts` → JOIN `localUsers.isAdmin` avant d'appeler `publishToMeta`, marque `failed` sinon
+
+**LinkedIn est OK** : OAuth par-utilisateur, tokens stockés par `userId`. Idem chat / conversations / business profile / scheduled posts non-Meta.
+
+Si on ajoute une nouvelle route qui appelle `publishToMeta`, `*MetaAds*`, ou `*GoogleAds*` → ajouter le gate `isAdmin`.
+
 ## Rappels actifs
 
 - **Phase 2 en cours d'activation** : code backend prêt (`artifacts/api-server/src/lib/meta-ads.ts`, `google-ads.ts`, routes `/api/ads/*`, table `ad_campaigns`). En attente des validations admin :
