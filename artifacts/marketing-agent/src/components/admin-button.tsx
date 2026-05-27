@@ -6,21 +6,29 @@ import { cn } from "@/lib/utils";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+// IMPORTANT: shape must match AdminGate in App.tsx — same queryKey ["me"]
+// so React Query dedupes correctly.
+type MeState =
+  | { kind: "ok"; data: { userId: string; email: string | null; isAdmin: boolean } }
+  | { kind: "unauthenticated" }
+  | { kind: "network_error" };
+
 function useIsAdmin(): boolean {
   const { getToken } = useAuth();
-  const { data } = useQuery<{ isAdmin: boolean }>({
+  const { data } = useQuery<MeState>({
     queryKey: ["me"],
     queryFn: async () => {
       const token = await getToken();
       const res = await fetch(`${basePath}/api/me`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) return { isAdmin: false };
-      return res.json();
+      if (res.status === 401) return { kind: "unauthenticated" };
+      if (!res.ok) return { kind: "network_error" };
+      return { kind: "ok", data: await res.json() };
     },
     staleTime: 5 * 60 * 1000,
   });
-  return !!data?.isAdmin;
+  return data?.kind === "ok" && data.data.isAdmin;
 }
 
 /**

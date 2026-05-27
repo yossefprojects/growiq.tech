@@ -37,25 +37,33 @@ function AccountLink() {
   );
 }
 
+// Same queryKey shape as AdminGate in App.tsx to share the React Query cache.
+type SidebarMeState =
+  | { kind: "ok"; data: { userId: string; email: string | null; isAdmin: boolean } }
+  | { kind: "unauthenticated" }
+  | { kind: "network_error" };
+
 function AdminLink() {
   const { getToken } = useAuth();
-  const { data } = useQuery<{ isAdmin: boolean }>({
+  const { data } = useQuery<SidebarMeState>({
     queryKey: ["me"],
     queryFn: async () => {
       const token = await getToken();
       const res = await fetch(`${sidebarBasePath}/api/me`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) return { isAdmin: false };
-      return res.json();
+      if (res.status === 401) return { kind: "unauthenticated" };
+      if (!res.ok) return { kind: "network_error" };
+      return { kind: "ok", data: await res.json() };
     },
     staleTime: 5 * 60 * 1000,
   });
-  if (!data?.isAdmin) return null;
+  const isAdmin = data?.kind === "ok" && data.data.isAdmin;
+  if (!isAdmin) return null;
   return (
     <Link
       href="/app/admin"
-      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-md px-2 py-1.5 transition-colors"
+      className="flex items-center gap-2 text-sm font-semibold text-[#5b54d6] hover:bg-[#5b54d6]/10 rounded-md px-2 py-1.5 transition-colors border border-[#5b54d6]/30"
       data-testid="link-admin"
     >
       <Shield className="w-4 h-4" />

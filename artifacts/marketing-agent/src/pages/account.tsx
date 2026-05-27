@@ -695,14 +695,28 @@ function ClerkProfileDialog({ open, onClose }: { open: boolean; onClose: () => v
   );
 }
 
+// Same shape as AdminGate in App.tsx so React Query dedupes correctly.
+type AccountMeState =
+  | { kind: "ok"; data: { userId: string; email: string | null; isAdmin: boolean } }
+  | { kind: "unauthenticated" }
+  | { kind: "network_error" };
+
 function AdminCard() {
   const af = useAuthedFetch();
-  const { data } = useQuery<{ isAdmin: boolean }>({
+  const { data } = useQuery<AccountMeState>({
     queryKey: ["me"],
-    queryFn: () => af("/api/me") as Promise<{ isAdmin: boolean }>,
+    queryFn: async () => {
+      try {
+        const r = await af("/api/me") as { userId: string; email: string | null; isAdmin: boolean };
+        return { kind: "ok", data: r };
+      } catch {
+        return { kind: "network_error" };
+      }
+    },
     staleTime: 5 * 60 * 1000,
   });
-  if (!data?.isAdmin) return null;
+  const isAdmin = data?.kind === "ok" && data.data.isAdmin;
+  if (!isAdmin) return null;
   return (
     <Link
       href="/app/admin"
