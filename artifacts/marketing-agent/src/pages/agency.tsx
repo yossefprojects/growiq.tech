@@ -25,6 +25,11 @@ import {
   Eye,
   HelpCircle,
   Wand2,
+  Linkedin,
+  Mail,
+  Globe,
+  Target,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -35,19 +40,39 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 
-type Channel = "facebook" | "instagram";
+// Channels élargi pour le formulaire : le backend filtre lui-même et ne garde
+// que facebook/instagram aujourd'hui (cf. allowedChannels dans /agency/generate).
+// LinkedIn, Meta Ads et Google Ads sont affichés dans l'UI mais ne sont PAS
+// encore générés par l'IA — on tombe sur un écran "Bientôt" au submit.
+type Channel =
+  | "facebook"
+  | "instagram"
+  | "linkedin"
+  | "meta-ads"
+  | "google-ads";
+
+type CampaignType = "social" | "ads" | "email";
 
 interface AgencyBrief {
+  // Type de campagne (UI-only — pas envoyé au backend pour l'instant)
+  campaignType?: CampaignType;
   product: string;
   audience: string;
+  // Sujet précis du post (UI-only — concaténé au product au submit)
+  subject?: string;
+  // URL du site (UI-only, ads path — concaténée au product au submit)
+  siteUrl?: string;
   budget: string;
   objective: string;
   channels: Channel[];
 }
 
+// Les posts planifiés par l'IA sont uniquement FB/IG aujourd'hui (cf. backend).
+type PostChannel = "facebook" | "instagram";
+
 interface PlannedPost {
   id: string;
-  channel: Channel;
+  channel: PostChannel;
   scheduledFor: string;
   copy: string;
   imagePrompt: string;
@@ -81,27 +106,73 @@ interface AgencyCampaign {
   createdAt: string;
 }
 
-type Step = "form" | "loading" | "preview" | "success" | "dashboard";
+type Step = "form" | "loading" | "preview" | "success" | "dashboard" | "coming-soon";
 
 const API = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 
-// Chaque objectif inclut un `details` (3-5 puces concrètes affichées sous la
-// description) pour que l'utilisateur non-technique voie EXACTEMENT ce que
-// l'IA va faire pour lui avant de cliquer "Créer ma campagne".
-const OBJECTIVES = [
+// ─────────────────────────────────────────────────────────────────────────────
+// Constantes du tunnel de création de campagne
+//
+// Architecture : 2 étapes structurelles
+//   1. Choix du type de campagne (3 cartes : Réseaux Sociaux / Ads / Email)
+//   2. Formulaire adaptatif (questions différentes selon le type choisi)
+//
+// État backend : seul `social` (FB/IG) génère vraiment une campagne. `ads` et
+// `email` affichent un écran "Bientôt" — pas d'appel serveur. Voir generatePlan.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CAMPAIGN_TYPES = [
   {
-    value: "vendre",
-    label: "Vendre 🛍️",
-    description: "Tu veux que des gens achètent ton produit ou service",
-    icon: ShoppingBag,
-    color: "from-emerald-500 to-green-600",
+    value: "social" as CampaignType,
+    label: "Réseaux Sociaux",
+    sub: "Gratuit",
+    description: "Publie sur tes réseaux sans dépenser un euro. Idéal pour entretenir ta communauté au quotidien.",
+    icon: MessageCircle,
+    color: "from-violet-500 to-purple-600",
+    available: true,
     details: [
-      "Posts Facebook/Instagram qui mettent en avant les bénéfices concrets de ton produit",
-      "Visuels produit générés automatiquement par IA",
-      "Appel à l'action « Achète maintenant » avec lien vers ta boutique",
-      "Horaires de publication optimisés pour les heures d'achat",
+      "Posts gratuits sur Facebook, Instagram (LinkedIn bientôt)",
+      "Visuels générés automatiquement par l'IA",
+      "5 messages programmés sur 7 jours",
+      "Tu valides avant publication, rien n'est envoyé sans ton accord",
     ],
   },
+  {
+    value: "ads" as CampaignType,
+    label: "Publicité Payante",
+    sub: "Ads",
+    description: "Booste ta visibilité avec un budget publicitaire. Idéal pour vendre vite ou trouver des prospects.",
+    icon: Target,
+    color: "from-orange-500 to-red-600",
+    available: false,
+    details: [
+      "Campagnes Meta Ads (Facebook + Instagram payants)",
+      "Campagnes Google Ads (Recherche)",
+      "Ciblage précis selon ton audience",
+      "Suivi des coûts et des résultats au quotidien",
+    ],
+  },
+  {
+    value: "email" as CampaignType,
+    label: "Campagne Emailing",
+    sub: "Newsletter",
+    description: "Envoie un message direct à tes contacts. Idéal pour fidéliser ou annoncer une nouveauté.",
+    icon: Mail,
+    color: "from-blue-500 to-cyan-600",
+    available: false,
+    details: [
+      "Email rédigé pour toi selon ton objectif",
+      "Envoi à ta base de contacts (à connecter)",
+      "Suivi des ouvertures et des clics",
+      "Modèles adaptés à ta marque",
+    ],
+  },
+];
+
+// Objectifs par type de campagne. Les `details` sont affichés sous chaque carte
+// pour que l'utilisateur non-technique voie EXACTEMENT ce que l'IA va faire.
+
+const OBJECTIVES_SOCIAL = [
   {
     value: "te faire connaître",
     label: "Te faire connaître 📣",
@@ -111,23 +182,36 @@ const OBJECTIVES = [
     details: [
       "Posts qui racontent ton histoire, tes coulisses, tes valeurs",
       "Fréquence de publication élevée pour rester visible",
-      "Visuels brandés à ton identité (couleurs, ton)",
       "Hashtags larges pour toucher de nouvelles personnes",
     ],
   },
   {
-    value: "amener du monde sur ton site",
-    label: "Amener du monde sur ton site 🌐",
-    description: "Tu veux que les gens visitent ton site web",
-    icon: MousePointerClick,
-    color: "from-blue-500 to-indigo-600",
+    value: "partager une nouveauté",
+    label: "Partager une nouveauté 🎁",
+    description: "Tu veux annoncer un produit, une promo, un événement",
+    icon: Sparkles,
+    color: "from-amber-500 to-orange-600",
     details: [
-      "Posts type « teaser » qui donnent envie de cliquer pour en savoir plus",
-      "Lien vers ton site inclus dans chaque publication",
-      "Accroches travaillées pour booster le taux de clic",
-      "Suivi du trafic envoyé depuis tes réseaux",
+      "Posts orientés annonce avec visuel marquant",
+      "Appel à l'action clair (« Découvre », « Profite »)",
+      "Programmation aux heures de forte audience",
     ],
   },
+  {
+    value: "créer du lien",
+    label: "Créer du lien 💬",
+    description: "Tu veux que ta communauté interagisse avec toi",
+    icon: Heart,
+    color: "from-pink-500 to-rose-600",
+    details: [
+      "Posts questions, sondages, mini-jeux",
+      "Ton conversationnel et chaleureux",
+      "Réponses suggérées aux commentaires",
+    ],
+  },
+];
+
+const OBJECTIVES_ADS = [
   {
     value: "générer des leads/prospects",
     label: "Générer des leads 🎯",
@@ -135,22 +219,105 @@ const OBJECTIVES = [
     icon: UserPlus,
     color: "from-orange-500 to-amber-600",
     details: [
-      "Création d'une page de capture (landing page) optimisée pour les inscriptions",
-      "Posts Facebook/Instagram qui dirigent vers cette page",
-      "Formulaire court (email + 1-2 infos clés) pour maximiser les inscriptions",
-      "Email récap automatique des nouveaux contacts récoltés",
-      "Export CSV de tous les leads pour ton CRM",
+      "Création d'une page de capture optimisée pour les inscriptions",
+      "Pub Meta/Google ciblée sur tes prospects",
+      "Formulaire court pour maximiser les inscriptions",
+      "Récap automatique des nouveaux contacts récoltés",
+    ],
+  },
+  {
+    value: "vendre un produit",
+    label: "Vendre un produit 🛍️",
+    description: "Tu veux que des gens achètent ton produit ou service",
+    icon: ShoppingBag,
+    color: "from-emerald-500 to-green-600",
+    details: [
+      "Visuels publicitaires orientés vente",
+      "Ciblage des acheteurs probables",
+      "CTA « Achète maintenant » avec suivi des ventes",
+      "Reciblage des visiteurs qui n'ont pas acheté",
+    ],
+  },
+  {
+    value: "trafic vers le site",
+    label: "Trafic vers le site 🌐",
+    description: "Tu veux faire venir du monde sur ton site web",
+    icon: MousePointerClick,
+    color: "from-blue-500 to-indigo-600",
+    details: [
+      "Pub Google sur tes mots-clés",
+      "Pub Meta orientée clic",
+      "Suivi du coût par visite",
+      "Optimisation pour maximiser les visites par euro",
     ],
   },
 ];
+
+const OBJECTIVES_EMAIL = [
+  {
+    value: "fidéliser mes clients",
+    label: "Fidéliser tes clients 💛",
+    description: "Garder le lien avec tes clients existants",
+    icon: Heart,
+    color: "from-rose-500 to-pink-600",
+    details: [
+      "Email chaleureux et personnalisé",
+      "Offres exclusives pour tes clients",
+      "Suivi des taux d'ouverture",
+    ],
+  },
+  {
+    value: "annoncer une nouveauté",
+    label: "Annoncer une nouveauté 🎁",
+    description: "Faire connaître un nouveau produit ou un événement",
+    icon: Sparkles,
+    color: "from-amber-500 to-orange-600",
+    details: [
+      "Email avec visuel et appel à l'action",
+      "Programmation au meilleur moment",
+      "Mesure des clics vers ton site",
+    ],
+  },
+  {
+    value: "relancer mes prospects",
+    label: "Relancer tes prospects 📩",
+    description: "Réveiller des contacts inactifs",
+    icon: Send,
+    color: "from-violet-500 to-purple-600",
+    details: [
+      "Séquence d'emails de relance",
+      "Personnalisation selon l'historique du contact",
+      "Désinscription automatique respectée",
+    ],
+  },
+];
+
+// Réseaux disponibles pour le path "social". LinkedIn est listé mais désactivé
+// (l'agence ne génère que FB/IG aujourd'hui — LinkedIn passe par le chat).
+const SOCIAL_NETWORKS = [
+  { value: "facebook" as Channel, label: "Facebook", icon: Facebook, color: "text-[#1877f2]", bg: "bg-[#1877f2]/10", available: true },
+  { value: "instagram" as Channel, label: "Instagram", icon: Instagram, color: "text-pink-600", bg: "bg-pink-100", available: true },
+  { value: "linkedin" as Channel, label: "LinkedIn", icon: Linkedin, color: "text-[#0a66c2]", bg: "bg-[#0a66c2]/10", available: false },
+];
+
+// Réseaux disponibles pour le path "ads".
+const ADS_NETWORKS = [
+  { value: "meta-ads" as Channel, label: "Meta Ads", desc: "Pub Facebook + Instagram", icon: Facebook, color: "text-[#1877f2]", bg: "bg-[#1877f2]/10" },
+  { value: "google-ads" as Channel, label: "Google Ads", desc: "Pub sur Recherche Google", icon: Globe, color: "text-emerald-600", bg: "bg-emerald-100" },
+];
+
+type ObjectiveOption = (typeof OBJECTIVES_SOCIAL)[number];
 
 export default function AgencyPage() {
   const [step, setStep] = useState<Step>("form");
   const [campaign, setCampaign] = useState<AgencyCampaign | null>(null);
   const [campaigns, setCampaigns] = useState<AgencyCampaign[]>([]);
   const [brief, setBrief] = useState<AgencyBrief>({
+    campaignType: undefined,
     product: "",
     audience: "",
+    subject: "",
+    siteUrl: "",
     budget: "",
     objective: "",
     channels: [],
@@ -186,13 +353,33 @@ export default function AgencyPage() {
       toast.error("Choisis ce que tu veux obtenir 🎯");
       return;
     }
+    // Backend ne sait générer que des posts sociaux FB/IG aujourd'hui.
+    // Ads et Email atterrissent sur l'écran "Bientôt" — on enregistre le brief
+    // en local seulement, rien n'est appelé côté serveur.
+    if (brief.campaignType === "ads" || brief.campaignType === "email") {
+      setStep("coming-soon");
+      return;
+    }
     setLoading(true);
     setStep("loading");
+    // Enrichir le product avec le subject pour donner du contexte à l'IA.
+    const enrichedProduct = brief.subject?.trim()
+      ? `${brief.product.trim()}\n\nSujet précis de cette campagne : ${brief.subject.trim()}`
+      : brief.product;
+    // Le backend filtre les channels (garde FB/IG uniquement) — on envoie quand même
+    // la sélection brute pour qu'il ait la trace, et il choisira lui-même.
+    const payload = {
+      product: enrichedProduct,
+      audience: brief.audience,
+      budget: brief.budget,
+      objective: brief.objective,
+      channels: brief.channels,
+    };
     try {
       const r = await fetch(API("/agency/generate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(brief),
+        body: JSON.stringify(payload),
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({ error: "Oups" }));
@@ -268,7 +455,16 @@ export default function AgencyPage() {
   function resetForNew() {
     setCampaign(null);
     setNotificationEmail("");
-    setBrief({ product: "", audience: "", budget: "", objective: "", channels: [] });
+    setBrief({
+      campaignType: undefined,
+      product: "",
+      audience: "",
+      subject: "",
+      siteUrl: "",
+      budget: "",
+      objective: "",
+      channels: [],
+    });
     setStep("form");
   }
 
@@ -314,6 +510,15 @@ export default function AgencyPage() {
       <main className="max-w-4xl mx-auto px-6 py-10">
         {step === "form" && <BriefForm brief={brief} setBrief={setBrief} onSubmit={generatePlan} loading={loading} />}
         {step === "loading" && <LoadingScreen />}
+        {step === "coming-soon" && (
+          <ComingSoonScreen
+            brief={brief}
+            notificationEmail={notificationEmail}
+            setNotificationEmail={setNotificationEmail}
+            onBack={() => setStep("form")}
+            onNew={resetForNew}
+          />
+        )}
         {step === "preview" && campaign && (
           <PreviewScreen
             campaign={campaign}
@@ -339,7 +544,7 @@ function friendlyError(err: string | undefined): string {
   if (!err) return "Oups, ça n'a pas marché. On réessaie ?";
   if (err.includes("Trop de g")) return "Tu as déjà créé beaucoup de campagnes aujourd'hui. Reviens dans une heure 🙂";
   if (err.toLowerCase().includes("réponds")) return err;
-  if (err.toLowerCase().includes("vide")) return "Il manque une réponse. Vérifie les 3 questions.";
+  if (err.toLowerCase().includes("vide")) return "Il manque une réponse. Vérifie tes choix dans le formulaire.";
   if (err.includes("Cette campagne a déjà été lancée") || err.includes("déjà en cours")) {
     return "Cette campagne a déjà été lancée 🎉";
   }
@@ -368,6 +573,17 @@ const ENCOURAGEMENTS = [
   "Parfait, c'est tout bon ! ✨",
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BriefForm — Tunnel de création adaptatif
+//
+// Flux dynamique selon `brief.campaignType` :
+//   social : type → product → audience → networks+subject → objective (5 étapes)
+//   ads    : type → product → audience → ads-details        → objective (5 étapes)
+//   email  : type → product → audience → objective                       (4 étapes)
+//
+// Le compteur "Étape X sur N" et la barre de progression s'adaptent.
+// ─────────────────────────────────────────────────────────────────────────────
+
 function BriefForm({
   brief,
   setBrief,
@@ -383,15 +599,21 @@ function BriefForm({
   const [animKey, setAnimKey] = useState(0);
   const [showEncouragement, setShowEncouragement] = useState<string | null>(null);
 
-  const totalSteps = 3;
+  // Nombre d'étapes : email passe directement à l'objectif (pas de "networks").
+  const totalSteps = brief.campaignType === "email" ? 4 : 5;
 
-  function nextStep(encouragement: string) {
-    setShowEncouragement(encouragement);
-    setTimeout(() => {
-      setShowEncouragement(null);
+  function nextStep(encouragement?: string | null) {
+    if (encouragement) {
+      setShowEncouragement(encouragement);
+      setTimeout(() => {
+        setShowEncouragement(null);
+        setStep((s) => Math.min(s + 1, totalSteps - 1));
+        setAnimKey((k) => k + 1);
+      }, 900);
+    } else {
       setStep((s) => Math.min(s + 1, totalSteps - 1));
       setAnimKey((k) => k + 1);
-    }, 900);
+    }
   }
 
   function prevStep() {
@@ -403,6 +625,16 @@ function BriefForm({
   const canAudienceNext = brief.audience.trim().length >= 8;
 
   const progressPercent = ((step + 1) / totalSteps) * 100;
+
+  // Récap dynamique du bandeau du bas selon le type choisi.
+  const footerByType: Record<CampaignType, string> = {
+    social: "🎁 Posts gratuits. On publie sur tes réseaux après ta validation, pas de carte bancaire demandée.",
+    ads: "💳 La publicité payante demande un budget. Tu valides chaque dépense avant qu'on lance.",
+    email: "📩 Envoi à ta base de contacts. Tu valides le contenu avant le départ.",
+  };
+  const footerText = brief.campaignType
+    ? footerByType[brief.campaignType]
+    : "🎁 C'est gratuit pour commencer. Choisis ton type de campagne pour voir ce que je peux faire pour toi.";
 
   return (
     <div className="space-y-6">
@@ -435,59 +667,238 @@ function BriefForm({
       ) : (
         <div
           key={animKey}
-          className="bg-white rounded-2xl border shadow-sm p-6 sm:p-8 space-y-6 animate-in fade-in slide-in-from-right-4 duration-500"
+          className={`bg-white rounded-2xl border shadow-sm p-6 sm:p-8 space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 ${
+            step === 0 ? "max-w-5xl mx-auto" : ""
+          }`}
         >
           {step === 0 && (
+            <StepCampaignType
+              value={brief.campaignType}
+              setValue={(v) => {
+                // Reset des champs spécifiques au path quand on change de type.
+                setBrief({
+                  ...brief,
+                  campaignType: v,
+                  channels: [],
+                  objective: "",
+                  subject: "",
+                  siteUrl: "",
+                  budget: "",
+                });
+              }}
+              onNext={() => nextStep(null)}
+              currentStep={step + 1}
+              totalSteps={totalSteps}
+            />
+          )}
+          {step === 1 && (
             <StepProduct
               value={brief.product}
               setValue={(v) => setBrief({ ...brief, product: v })}
               canNext={canProductNext}
               onNext={() => nextStep(ENCOURAGEMENTS[0])}
+              onBack={prevStep}
+              currentStep={step + 1}
+              totalSteps={totalSteps}
             />
           )}
-          {step === 1 && (
+          {step === 2 && (
             <StepAudience
               value={brief.audience}
               setValue={(v) => setBrief({ ...brief, audience: v })}
               canNext={canAudienceNext}
               onNext={() => nextStep(ENCOURAGEMENTS[1])}
               onBack={prevStep}
+              currentStep={step + 1}
+              totalSteps={totalSteps}
             />
           )}
-          {step === 2 && (
+          {step === 3 && brief.campaignType === "social" && (
+            <StepSocialNetworks
+              channels={brief.channels}
+              setChannels={(c) => setBrief({ ...brief, channels: c })}
+              subject={brief.subject ?? ""}
+              setSubject={(v) => setBrief({ ...brief, subject: v })}
+              onNext={() => nextStep(ENCOURAGEMENTS[2])}
+              onBack={prevStep}
+              currentStep={step + 1}
+              totalSteps={totalSteps}
+            />
+          )}
+          {step === 3 && brief.campaignType === "ads" && (
+            <StepAdsDetails
+              channels={brief.channels}
+              setChannels={(c) => setBrief({ ...brief, channels: c })}
+              siteUrl={brief.siteUrl ?? ""}
+              setSiteUrl={(v) => setBrief({ ...brief, siteUrl: v })}
+              budget={brief.budget}
+              setBudget={(v) => setBrief({ ...brief, budget: v })}
+              onNext={() => nextStep(ENCOURAGEMENTS[2])}
+              onBack={prevStep}
+              currentStep={step + 1}
+              totalSteps={totalSteps}
+            />
+          )}
+          {step === 3 && brief.campaignType === "email" && (
             <StepObjective
+              objectives={OBJECTIVES_EMAIL}
               value={brief.objective}
               setValue={(v) => setBrief({ ...brief, objective: v })}
               onSubmit={onSubmit}
               onBack={prevStep}
               loading={loading}
+              currentStep={step + 1}
+              totalSteps={totalSteps}
+            />
+          )}
+          {step === 4 && brief.campaignType === "social" && (
+            <StepObjective
+              objectives={OBJECTIVES_SOCIAL}
+              value={brief.objective}
+              setValue={(v) => setBrief({ ...brief, objective: v })}
+              onSubmit={onSubmit}
+              onBack={prevStep}
+              loading={loading}
+              currentStep={step + 1}
+              totalSteps={totalSteps}
+            />
+          )}
+          {step === 4 && brief.campaignType === "ads" && (
+            <StepObjective
+              objectives={OBJECTIVES_ADS}
+              value={brief.objective}
+              setValue={(v) => setBrief({ ...brief, objective: v })}
+              onSubmit={onSubmit}
+              onBack={prevStep}
+              loading={loading}
+              currentStep={step + 1}
+              totalSteps={totalSteps}
             />
           )}
         </div>
       )}
 
-      <p className="text-center text-xs text-muted-foreground">
-        🎁 C'est entièrement gratuit. On publie sur Facebook et Instagram, pas de carte bancaire demandée.
+      <p className="text-center text-xs text-muted-foreground max-w-2xl mx-auto">
+        {footerText}
       </p>
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Étape 1 — Choix du type de campagne (3 cartes)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StepCampaignType({
+  value,
+  setValue,
+  onNext,
+  currentStep,
+  totalSteps,
+}: {
+  value: CampaignType | undefined;
+  setValue: (v: CampaignType) => void;
+  onNext: () => void;
+  currentStep: number;
+  totalSteps: number;
+}) {
+  return (
+    <>
+      <div className="space-y-1">
+        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
+          Question {currentStep} sur {totalSteps}
+        </div>
+        <h2 className="text-2xl font-bold">Quel type de campagne tu veux lancer ? 🚀</h2>
+        <p className="text-muted-foreground text-sm">
+          Choisis le canal qui te ressemble. Chaque type est conçu pour un objectif différent.
+        </p>
+      </div>
+      <div className="grid md:grid-cols-3 gap-4">
+        {CAMPAIGN_TYPES.map((t) => {
+          const Icon = t.icon;
+          const active = value === t.value;
+          return (
+            <button
+              key={t.value}
+              type="button"
+              data-testid={`campaign-type-${t.value}`}
+              onClick={() => setValue(t.value)}
+              aria-pressed={active}
+              className={`relative text-left p-5 rounded-2xl border-2 transition-all hover:scale-[1.02] flex flex-col ${
+                active
+                  ? "border-violet-600 bg-violet-50 shadow-lg scale-[1.02] ring-2 ring-violet-200"
+                  : "border-slate-200 hover:border-violet-300 bg-white"
+              }`}
+            >
+              {!t.available && (
+                <span className="absolute top-3 right-3 text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider">
+                  Bientôt
+                </span>
+              )}
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${t.color} flex items-center justify-center mb-3 shadow-md`}>
+                <Icon className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="font-bold text-base">{t.label}</span>
+                <span className="text-xs font-semibold text-violet-600 uppercase">{t.sub}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{t.description}</p>
+              <div className="mt-4 pt-3 border-t border-slate-200/70 space-y-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Ce que je vais faire pour toi :
+                </div>
+                <ul className="space-y-1">
+                  {t.details.map((d, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-700 leading-snug">
+                      <CheckIcon className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" />
+                      <span>{d}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <Button
+        onClick={onNext}
+        disabled={!value}
+        data-testid="button-next-type"
+        className="w-full h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
+      >
+        Continuer →
+      </Button>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Étape 2 — Produit / service
+// ─────────────────────────────────────────────────────────────────────────────
 
 function StepProduct({
   value,
   setValue,
   canNext,
   onNext,
+  onBack,
+  currentStep,
+  totalSteps,
 }: {
   value: string;
   setValue: (v: string) => void;
   canNext: boolean;
   onNext: () => void;
+  onBack: () => void;
+  currentStep: number;
+  totalSteps: number;
 }) {
   return (
     <>
       <div className="space-y-1">
-        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Question 1 sur 3</div>
+        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
+          Question {currentStep} sur {totalSteps}
+        </div>
         <h2 className="text-2xl font-bold">Tu proposes quoi ? 🤔</h2>
         <p className="text-muted-foreground text-sm">Dis-le avec tes mots, comme si tu en parlais à un ami.</p>
       </div>
@@ -516,17 +927,26 @@ function StepProduct({
           ))}
         </div>
       </div>
-      <Button
-        onClick={onNext}
-        disabled={!canNext}
-        data-testid="button-next-1"
-        className="w-full h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
-      >
-        Continuer →
-      </Button>
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onBack} className="h-14 px-6">
+          ←
+        </Button>
+        <Button
+          onClick={onNext}
+          disabled={!canNext}
+          data-testid="button-next-1"
+          className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
+        >
+          Continuer →
+        </Button>
+      </div>
     </>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Étape 3 — Audience cible
+// ─────────────────────────────────────────────────────────────────────────────
 
 function StepAudience({
   value,
@@ -534,17 +954,23 @@ function StepAudience({
   canNext,
   onNext,
   onBack,
+  currentStep,
+  totalSteps,
 }: {
   value: string;
   setValue: (v: string) => void;
   canNext: boolean;
   onNext: () => void;
   onBack: () => void;
+  currentStep: number;
+  totalSteps: number;
 }) {
   return (
     <>
       <div className="space-y-1">
-        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Question 2 sur 3</div>
+        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
+          Question {currentStep} sur {totalSteps}
+        </div>
         <h2 className="text-2xl font-bold">À qui tu veux parler ? 👥</h2>
         <p className="text-muted-foreground text-sm">Décris les gens que tu aimerais avoir comme clients : âge, ce qu'ils aiment, où ils habitent.</p>
       </div>
@@ -590,28 +1016,314 @@ function StepAudience({
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Étape 4 (social) — Choix des réseaux + sujet du post
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StepSocialNetworks({
+  channels,
+  setChannels,
+  subject,
+  setSubject,
+  onNext,
+  onBack,
+  currentStep,
+  totalSteps,
+}: {
+  channels: Channel[];
+  setChannels: (c: Channel[]) => void;
+  subject: string;
+  setSubject: (v: string) => void;
+  onNext: () => void;
+  onBack: () => void;
+  currentStep: number;
+  totalSteps: number;
+}) {
+  function toggle(c: Channel) {
+    setChannels(channels.includes(c) ? channels.filter((x) => x !== c) : [...channels, c]);
+  }
+  const hasAtLeastOne = channels.some((c) =>
+    SOCIAL_NETWORKS.some((n) => n.value === c && n.available),
+  );
+  const canNext = hasAtLeastOne; // sujet est optionnel
+  return (
+    <>
+      <div className="space-y-1">
+        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
+          Question {currentStep} sur {totalSteps}
+        </div>
+        <h2 className="text-2xl font-bold">Sur quels réseaux on publie ? 📱</h2>
+        <p className="text-muted-foreground text-sm">
+          Choisis un ou plusieurs réseaux. Je m'occupe du reste.
+        </p>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-3">
+        {SOCIAL_NETWORKS.map((n) => {
+          const Icon = n.icon;
+          const checked = channels.includes(n.value);
+          const disabled = !n.available;
+          return (
+            <button
+              key={n.value}
+              type="button"
+              data-testid={`network-${n.value}`}
+              onClick={() => !disabled && toggle(n.value)}
+              disabled={disabled}
+              aria-pressed={checked}
+              className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                disabled
+                  ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
+                  : checked
+                    ? "border-violet-600 bg-violet-50 shadow-md scale-[1.02]"
+                    : "border-slate-200 hover:border-violet-300 hover:scale-[1.02] bg-white"
+              }`}
+            >
+              {disabled && (
+                <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">
+                  Bientôt
+                </span>
+              )}
+              <div className={`w-10 h-10 rounded-lg ${n.bg} flex items-center justify-center mb-2`}>
+                <Icon className={`w-5 h-5 ${n.color}`} />
+              </div>
+              <div className="font-semibold text-sm">{n.label}</div>
+              {checked && (
+                <div className="absolute bottom-2 right-2 w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center">
+                  <CheckIcon className="w-3 h-3 text-white" />
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="space-y-2 pt-2">
+        <Label htmlFor="subject" className="text-sm font-semibold">
+          Quel est le sujet de ton post ? <span className="text-muted-foreground font-normal">(optionnel)</span>
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Par exemple : « Promo de Noël », « Ouverture du nouveau salon », « Témoignage cliente ». Si tu laisses vide, je trouve les sujets pour toi.
+        </p>
+        <Textarea
+          id="subject"
+          data-testid="input-subject"
+          placeholder="Ex : Annonce de ma nouvelle collection de bougies de Noël."
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          rows={2}
+          className="text-sm"
+        />
+      </div>
+
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onBack} className="h-14 px-6">
+          ←
+        </Button>
+        <Button
+          onClick={onNext}
+          disabled={!canNext}
+          data-testid="button-next-networks"
+          className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
+        >
+          Continuer →
+        </Button>
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Étape 4 (ads) — Réseaux pub + URL du site + budget
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StepAdsDetails({
+  channels,
+  setChannels,
+  siteUrl,
+  setSiteUrl,
+  budget,
+  setBudget,
+  onNext,
+  onBack,
+  currentStep,
+  totalSteps,
+}: {
+  channels: Channel[];
+  setChannels: (c: Channel[]) => void;
+  siteUrl: string;
+  setSiteUrl: (v: string) => void;
+  budget: string;
+  setBudget: (v: string) => void;
+  onNext: () => void;
+  onBack: () => void;
+  currentStep: number;
+  totalSteps: number;
+}) {
+  function toggle(c: Channel) {
+    setChannels(channels.includes(c) ? channels.filter((x) => x !== c) : [...channels, c]);
+  }
+  const urlValid = /^https?:\/\/.+\..+/i.test(siteUrl.trim());
+  const budgetValid = budget.trim().length > 0;
+  const hasAtLeastOne = channels.some((c) => ADS_NETWORKS.some((n) => n.value === c));
+  const canNext = urlValid && budgetValid && hasAtLeastOne;
+
+  const BUDGET_PRESETS = ["50 € / mois", "150 € / mois", "300 € / mois", "500 € / mois"];
+
+  return (
+    <>
+      <div className="space-y-1">
+        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
+          Question {currentStep} sur {totalSteps}
+        </div>
+        <h2 className="text-2xl font-bold">Détails de ta publicité 🎯</h2>
+        <p className="text-muted-foreground text-sm">
+          Quelques infos précises pour que je puisse cibler les bonnes personnes.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm font-semibold">Quels réseaux publicitaires ?</Label>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {ADS_NETWORKS.map((n) => {
+            const Icon = n.icon;
+            const checked = channels.includes(n.value);
+            return (
+              <button
+                key={n.value}
+                type="button"
+                data-testid={`ad-network-${n.value}`}
+                onClick={() => toggle(n.value)}
+                aria-pressed={checked}
+                className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                  checked
+                    ? "border-violet-600 bg-violet-50 shadow-md scale-[1.02]"
+                    : "border-slate-200 hover:border-violet-300 hover:scale-[1.02] bg-white"
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-lg ${n.bg} flex items-center justify-center mb-2`}>
+                  <Icon className={`w-5 h-5 ${n.color}`} />
+                </div>
+                <div className="font-semibold text-sm">{n.label}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{n.desc}</div>
+                {checked && (
+                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center">
+                    <CheckIcon className="w-3 h-3 text-white" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="siteUrl" className="text-sm font-semibold inline-flex items-center gap-1.5">
+          <Globe className="w-4 h-4 text-violet-600" /> Le lien de ton site (URL)
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          C'est la page où on enverra les gens qui cliquent sur ta pub.
+        </p>
+        <input
+          id="siteUrl"
+          type="url"
+          data-testid="input-site-url"
+          placeholder="https://monsite.fr"
+          value={siteUrl}
+          onChange={(e) => setSiteUrl(e.target.value)}
+          className="w-full h-11 px-3 rounded-md border border-input bg-white text-base"
+        />
+        {siteUrl.trim() && !urlValid && (
+          <p className="text-xs text-amber-600">⚠️ L'adresse doit commencer par http:// ou https://</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="budget" className="text-sm font-semibold inline-flex items-center gap-1.5">
+          <Zap className="w-4 h-4 text-violet-600" /> Ton budget estimé
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Combien tu es prêt à dépenser. On commence petit, on ajuste après.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {BUDGET_PRESETS.map((b) => (
+            <button
+              key={b}
+              type="button"
+              onClick={() => setBudget(b)}
+              className={`px-3 py-1.5 rounded-full border text-sm transition-all ${
+                budget === b
+                  ? "border-violet-600 bg-violet-50 text-violet-700 font-semibold"
+                  : "border-slate-200 bg-white hover:border-violet-300"
+              }`}
+              data-testid={`budget-preset-${b.replace(/\s/g, "-")}`}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
+        <input
+          id="budget"
+          type="text"
+          data-testid="input-budget"
+          placeholder="Ou écris ton montant : ex. 250 € pour 2 semaines"
+          value={budget}
+          onChange={(e) => setBudget(e.target.value)}
+          className="w-full h-11 px-3 rounded-md border border-input bg-white text-base"
+        />
+      </div>
+
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onBack} className="h-14 px-6">
+          ←
+        </Button>
+        <Button
+          onClick={onNext}
+          disabled={!canNext}
+          data-testid="button-next-ads"
+          className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
+        >
+          Continuer →
+        </Button>
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Étape finale — Objectif (la liste change selon le type de campagne)
+// ─────────────────────────────────────────────────────────────────────────────
+
 function StepObjective({
+  objectives,
   value,
   setValue,
   onSubmit,
   onBack,
   loading,
+  currentStep,
+  totalSteps,
 }: {
+  objectives: ObjectiveOption[];
   value: string;
   setValue: (v: string) => void;
   onSubmit: () => void;
   onBack: () => void;
   loading: boolean;
+  currentStep: number;
+  totalSteps: number;
 }) {
+  const isLast = currentStep === totalSteps;
   return (
     <>
       <div className="space-y-1">
-        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">Question 3 sur 3 — la dernière !</div>
+        <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
+          Question {currentStep} sur {totalSteps}{isLast ? " — la dernière !" : ""}
+        </div>
         <h2 className="text-2xl font-bold">Qu'est-ce que tu veux obtenir ? 🎯</h2>
         <p className="text-muted-foreground text-sm">Choisis ce qui compte le plus pour toi en ce moment.</p>
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {OBJECTIVES.map((o) => {
+      <div className="grid sm:grid-cols-3 gap-3">
+        {objectives.map((o) => {
           const Icon = o.icon;
           const active = value === o.value;
           return (
@@ -620,6 +1332,7 @@ function StepObjective({
               type="button"
               data-testid={`objective-${o.value.replace(/[\s/]/g, "-")}`}
               onClick={() => setValue(o.value)}
+              aria-pressed={active}
               className={`text-left p-4 rounded-xl border-2 transition-all hover:scale-[1.02] flex flex-col ${
                 active ? "border-violet-600 bg-violet-50 shadow-md scale-[1.02]" : "border-slate-200 hover:border-violet-300 bg-white"
               }`}
@@ -666,6 +1379,128 @@ function StepObjective({
         </Button>
       </div>
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Écran "Bientôt disponible" pour les paths Ads & Email
+// (le brief reste en mémoire frontend, rien n'est appelé côté backend)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ComingSoonScreen({
+  brief,
+  notificationEmail,
+  setNotificationEmail,
+  onBack,
+  onNew,
+}: {
+  brief: AgencyBrief;
+  notificationEmail: string;
+  setNotificationEmail: (v: string) => void;
+  onBack: () => void;
+  onNew: () => void;
+}) {
+  const typeMeta = CAMPAIGN_TYPES.find((t) => t.value === brief.campaignType);
+  const Icon = typeMeta?.icon ?? Sparkles;
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="text-center space-y-4">
+        <div className={`inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br ${typeMeta?.color ?? "from-violet-500 to-purple-600"} shadow-lg`}>
+          <Icon className="w-10 h-10 text-white" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">Bientôt disponible 🚧</h1>
+          <p className="text-muted-foreground text-lg">
+            On travaille dur sur les campagnes <strong>{typeMeta?.label}</strong>. C'est en bonne voie !
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+        <div className="flex items-start gap-2">
+          <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-amber-900">
+              Pourquoi ce n'est pas encore prêt ?
+            </p>
+            <p className="text-xs text-amber-800 leading-relaxed">
+              {brief.campaignType === "ads"
+                ? "On attend les validations finales de Meta (Business Manager) et de Google (developer token). Délai estimé : quelques semaines. En attendant, tu peux lancer une campagne Réseaux Sociaux gratuite — c'est déjà très efficace !"
+                : "On finalise le système de gestion de tes contacts et de programmation des envois. En attendant, tu peux lancer une campagne Réseaux Sociaux gratuite pour préparer le terrain."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border shadow-sm p-5 space-y-4">
+        <h3 className="font-semibold text-sm">Ton brief (gardé pour cette session) 📝</h3>
+        <p className="text-xs text-muted-foreground -mt-2">
+          Pour l'instant on ne le sauvegarde pas côté serveur — tu pourras le ressaisir quand la fonctionnalité sera prête.
+        </p>
+        <div className="space-y-2 text-sm">
+          <div className="flex gap-2">
+            <span className="text-muted-foreground min-w-24">Ce que tu proposes :</span>
+            <span className="font-medium flex-1">{brief.product}</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-muted-foreground min-w-24">Ta cible :</span>
+            <span className="font-medium flex-1">{brief.audience}</span>
+          </div>
+          {brief.siteUrl && (
+            <div className="flex gap-2">
+              <span className="text-muted-foreground min-w-24">Ton site :</span>
+              <a href={brief.siteUrl} target="_blank" rel="noreferrer" className="font-medium text-blue-600 hover:underline flex-1 break-all">
+                {brief.siteUrl}
+              </a>
+            </div>
+          )}
+          {brief.budget && (
+            <div className="flex gap-2">
+              <span className="text-muted-foreground min-w-24">Ton budget :</span>
+              <span className="font-medium flex-1">{brief.budget}</span>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <span className="text-muted-foreground min-w-24">Ton objectif :</span>
+            <span className="font-medium flex-1">{brief.objective}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border shadow-sm p-5 space-y-3">
+        <Label htmlFor="notif-email" className="text-sm font-semibold">
+          📬 Préviens-moi quand c'est disponible
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          Laisse ton email, on te recontacte dès que la fonctionnalité est prête.
+        </p>
+        <input
+          id="notif-email"
+          type="email"
+          data-testid="input-notif-email"
+          placeholder="ton@email.fr"
+          value={notificationEmail}
+          onChange={(e) => setNotificationEmail(e.target.value)}
+          className="w-full h-11 px-3 rounded-md border border-input bg-white text-base"
+        />
+        <p className="text-[11px] text-muted-foreground italic">
+          Pour l'instant on ne stocke pas ton email automatiquement — note-le, on l'ajoutera à la liste d'attente bientôt.
+        </p>
+      </div>
+
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onBack} className="h-12 flex-1">
+          ← Modifier mon brief
+        </Button>
+        <Button
+          onClick={onNew}
+          data-testid="button-new-social"
+          className="h-12 flex-1 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700"
+        >
+          <MessageCircle className="w-4 h-4 mr-2" /> Essayer Réseaux Sociaux
+        </Button>
+      </div>
+    </div>
   );
 }
 
