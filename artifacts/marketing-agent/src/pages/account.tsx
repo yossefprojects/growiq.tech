@@ -658,6 +658,39 @@ function ClerkProfileDialog({ open, onClose }: { open: boolean; onClose: () => v
   );
 }
 
+function AdminCard() {
+  const af = useAuthedFetch();
+  const { data } = useQuery<{ isAdmin: boolean }>({
+    queryKey: ["me"],
+    queryFn: () => af("/api/me") as Promise<{ isAdmin: boolean }>,
+    staleTime: 5 * 60 * 1000,
+  });
+  if (!data?.isAdmin) return null;
+  return (
+    <Link
+      href="/app/admin"
+      data-testid="link-admin-cta"
+      className="block rounded-2xl border-2 border-[#5b54d6]/30 bg-gradient-to-br from-[#5b54d6]/8 to-[#ff7a3c]/8 p-5 sm:p-6 mb-5 hover:border-[#5b54d6]/60 hover:shadow-md transition-all group"
+    >
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-[#5b54d6] text-white flex items-center justify-center shrink-0">
+          <Shield className="w-6 h-6" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-base sm:text-lg">Admin CRM</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-[#5b54d6] text-white rounded-full px-2 py-0.5">Réservé admin</span>
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Voir tous les utilisateurs inscrits, leurs projets et leurs campagnes.
+          </p>
+        </div>
+        <ArrowLeft className="w-5 h-5 rotate-180 text-[#5b54d6] shrink-0 group-hover:translate-x-1 transition-transform" />
+      </div>
+    </Link>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────
 
 export default function AccountPage() {
@@ -727,6 +760,8 @@ export default function AccountPage() {
             </div>
           )}
         </section>
+
+        <AdminCard />
 
         {/* Body */}
         {profile.isLoading ? (
