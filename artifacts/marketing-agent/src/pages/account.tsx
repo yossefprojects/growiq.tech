@@ -647,12 +647,49 @@ function ClerkProfileDialog({ open, onClose }: { open: boolean; onClose: () => v
   }, [open]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="relative max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-3 right-3 z-10 bg-white rounded-full p-1.5 shadow-md hover:bg-gray-100" aria-label="Fermer">
-          <X className="w-5 h-5" />
+    <div
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-6"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="relative w-full max-w-[880px] max-h-[92vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm hover:bg-gray-50 transition"
+          aria-label="Fermer"
+          data-testid="button-close-clerk-profile"
+        >
+          <X className="w-4 h-4 text-gray-700" />
         </button>
-        <UserProfile routing="hash" />
+        <div className="overflow-y-auto">
+          <UserProfile
+            routing="hash"
+            appearance={{
+              elements: {
+                rootBox: "w-full",
+                cardBox: "w-full shadow-none border-0 rounded-none",
+                card: "w-full shadow-none border-0 rounded-none",
+                navbar: "border-r border-gray-100 bg-white",
+                navbarButton: "text-gray-700 hover:bg-gray-50",
+                navbarButtonActive: "text-[#5b54d6] bg-[#5b54d6]/8",
+                pageScrollBox: "px-6 py-6",
+                profileSectionPrimaryButton: "text-[#5b54d6] hover:text-[#4842b5]",
+                formButtonPrimary: "bg-[#5b54d6] hover:bg-[#4842b5] text-white",
+              },
+              variables: {
+                colorPrimary: "#5b54d6",
+                colorText: "#111827",
+                colorBackground: "#ffffff",
+                fontFamily: "inherit",
+                borderRadius: "0.75rem",
+              },
+            }}
+          />
+        </div>
       </div>
     </div>
   );
