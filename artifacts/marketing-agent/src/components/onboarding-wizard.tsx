@@ -26,6 +26,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/react";
 import { cn } from "@/lib/utils";
+import { useMe } from "@/hooks/use-me";
 
 interface OnboardingWizardProps {
   open: boolean;
@@ -68,13 +69,14 @@ export function shouldShowOnboarding(profileLoaded: boolean, completed: boolean)
 export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizardProps) {
   const qc = useQueryClient();
   const { getToken } = useAuth();
+  const { isAdmin } = useMe();
   const [step, setStep] = useState(0);
 
   const { data: profile } = useGetOpenaiBusinessProfile({
     query: { queryKey: getGetOpenaiBusinessProfileQueryKey(), enabled: open },
   });
   const { data: metaStatus, isLoading: metaLoading } = useGetMetaStatus({
-    query: { queryKey: getGetMetaStatusQueryKey(), enabled: open },
+    query: { queryKey: getGetMetaStatusQueryKey(), enabled: open && isAdmin },
   });
   const { data: linkedinStatus, isLoading: linkedinLoading } = useQuery<LinkedinStatus>({
     queryKey: ["linkedin-status"],
@@ -156,36 +158,40 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
       icon: Sparkles,
       content: (
         <div className="space-y-3">
-          {metaLoading || linkedinLoading ? (
+          {(isAdmin && metaLoading) || linkedinLoading ? (
             <div className="flex items-center justify-center py-8 text-muted-foreground text-sm gap-2">
               <Loader2 className="w-4 h-4 animate-spin" /> Vérification…
             </div>
           ) : (
             <>
-              <SocialRow
-                icon={Facebook}
-                label="Facebook"
-                connected={!!metaStatus?.facebook}
-                color="from-[#1877f2] to-[#0e5fc2]"
-              />
-              <SocialRow
-                icon={Instagram}
-                label="Instagram"
-                connected={!!metaStatus?.instagram}
-                color="from-[#e1306c] via-[#fd1d1d] to-[#fcb045]"
-              />
+              {isAdmin && (
+                <>
+                  <SocialRow
+                    icon={Facebook}
+                    label="Facebook"
+                    connected={!!metaStatus?.facebook}
+                    color="from-[#1877f2] to-[#0e5fc2]"
+                  />
+                  <SocialRow
+                    icon={Instagram}
+                    label="Instagram"
+                    connected={!!metaStatus?.instagram}
+                    color="from-[#e1306c] via-[#fd1d1d] to-[#fcb045]"
+                  />
+                </>
+              )}
               <SocialRow
                 icon={Linkedin}
                 label="LinkedIn"
                 connected={!!linkedinStatus?.connected}
                 color="from-[#0a66c2] to-[#004182]"
               />
-              {(!metaStatus?.facebook || !metaStatus?.instagram || !linkedinStatus?.connected) && (
+              {!linkedinStatus?.connected && (
                 <div className="flex items-start gap-2 mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>
-                    Pas de panique : tu pourras toujours utiliser GrowIQ sans avoir tout connecté. On
-                    te rappellera quand ce sera utile.
+                    Pas de panique : tu pourras toujours utiliser GrowIQ sans avoir connecté
+                    LinkedIn. On te rappellera quand ce sera utile.
                   </span>
                 </div>
               )}

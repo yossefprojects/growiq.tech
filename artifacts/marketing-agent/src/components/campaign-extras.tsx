@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useMe } from "@/hooks/use-me";
 
 // ════════════════════════════════════════════════════════════════════════════
 // IMAGE GENERATOR DIALOG
@@ -119,17 +120,20 @@ interface ScheduleDialogProps {
   defaultContent?: string;
 }
 
-const PLATFORM_OPTIONS = [
-  { value: "email", label: "📧 Email (envoi automatique si Sendgrid connecté)" },
-  { value: "linkedin", label: "💼 LinkedIn (rappel + 1-clic publier)" },
-  { value: "facebook", label: "📘 Facebook (rappel + 1-clic publier)" },
-  { value: "twitter", label: "🐦 X / Twitter (rappel + 1-clic publier)" },
-  { value: "instagram", label: "📷 Instagram (rappel + copie auto)" },
-  { value: "tiktok", label: "🎵 TikTok (rappel + copie auto)" },
-  { value: "whatsapp", label: "💬 WhatsApp (rappel + 1-clic envoyer)" },
+const PLATFORM_OPTIONS_BASE = [
+  { value: "email", label: "📧 Email (envoi automatique si Sendgrid connecté)", adminOnly: false },
+  { value: "linkedin", label: "💼 LinkedIn (rappel + 1-clic publier)", adminOnly: false },
+  { value: "facebook", label: "📘 Facebook (rappel + 1-clic publier)", adminOnly: true },
+  { value: "twitter", label: "🐦 X / Twitter (rappel + 1-clic publier)", adminOnly: false },
+  { value: "instagram", label: "📷 Instagram (rappel + copie auto)", adminOnly: true },
+  { value: "tiktok", label: "🎵 TikTok (rappel + copie auto)", adminOnly: false },
+  { value: "whatsapp", label: "💬 WhatsApp (rappel + 1-clic envoyer)", adminOnly: false },
 ];
 
 export function ScheduleDialog({ open, onClose, defaultTitle = "", defaultContent = "" }: ScheduleDialogProps) {
+  const { isAdmin } = useMe();
+  // FB/IG ne sont visibles ici que pour l'admin (credentials globaux).
+  const PLATFORM_OPTIONS = PLATFORM_OPTIONS_BASE.filter((p) => isAdmin || !p.adminOnly);
   const [title, setTitle] = useState(defaultTitle);
   const [content, setContent] = useState(defaultContent);
   const [platform, setPlatform] = useState("email");

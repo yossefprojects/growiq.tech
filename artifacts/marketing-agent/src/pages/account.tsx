@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { useMe } from "@/hooks/use-me";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -503,48 +504,62 @@ function LinkedinRow() {
 
 function IntegrationsBlock() {
   const af = useAuthedFetch();
+  const { isAdmin, isLoading: meLoading } = useMe();
+  // Meta (FB/IG) et Ads utilisent des credentials globaux admin. Pour un
+  // utilisateur non-admin, on n'affiche même pas ces lignes : on ne lui
+  // propose que LinkedIn, qui est par-utilisateur (OAuth propre).
   const meta = useQuery<MetaStatus>({
     queryKey: ["meta-status"],
     queryFn: () => af("/api/meta/status") as Promise<MetaStatus>,
+    enabled: isAdmin,
   });
   const ads = useQuery<AdsStatus>({
     queryKey: ["ads-status"],
     queryFn: () => af("/api/ads/status") as Promise<AdsStatus>,
+    enabled: isAdmin,
   });
-  if (meta.isLoading || ads.isLoading) {
+  if (meLoading || (isAdmin && (meta.isLoading || ads.isLoading))) {
     return <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-[#5b54d6]" /></div>;
   }
   return (
     <div>
-      <IntegrationRow
-        icon={Facebook}
-        name="Facebook (publication gratuite)"
-        connected={!!meta.data?.facebook}
-        note="Publier automatiquement des posts sur ta page Facebook."
-      />
-      <IntegrationRow
-        icon={Instagram}
-        name="Instagram (publication gratuite)"
-        connected={!!meta.data?.instagram}
-        note="Publier automatiquement sur ton compte Instagram pro."
-      />
+      {isAdmin && (
+        <>
+          <IntegrationRow
+            icon={Facebook}
+            name="Facebook (publication gratuite)"
+            connected={!!meta.data?.facebook}
+            note="Publier automatiquement des posts sur ta page Facebook."
+          />
+          <IntegrationRow
+            icon={Instagram}
+            name="Instagram (publication gratuite)"
+            connected={!!meta.data?.instagram}
+            note="Publier automatiquement sur ton compte Instagram pro."
+          />
+        </>
+      )}
       <LinkedinRow />
-      <IntegrationRow
-        icon={Megaphone}
-        name="Meta Ads (Facebook payant)"
-        connected={!!ads.data?.meta.configured}
-        note={ads.data?.meta.configured ? "Tu peux booster des posts en publicité." : "En attente de la validation Meta."}
-        ctaLabel="Détails →"
-        ctaHref="/app/integrations"
-      />
-      <IntegrationRow
-        icon={Megaphone}
-        name="Google Ads"
-        connected={!!ads.data?.google.configured}
-        note={ads.data?.google.configured ? "Tu peux lancer des campagnes Google Search." : "En attente de la validation Google."}
-        ctaLabel="Détails →"
-        ctaHref="/app/integrations"
-      />
+      {isAdmin && (
+        <>
+          <IntegrationRow
+            icon={Megaphone}
+            name="Meta Ads (Facebook payant)"
+            connected={!!ads.data?.meta.configured}
+            note={ads.data?.meta.configured ? "Tu peux booster des posts en publicité." : "En attente de la validation Meta."}
+            ctaLabel="Détails →"
+            ctaHref="/app/integrations"
+          />
+          <IntegrationRow
+            icon={Megaphone}
+            name="Google Ads"
+            connected={!!ads.data?.google.configured}
+            note={ads.data?.google.configured ? "Tu peux lancer des campagnes Google Search." : "En attente de la validation Google."}
+            ctaLabel="Détails →"
+            ctaHref="/app/integrations"
+          />
+        </>
+      )}
       <IntegrationRow
         icon={Mail}
         name="Emails transactionnels"

@@ -33,7 +33,7 @@ export function useConnectedChannels(enabled = true): ConnectedChannels {
   const metaQ = useQuery<MetaStatus>({
     queryKey: ["meta-status"],
     queryFn: async () => {
-      const r = await fetch(`${basePath}/api/openai/meta/status`, { headers: await auth() });
+      const r = await fetch(`${basePath}/api/meta/status`, { headers: await auth() });
       if (!r.ok) return {};
       return (await r.json()) as MetaStatus;
     },

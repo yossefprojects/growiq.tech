@@ -980,6 +980,16 @@ router.post("/scheduled-posts", async (req, res): Promise<void> => {
     res.status(400).json({ error: "title, content, platform, scheduledFor sont requis" });
     return;
   }
+  // FB/IG utilisent les credentials admin globaux : un non-admin ne doit pas
+  // pouvoir programmer un post qui finirait par être rejeté silencieusement
+  // par le worker (ou — sans le fix worker — publié sur les pages admin).
+  if ((platform === "facebook" || platform === "instagram") && (req as unknown as { isAdmin?: boolean }).isAdmin !== true) {
+    res.status(403).json({
+      error: "Facebook et Instagram ne sont pas encore disponibles sur ton compte. Utilise LinkedIn ou Email en attendant.",
+      code: "platform_not_available",
+    });
+    return;
+  }
   const date = new Date(scheduledFor);
   if (isNaN(date.getTime())) {
     res.status(400).json({ error: "scheduledFor invalide" });
