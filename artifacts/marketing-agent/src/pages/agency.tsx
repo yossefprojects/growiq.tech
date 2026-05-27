@@ -18,6 +18,8 @@ import {
   ShoppingBag,
   Megaphone,
   MousePointerClick,
+  UserPlus,
+  Check as CheckIcon,
   Lightbulb,
   Trash2,
   Eye,
@@ -83,10 +85,63 @@ type Step = "form" | "loading" | "preview" | "success" | "dashboard";
 
 const API = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 
+// Chaque objectif inclut un `details` (3-5 puces concrètes affichées sous la
+// description) pour que l'utilisateur non-technique voie EXACTEMENT ce que
+// l'IA va faire pour lui avant de cliquer "Créer ma campagne".
 const OBJECTIVES = [
-  { value: "vendre", label: "Vendre 🛍️", description: "Tu veux que des gens achètent ton produit ou service", icon: ShoppingBag, color: "from-emerald-500 to-green-600" },
-  { value: "te faire connaître", label: "Te faire connaître 📣", description: "Tu veux que plus de gens connaissent ton nom", icon: Megaphone, color: "from-purple-500 to-fuchsia-600" },
-  { value: "amener du monde sur ton site", label: "Amener du monde sur ton site 🌐", description: "Tu veux que les gens visitent ton site web", icon: MousePointerClick, color: "from-blue-500 to-indigo-600" },
+  {
+    value: "vendre",
+    label: "Vendre 🛍️",
+    description: "Tu veux que des gens achètent ton produit ou service",
+    icon: ShoppingBag,
+    color: "from-emerald-500 to-green-600",
+    details: [
+      "Posts Facebook/Instagram qui mettent en avant les bénéfices concrets de ton produit",
+      "Visuels produit générés automatiquement par IA",
+      "Appel à l'action « Achète maintenant » avec lien vers ta boutique",
+      "Horaires de publication optimisés pour les heures d'achat",
+    ],
+  },
+  {
+    value: "te faire connaître",
+    label: "Te faire connaître 📣",
+    description: "Tu veux que plus de gens connaissent ton nom",
+    icon: Megaphone,
+    color: "from-purple-500 to-fuchsia-600",
+    details: [
+      "Posts qui racontent ton histoire, tes coulisses, tes valeurs",
+      "Fréquence de publication élevée pour rester visible",
+      "Visuels brandés à ton identité (couleurs, ton)",
+      "Hashtags larges pour toucher de nouvelles personnes",
+    ],
+  },
+  {
+    value: "amener du monde sur ton site",
+    label: "Amener du monde sur ton site 🌐",
+    description: "Tu veux que les gens visitent ton site web",
+    icon: MousePointerClick,
+    color: "from-blue-500 to-indigo-600",
+    details: [
+      "Posts type « teaser » qui donnent envie de cliquer pour en savoir plus",
+      "Lien vers ton site inclus dans chaque publication",
+      "Accroches travaillées pour booster le taux de clic",
+      "Suivi du trafic envoyé depuis tes réseaux",
+    ],
+  },
+  {
+    value: "générer des leads/prospects",
+    label: "Générer des leads 🎯",
+    description: "Tu veux récolter des contacts qualifiés (emails, téléphones)",
+    icon: UserPlus,
+    color: "from-orange-500 to-amber-600",
+    details: [
+      "Création d'une page de capture (landing page) optimisée pour les inscriptions",
+      "Posts Facebook/Instagram qui dirigent vers cette page",
+      "Formulaire court (email + 1-2 infos clés) pour maximiser les inscriptions",
+      "Email récap automatique des nouveaux contacts récoltés",
+      "Export CSV de tous les leads pour ton CRM",
+    ],
+  },
 ];
 
 export default function AgencyPage() {
@@ -555,7 +610,7 @@ function StepObjective({
         <h2 className="text-2xl font-bold">Qu'est-ce que tu veux obtenir ? 🎯</h2>
         <p className="text-muted-foreground text-sm">Choisis ce qui compte le plus pour toi en ce moment.</p>
       </div>
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {OBJECTIVES.map((o) => {
           const Icon = o.icon;
           const active = value === o.value;
@@ -563,9 +618,9 @@ function StepObjective({
             <button
               key={o.value}
               type="button"
-              data-testid={`objective-${o.value.replace(/\s/g, "-")}`}
+              data-testid={`objective-${o.value.replace(/[\s/]/g, "-")}`}
               onClick={() => setValue(o.value)}
-              className={`text-left p-4 rounded-xl border-2 transition-all hover:scale-[1.02] ${
+              className={`text-left p-4 rounded-xl border-2 transition-all hover:scale-[1.02] flex flex-col ${
                 active ? "border-violet-600 bg-violet-50 shadow-md scale-[1.02]" : "border-slate-200 hover:border-violet-300 bg-white"
               }`}
             >
@@ -574,6 +629,19 @@ function StepObjective({
               </div>
               <div className="font-semibold text-sm">{o.label}</div>
               <div className="text-xs text-muted-foreground mt-1">{o.description}</div>
+              <div className="mt-3 pt-3 border-t border-slate-200/70 space-y-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Ce que je vais faire pour toi :
+                </div>
+                <ul className="space-y-1">
+                  {o.details.map((d, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-700 leading-snug">
+                      <CheckIcon className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" />
+                      <span>{d}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </button>
           );
         })}
