@@ -35,18 +35,28 @@ function uid(req: unknown): string {
 
 export const publicLinkedinRouter: IRouter = Router();
 
+// Codes courts → messages FR métier (affichés en toast côté UI).
+const CALLBACK_FR: Record<string, string> = {
+  ok: "ok",
+  missing_params: "Paramètres manquants dans la redirection LinkedIn.",
+  invalid_state: "Lien de connexion expiré ou déjà utilisé. Relance la connexion.",
+  exchange_failed: "Échec de l'échange du jeton avec LinkedIn. Réessaie.",
+  user_cancelled: "Connexion annulée côté LinkedIn.",
+};
+
 publicLinkedinRouter.get("/auth/linkedin/callback", async (req, res) => {
   const code = typeof req.query["code"] === "string" ? req.query["code"] : null;
   const state = typeof req.query["state"] === "string" ? req.query["state"] : null;
   const errorParam = typeof req.query["error"] === "string" ? req.query["error"] : null;
 
-  // Where to send the user back in the app (login page also handles this URL).
-  const back = (msg: "ok" | string) =>
+  const back = (key: string) => {
+    const msg = CALLBACK_FR[key] ?? "Erreur LinkedIn inconnue.";
     res.redirect(`/app/account?linkedin=${encodeURIComponent(msg)}`);
+  };
 
   if (errorParam) {
     logger.warn({ errorParam }, "LinkedIn callback returned error");
-    return back(errorParam);
+    return back(errorParam === "user_cancelled_authorize" ? "user_cancelled" : "exchange_failed");
   }
   if (!code || !state) return back("missing_params");
 

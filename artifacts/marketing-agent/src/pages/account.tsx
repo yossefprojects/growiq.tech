@@ -672,7 +672,7 @@ export default function AccountPage() {
     const li = qs.get("linkedin");
     if (!li) return;
     if (li === "ok") toast.success("LinkedIn connecté avec succès");
-    else toast.error(`LinkedIn : ${li}`);
+    else toast.error(li);
     // Clean URL
     const cleaned = window.location.pathname;
     window.history.replaceState({}, "", cleaned);
