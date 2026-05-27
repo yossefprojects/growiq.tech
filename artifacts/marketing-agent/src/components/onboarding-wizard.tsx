@@ -69,7 +69,7 @@ export function shouldShowOnboarding(profileLoaded: boolean, completed: boolean)
 export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizardProps) {
   const qc = useQueryClient();
   const { getToken } = useAuth();
-  const { isAdmin } = useMe();
+  const { isAdmin, isLoading: meLoading } = useMe();
   const [step, setStep] = useState(0);
 
   const { data: profile } = useGetOpenaiBusinessProfile({
@@ -158,40 +158,39 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
       icon: Sparkles,
       content: (
         <div className="space-y-3">
-          {(isAdmin && metaLoading) || linkedinLoading ? (
+          {meLoading || (isAdmin && metaLoading) || linkedinLoading ? (
             <div className="flex items-center justify-center py-8 text-muted-foreground text-sm gap-2">
               <Loader2 className="w-4 h-4 animate-spin" /> Vérification…
             </div>
           ) : (
             <>
-              {isAdmin && (
-                <>
-                  <SocialRow
-                    icon={Facebook}
-                    label="Facebook"
-                    connected={!!metaStatus?.facebook}
-                    color="from-[#1877f2] to-[#0e5fc2]"
-                  />
-                  <SocialRow
-                    icon={Instagram}
-                    label="Instagram"
-                    connected={!!metaStatus?.instagram}
-                    color="from-[#e1306c] via-[#fd1d1d] to-[#fcb045]"
-                  />
-                </>
-              )}
+              <SocialRow
+                icon={Facebook}
+                label="Facebook"
+                connected={isAdmin ? !!metaStatus?.facebook : false}
+                color="from-[#1877f2] to-[#0e5fc2]"
+                comingSoon={!isAdmin}
+              />
+              <SocialRow
+                icon={Instagram}
+                label="Instagram"
+                connected={isAdmin ? !!metaStatus?.instagram : false}
+                color="from-[#e1306c] via-[#fd1d1d] to-[#fcb045]"
+                comingSoon={!isAdmin}
+              />
               <SocialRow
                 icon={Linkedin}
                 label="LinkedIn"
                 connected={!!linkedinStatus?.connected}
                 color="from-[#0a66c2] to-[#004182]"
               />
-              {!linkedinStatus?.connected && (
-                <div className="flex items-start gap-2 mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
+              {!isAdmin && (
+                <div className="flex items-start gap-2 mt-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200 text-xs text-indigo-900">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>
-                    Pas de panique : tu pourras toujours utiliser GrowIQ sans avoir connecté
-                    LinkedIn. On te rappellera quand ce sera utile.
+                    Facebook et Instagram arrivent très bientôt. On attend juste la validation
+                    officielle de Meta pour que tu puisses connecter ton propre compte. En
+                    attendant, LinkedIn est dispo tout de suite.
                   </span>
                 </div>
               )}
@@ -462,11 +461,13 @@ function SocialRow({
   label,
   connected,
   color,
+  comingSoon,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   connected: boolean;
   color: string;
+  comingSoon?: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card">
@@ -481,10 +482,18 @@ function SocialRow({
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-sm">{label}</div>
         <div className="text-xs text-muted-foreground">
-          {connected ? "Connecté et prêt à publier" : "Pas encore connecté"}
+          {comingSoon
+            ? "Bientôt disponible (validation Meta en cours)"
+            : connected
+              ? "Connecté et prêt à publier"
+              : "Pas encore connecté"}
         </div>
       </div>
-      {connected ? (
+      {comingSoon ? (
+        <div className="text-xs font-semibold text-indigo-800 bg-indigo-100 border border-indigo-200 rounded-full px-2.5 py-1">
+          Bientôt
+        </div>
+      ) : connected ? (
         <div className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 border border-green-200 rounded-full px-2.5 py-1">
           <Check className="w-3.5 h-3.5" />
           Connecté

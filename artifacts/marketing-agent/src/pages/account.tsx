@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Globe,
   ExternalLink,
+  Clock,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -376,7 +377,7 @@ function PreferencesForm({ profile }: { profile: BusinessProfile }) {
 // ── Integrations ─────────────────────────────────────────────────────────
 
 function IntegrationRow({
-  icon: Icon, name, connected, note, ctaLabel, ctaHref,
+  icon: Icon, name, connected, note, ctaLabel, ctaHref, comingSoon, connectDisabledReason,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   name: string;
@@ -384,6 +385,10 @@ function IntegrationRow({
   note?: string;
   ctaLabel?: string;
   ctaHref?: string;
+  // Quand true, on remplace le badge + le bouton "Connecter" par un état
+  // "Bientôt disponible" expliquant pourquoi (validation Meta/Google en cours).
+  comingSoon?: boolean;
+  connectDisabledReason?: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-3 border-b border-border/40 last:border-b-0">
@@ -395,7 +400,26 @@ function IntegrationRow({
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {connected ? (
+        {comingSoon ? (
+          <>
+            <span
+              className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full"
+              title={connectDisabledReason}
+            >
+              <Clock className="w-3 h-3" /> Bientôt
+            </span>
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              aria-label={`Connecter ${name} — ${connectDisabledReason ?? "Bientôt disponible"}`}
+              title={connectDisabledReason ?? "Bientôt disponible"}
+              className="text-xs bg-muted text-muted-foreground rounded-md px-3 py-1.5 cursor-not-allowed"
+            >
+              Connecter (bientôt)
+            </button>
+          </>
+        ) : connected ? (
           <span className="inline-flex items-center gap-1 text-xs font-semibold bg-[#3dbf8e]/15 text-[#1a7a55] px-2 py-1 rounded-full">
             <Check className="w-3 h-3" /> Connecté
           </span>
@@ -404,7 +428,7 @@ function IntegrationRow({
             <X className="w-3 h-3" /> Non connecté
           </span>
         )}
-        {ctaHref && (
+        {ctaHref && !comingSoon && (
           <Link
             href={ctaHref}
             className="text-xs text-[#5b54d6] hover:underline whitespace-nowrap"
@@ -505,9 +529,9 @@ function LinkedinRow() {
 function IntegrationsBlock() {
   const af = useAuthedFetch();
   const { isAdmin, isLoading: meLoading } = useMe();
-  // Meta (FB/IG) et Ads utilisent des credentials globaux admin. Pour un
-  // utilisateur non-admin, on n'affiche même pas ces lignes : on ne lui
-  // propose que LinkedIn, qui est par-utilisateur (OAuth propre).
+  // L'admin voit l'état réel de ses credentials globaux. Les non-admins
+  // voient les mêmes lignes mais avec un statut "Bientôt disponible" tant
+  // que l'App Review Meta / le developer token Google ne sont pas validés.
   const meta = useQuery<MetaStatus>({
     queryKey: ["meta-status"],
     queryFn: () => af("/api/meta/status") as Promise<MetaStatus>,
@@ -521,45 +545,55 @@ function IntegrationsBlock() {
   if (meLoading || (isAdmin && (meta.isLoading || ads.isLoading))) {
     return <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-[#5b54d6]" /></div>;
   }
+  const META_PENDING = "On attend la validation de Meta (App Review). Tu pourras connecter ton propre compte dès que c'est approuvé.";
+  const GOOGLE_PENDING = "On attend la validation de Google (Developer Token). Tu pourras connecter ton propre compte Google Ads dès que c'est approuvé.";
   return (
     <div>
-      {isAdmin && (
-        <>
-          <IntegrationRow
-            icon={Facebook}
-            name="Facebook (publication gratuite)"
-            connected={!!meta.data?.facebook}
-            note="Publier automatiquement des posts sur ta page Facebook."
-          />
-          <IntegrationRow
-            icon={Instagram}
-            name="Instagram (publication gratuite)"
-            connected={!!meta.data?.instagram}
-            note="Publier automatiquement sur ton compte Instagram pro."
-          />
-        </>
-      )}
+      <IntegrationRow
+        icon={Facebook}
+        name="Facebook (publication gratuite)"
+        connected={isAdmin ? !!meta.data?.facebook : false}
+        note={isAdmin
+          ? "Publier automatiquement des posts sur ta page Facebook."
+          : "Publier automatiquement sur ta propre page Facebook (en cours de validation Meta)."}
+        comingSoon={!isAdmin}
+        connectDisabledReason={META_PENDING}
+      />
+      <IntegrationRow
+        icon={Instagram}
+        name="Instagram (publication gratuite)"
+        connected={isAdmin ? !!meta.data?.instagram : false}
+        note={isAdmin
+          ? "Publier automatiquement sur ton compte Instagram pro."
+          : "Publier automatiquement sur ton propre compte Instagram pro (en cours de validation Meta)."}
+        comingSoon={!isAdmin}
+        connectDisabledReason={META_PENDING}
+      />
       <LinkedinRow />
-      {isAdmin && (
-        <>
-          <IntegrationRow
-            icon={Megaphone}
-            name="Meta Ads (Facebook payant)"
-            connected={!!ads.data?.meta.configured}
-            note={ads.data?.meta.configured ? "Tu peux booster des posts en publicité." : "En attente de la validation Meta."}
-            ctaLabel="Détails →"
-            ctaHref="/app/integrations"
-          />
-          <IntegrationRow
-            icon={Megaphone}
-            name="Google Ads"
-            connected={!!ads.data?.google.configured}
-            note={ads.data?.google.configured ? "Tu peux lancer des campagnes Google Search." : "En attente de la validation Google."}
-            ctaLabel="Détails →"
-            ctaHref="/app/integrations"
-          />
-        </>
-      )}
+      <IntegrationRow
+        icon={Megaphone}
+        name="Meta Ads (Facebook payant)"
+        connected={isAdmin ? !!ads.data?.meta.configured : false}
+        note={isAdmin
+          ? (ads.data?.meta.configured ? "Tu peux booster des posts en publicité." : "En attente de la validation Meta.")
+          : "Booster tes posts en publicité depuis ton propre compte (en cours de validation Meta)."}
+        comingSoon={!isAdmin}
+        connectDisabledReason={META_PENDING}
+        ctaLabel="Détails →"
+        ctaHref="/app/integrations"
+      />
+      <IntegrationRow
+        icon={Megaphone}
+        name="Google Ads"
+        connected={isAdmin ? !!ads.data?.google.configured : false}
+        note={isAdmin
+          ? (ads.data?.google.configured ? "Tu peux lancer des campagnes Google Search." : "En attente de la validation Google.")
+          : "Lancer des campagnes Google Search depuis ton propre compte (en cours de validation Google)."}
+        comingSoon={!isAdmin}
+        connectDisabledReason={GOOGLE_PENDING}
+        ctaLabel="Détails →"
+        ctaHref="/app/integrations"
+      />
       <IntegrationRow
         icon={Mail}
         name="Emails transactionnels"
