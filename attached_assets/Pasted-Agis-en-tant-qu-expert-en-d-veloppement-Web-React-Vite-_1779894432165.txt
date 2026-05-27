@@ -1,0 +1,25 @@
+Agis en tant qu'expert en développement Web, React (Vite) et SEO. Je dois corriger l'architecture de mon site (https://growiq.tech/) car l'écran de "Bêta fermée" bloque les robots de Google, ce qui me donne un mauvais score SEO (65/100) avec seulement 5 mots détectés. 
+
+Mon projet utilise React avec Vite (et non Next.js). Aide-moi à réorganiser mon code pour séparer ma Landing Page publique de la partie application privée :
+
+1. CORRECTION DE LA LANGUE ET DU TITRE (Fichier index.html) :
+- Indique-moi comment modifier le fichier 'index.html' à la racine de mon projet Vite pour :
+  * Changer la langue en français : <html lang="fr"> (elle est actuellement en 'en').
+  * Ajuster la balise <title> pour qu'elle fasse environ 32 caractères.
+  * Ajouter ou modifier la balise <meta name="description" content="..." /> pour y mettre une description persuasive d'environ 150 caractères sur la promesse de valeur de GrowIQ (gain de temps, simplicité, campagnes marketing via l'IA).
+
+2. SÉPARATION DES ROUTES (Landing Page vs Application) :
+- Actuellement, mon composant principal (App.jsx ou ma route racine) affiche directement l'écran de restriction "Bêta fermée" pour les utilisateurs non validés comme ludovic@renoma-energy.fr.
+- Modifie ma configuration de routage (par exemple avec react-router-dom) pour que :
+  * La route racine ('/') affiche une vraie Landing Page publique, accessible à tous et aux robots Google, sans aucune vérification de session.
+  * Cette Landing Page doit contenir un bouton "Accéder à l'application" qui redirige vers une route protégée (ex: '/app' ou '/dashboard').
+  * C'est uniquement sur cette route protégée que la logique de restriction "Bêta fermée" doit s'activer si l'email de l'utilisateur n'est pas dans ma liste d'autorisés.
+
+3. STRUCTURE ET CONTENU DE LA LANDING PAGE (Priorité Haute) :
+- Génère-moi le code HTML/JSX pour le composant de cette nouvelle Landing Page publique. Elle doit intégrer :
+  * Un titre principal visible en balise <h1> : "Lance tes campagnes marketing plus vite avec l'IA".
+  * Des sections structurées avec des balises <h2> : "Comment ça marche ?", "Pourquoi choisir GrowIQ ?", "Résultats obtenus".
+  * Du texte descriptif sous forme de paragraphes (<p>) expliquant à qui s'adresse l'outil, quels problèmes il résout et ce qu'on peut en attendre, afin que Google ait enfin du contenu textuel à analyser.
+  * Des balises <img> pour mes futurs visuels, en incluant déjà l'attribut alt="..." pour l'accessibilité SEO.
+
+Montre-moi comment modifier mon fichier App.jsx (ou mon fichier de routes) et index.html pour appliquer ces changements.

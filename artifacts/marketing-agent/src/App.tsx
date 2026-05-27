@@ -16,7 +16,6 @@ import SeoPage from "@/pages/seo";
 import AdminPage from "@/pages/admin";
 import AccountPage from "@/pages/account";
 import DashboardPage from "@/pages/dashboard";
-import AccessPendingPage from "@/pages/access-pending";
 import { SignInPage, SignUpPage } from "@/pages/auth-pages";
 import { Loader2 } from "lucide-react";
 
@@ -161,9 +160,6 @@ function AdminGate({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
-  }
-  if (!data.data.isAdmin) {
-    return <AccessPendingPage email={data.data.email} />;
   }
   return <>{children}</>;
 }

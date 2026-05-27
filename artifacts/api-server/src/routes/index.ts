@@ -22,13 +22,15 @@ router.use(publicLinkedinRouter);
 // Authenticated (any signed-in user can read their own profile)
 router.use(meRouter);
 
-// Closed beta gate — only admins can access app features for now.
-router.use(requireAuth, requireAdmin);
+// Open beta — any authenticated user can access app features.
+router.use(requireAuth);
 router.use(openaiRouter);
 router.use(adsRouter);
 router.use(seoRouter);
-router.use(adminRouter);
 router.use(meExtrasRouter);
 router.use(linkedinRouter);
+
+// Admin-only routes (CRM)
+router.use(requireAdmin, adminRouter);
 
 export default router;
