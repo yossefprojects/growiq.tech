@@ -1,4 +1,4 @@
-import { index, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -7,11 +7,20 @@ export const businessProfiles = pgTable(
   {
     id: serial("id").primaryKey(),
     userId: text("user_id"),
+    // Personal
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    // Business
     businessName: text("business_name"),
     activity: text("activity"),
     targetAudience: text("target_audience"),
+    companyWebsite: text("company_website"),
+    description: text("description"),
+    // Agent IA preferences
     tone: text("tone"),
+    language: text("language"),
     primaryGoal: text("primary_goal"),
+    goals: jsonb("goals").$type<string[]>().notNull().default([]),
     onboardingCompleted: text("onboarding_completed").notNull().default("false"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

@@ -14,6 +14,7 @@ import AgencyPage from "@/pages/agency";
 import IntegrationsPage from "@/pages/integrations";
 import SeoPage from "@/pages/seo";
 import AdminPage from "@/pages/admin";
+import AccountPage from "@/pages/account";
 import DashboardPage from "@/pages/dashboard";
 import AccessPendingPage from "@/pages/access-pending";
 import { SignInPage, SignUpPage } from "@/pages/auth-pages";
@@ -211,6 +212,7 @@ function Router() {
       <Route path="/app/integrations">{() => <RequireAuth><IntegrationsPage /></RequireAuth>}</Route>
       <Route path="/app/seo">{() => <RequireAuth><SeoPage /></RequireAuth>}</Route>
       <Route path="/app/admin">{() => <RequireAuth><AdminPage /></RequireAuth>}</Route>
+      <Route path="/app/account">{() => <RequireAuth><AccountPage /></RequireAuth>}</Route>
       <Route path="/app/conversations/:id">{() => <RequireAuth><ChatPage /></RequireAuth>}</Route>
       <Route path="/landing/:slug" component={LandingPage} />
       <Route component={NotFound} />

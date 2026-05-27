@@ -11,20 +11,32 @@ export interface HealthStatus {
 
 export interface OpenaiBusinessProfile {
   id?: number | null;
+  firstName?: string | null;
+  lastName?: string | null;
   businessName?: string | null;
   activity?: string | null;
   targetAudience?: string | null;
+  companyWebsite?: string | null;
+  description?: string | null;
   tone?: string | null;
+  language?: string | null;
   primaryGoal?: string | null;
+  goals: string[];
   onboardingCompleted: boolean;
 }
 
 export interface OpenaiBusinessProfileInput {
+  firstName?: string | null;
+  lastName?: string | null;
   businessName?: string | null;
   activity?: string | null;
   targetAudience?: string | null;
+  companyWebsite?: string | null;
+  description?: string | null;
   tone?: string | null;
+  language?: string | null;
   primaryGoal?: string | null;
+  goals?: string[];
   onboardingCompleted?: boolean;
 }
 

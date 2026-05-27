@@ -7,6 +7,7 @@ import publicLandingRouter from "./public-landing";
 import adsRouter from "./ads";
 import seoRouter from "./seo";
 import adminRouter from "./admin";
+import meExtrasRouter from "./me-extras";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -25,5 +26,6 @@ router.use(openaiRouter);
 router.use(adsRouter);
 router.use(seoRouter);
 router.use(adminRouter);
+router.use(meExtrasRouter);
 
 export default router;

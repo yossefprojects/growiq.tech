@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
+import { z } from "zod";
 import { eq, asc, desc, and, or, lte, inArray } from "drizzle-orm";
 import {
   db,
@@ -1031,59 +1032,92 @@ router.delete("/scheduled-posts/:id", async (req, res) => {
 // META (Facebook / Instagram) — direct publish
 // ════════════════════════════════════════════════════════════════════════════
 
+function serializeProfile(p: BusinessProfile | null) {
+  if (!p) {
+    return {
+      id: null,
+      firstName: null,
+      lastName: null,
+      businessName: null,
+      activity: null,
+      targetAudience: null,
+      companyWebsite: null,
+      description: null,
+      tone: null,
+      language: null,
+      primaryGoal: null,
+      goals: [] as string[],
+      onboardingCompleted: false,
+    };
+  }
+  return {
+    id: p.id,
+    firstName: p.firstName,
+    lastName: p.lastName,
+    businessName: p.businessName,
+    activity: p.activity,
+    targetAudience: p.targetAudience,
+    companyWebsite: p.companyWebsite,
+    description: p.description,
+    tone: p.tone,
+    language: p.language,
+    primaryGoal: p.primaryGoal,
+    goals: p.goals ?? [],
+    onboardingCompleted: p.onboardingCompleted === "true",
+  };
+}
+
 router.get("/openai/business-profile", async (req, res): Promise<void> => {
   const [profile] = await db
     .select()
     .from(businessProfiles)
     .where(eq(businessProfiles.userId, uid(req)))
     .limit(1);
-  if (!profile) {
-    res.json({
-      id: null,
-      businessName: null,
-      activity: null,
-      targetAudience: null,
-      tone: null,
-      primaryGoal: null,
-      onboardingCompleted: false,
-    });
-    return;
-  }
-  res.json({
-    id: profile.id,
-    businessName: profile.businessName,
-    activity: profile.activity,
-    targetAudience: profile.targetAudience,
-    tone: profile.tone,
-    primaryGoal: profile.primaryGoal,
-    onboardingCompleted: profile.onboardingCompleted === "true",
-  });
+  res.json(serializeProfile(profile ?? null));
+});
+
+const businessProfileInputSchema = z.object({
+  firstName: z.string().nullable().optional(),
+  lastName: z.string().nullable().optional(),
+  businessName: z.string().nullable().optional(),
+  activity: z.string().nullable().optional(),
+  targetAudience: z.string().nullable().optional(),
+  companyWebsite: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  tone: z.string().nullable().optional(),
+  language: z.string().nullable().optional(),
+  primaryGoal: z.string().nullable().optional(),
+  goals: z.array(z.string()).optional(),
+  onboardingCompleted: z.boolean().optional(),
 });
 
 router.put("/openai/business-profile", async (req, res): Promise<void> => {
-  const body = (req.body ?? {}) as Partial<{
-    businessName: string | null;
-    activity: string | null;
-    targetAudience: string | null;
-    tone: string | null;
-    primaryGoal: string | null;
-    onboardingCompleted: boolean;
-  }>;
+  const parsed = businessProfileInputSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_payload", details: parsed.error.issues });
+    return;
+  }
+  const body = parsed.data;
   const [existing] = await db
     .select()
     .from(businessProfiles)
     .where(eq(businessProfiles.userId, uid(req)))
     .limit(1);
-  // Merge: only overwrite fields explicitly provided; preserve everything else.
   const pick = <K extends keyof typeof body>(k: K, fallback: BusinessProfile[K & keyof BusinessProfile] | null) =>
     k in body ? (body[k] as BusinessProfile[K & keyof BusinessProfile] | null) : (existing?.[k as keyof BusinessProfile] ?? fallback) as BusinessProfile[K & keyof BusinessProfile] | null;
 
   const values = {
+    firstName: pick("firstName", null),
+    lastName: pick("lastName", null),
     businessName: pick("businessName", null),
     activity: pick("activity", null),
     targetAudience: pick("targetAudience", null),
+    companyWebsite: pick("companyWebsite", null),
+    description: pick("description", null),
     tone: pick("tone", null),
+    language: pick("language", null),
     primaryGoal: pick("primaryGoal", null),
+    goals: ("goals" in body ? body.goals : existing?.goals) ?? [],
     onboardingCompleted:
       "onboardingCompleted" in body
         ? (body.onboardingCompleted ? "true" : "false")
@@ -1103,15 +1137,7 @@ router.put("/openai/business-profile", async (req, res): Promise<void> => {
       .values({ ...values, userId: uid(req) })
       .returning();
   }
-  res.json({
-    id: saved.id,
-    businessName: saved.businessName,
-    activity: saved.activity,
-    targetAudience: saved.targetAudience,
-    tone: saved.tone,
-    primaryGoal: saved.primaryGoal,
-    onboardingCompleted: saved.onboardingCompleted === "true",
-  });
+  res.json(serializeProfile(saved));
 });
 
 async function getBusinessContextPrompt(userId: string): Promise<string> {
@@ -1123,11 +1149,15 @@ async function getBusinessContextPrompt(userId: string): Promise<string> {
       .where(eq(businessProfiles.userId, userId))
       .limit(1);
     const parts: string[] = [];
-    if (profile?.businessName) parts.push(`Nom : ${profile.businessName}`);
-    if (profile?.activity) parts.push(`Activité : ${profile.activity}`);
+    if (profile?.businessName) parts.push(`Nom de l'entreprise : ${profile.businessName}`);
+    if (profile?.activity) parts.push(`Secteur d'activité : ${profile.activity}`);
     if (profile?.targetAudience) parts.push(`Cible : ${profile.targetAudience}`);
+    if (profile?.companyWebsite) parts.push(`Site web : ${profile.companyWebsite}`);
+    if (profile?.description) parts.push(`Description : ${profile.description}`);
     if (profile?.tone) parts.push(`Ton souhaité : ${profile.tone}`);
+    if (profile?.language) parts.push(`Langue : ${profile.language}`);
     if (profile?.primaryGoal) parts.push(`Objectif prioritaire : ${profile.primaryGoal}`);
+    if (profile?.goals && profile.goals.length > 0) parts.push(`Autres objectifs : ${profile.goals.join(", ")}`);
     let out = "";
     if (parts.length > 0) {
       out = `\n\n---\n\n## CONTEXTE DE L'UTILISATEUR (profil business)\n\nAdapte systématiquement tes recommandations à ce contexte :\n${parts.map((p) => `- ${p}`).join("\n")}`;

@@ -246,7 +246,13 @@ export function Sidebar({
         
         <div className="flex items-center gap-3" data-testid="sidebar-user">
           <UserButton />
-          <span className="text-xs text-muted-foreground">Mon compte</span>
+          <Link
+            href="/app/account"
+            className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+            data-testid="link-account"
+          >
+            Mon compte
+          </Link>
         </div>
       </div>
     </div>

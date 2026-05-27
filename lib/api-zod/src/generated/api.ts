@@ -121,11 +121,17 @@ export const DeleteOpenaiCampaignParams = zod.object({
  */
 export const GetOpenaiBusinessProfileResponse = zod.object({
   "id": zod.number().nullish(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
   "businessName": zod.string().nullish(),
   "activity": zod.string().nullish(),
   "targetAudience": zod.string().nullish(),
+  "companyWebsite": zod.string().nullish(),
+  "description": zod.string().nullish(),
   "tone": zod.string().nullish(),
+  "language": zod.string().nullish(),
   "primaryGoal": zod.string().nullish(),
+  "goals": zod.array(zod.string()),
   "onboardingCompleted": zod.boolean()
 })
 
@@ -134,21 +140,33 @@ export const GetOpenaiBusinessProfileResponse = zod.object({
  * @summary Create or update the business profile
  */
 export const UpsertOpenaiBusinessProfileBody = zod.object({
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
   "businessName": zod.string().nullish(),
   "activity": zod.string().nullish(),
   "targetAudience": zod.string().nullish(),
+  "companyWebsite": zod.string().nullish(),
+  "description": zod.string().nullish(),
   "tone": zod.string().nullish(),
+  "language": zod.string().nullish(),
   "primaryGoal": zod.string().nullish(),
+  "goals": zod.array(zod.string()).optional(),
   "onboardingCompleted": zod.boolean().optional()
 })
 
 export const UpsertOpenaiBusinessProfileResponse = zod.object({
   "id": zod.number().nullish(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
   "businessName": zod.string().nullish(),
   "activity": zod.string().nullish(),
   "targetAudience": zod.string().nullish(),
+  "companyWebsite": zod.string().nullish(),
+  "description": zod.string().nullish(),
   "tone": zod.string().nullish(),
+  "language": zod.string().nullish(),
   "primaryGoal": zod.string().nullish(),
+  "goals": zod.array(zod.string()),
   "onboardingCompleted": zod.boolean()
 })
 

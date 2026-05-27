@@ -249,6 +249,12 @@ components:
         id:
           type: integer
           nullable: true
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
         businessName:
           type: string
           nullable: true
@@ -258,19 +264,39 @@ components:
         targetAudience:
           type: string
           nullable: true
+        companyWebsite:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
         tone:
+          type: string
+          nullable: true
+        language:
           type: string
           nullable: true
         primaryGoal:
           type: string
           nullable: true
+        goals:
+          type: array
+          items:
+            type: string
         onboardingCompleted:
           type: boolean
       required:
         - onboardingCompleted
+        - goals
     OpenaiBusinessProfileInput:
       type: object
       properties:
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
         businessName:
           type: string
           nullable: true
@@ -280,12 +306,25 @@ components:
         targetAudience:
           type: string
           nullable: true
+        companyWebsite:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
         tone:
+          type: string
+          nullable: true
+        language:
           type: string
           nullable: true
         primaryGoal:
           type: string
           nullable: true
+        goals:
+          type: array
+          items:
+            type: string
         onboardingCompleted:
           type: boolean
     MetaStatus:
