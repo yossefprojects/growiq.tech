@@ -20,6 +20,7 @@ import {
   getLinkedinConfig,
   isLinkedinConfigured,
   publishLinkedinPost,
+  resolveRedirectUri,
   saveConnection,
   signState,
   verifyState,
@@ -64,7 +65,10 @@ publicLinkedinRouter.get("/auth/linkedin/callback", async (req, res) => {
   if (!verified) return back("invalid_state");
 
   try {
-    const token = await exchangeCodeForToken(code);
+    // Le redirect_uri envoyé à l'échange DOIT être strictement identique à
+    // celui envoyé à l'autorisation. On le recalcule à partir du host actuel.
+    const redirectUri = resolveRedirectUri(req);
+    const token = await exchangeCodeForToken(code, redirectUri);
     const info = await fetchUserInfo(token.access_token);
     await saveConnection(verified.userId, token, info);
     return back("ok");
@@ -102,10 +106,11 @@ linkedinRouter.get("/auth/linkedin/start", async (req, res) => {
     return;
   }
   const state = signState(uid(req));
-  const url = buildAuthorizeUrl(state);
+  const redirectUri = resolveRedirectUri(req);
+  const url = buildAuthorizeUrl(state, redirectUri);
   // Return URL so the SPA can open it (avoids CORS issues with a server-side 302
   // since fetch() can't follow redirects across origins reliably).
-  res.json({ url });
+  res.json({ url, redirectUri });
 });
 
 linkedinRouter.post("/linkedin/disconnect", async (req, res) => {
@@ -137,11 +142,11 @@ linkedinRouter.post("/linkedin/publish", async (req, res) => {
 });
 
 // Helper export for the SPA: log out of LinkedIn config status (mirrors meta).
-linkedinRouter.get("/linkedin/config", (_req, res) => {
-  const { clientId, redirectUri } = getLinkedinConfig();
+linkedinRouter.get("/linkedin/config", (req, res) => {
+  const { clientId } = getLinkedinConfig();
   res.json({
     configured: isLinkedinConfigured(),
     clientIdPresent: !!clientId,
-    redirectUri,
+    redirectUri: resolveRedirectUri(req),
   });
 });

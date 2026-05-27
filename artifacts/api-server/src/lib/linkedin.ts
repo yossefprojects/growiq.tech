@@ -22,13 +22,35 @@ const UGC_URL = "https://api.linkedin.com/v2/ugcPosts";
 const ASSETS_REGISTER_URL = "https://api.linkedin.com/v2/assets?action=registerUpload";
 const DEFAULT_SCOPES = "openid profile email w_member_social";
 
+const DEFAULT_REDIRECT_URI = "https://growiqai.replit.app/api/auth/linkedin/callback";
+
+/**
+ * Calcule l'URL de callback à envoyer à LinkedIn.
+ *
+ * LinkedIn exige que `redirect_uri` corresponde EXACTEMENT à l'une des URLs
+ * enregistrées dans l'app. Comme l'app peut être servie sur plusieurs domaines
+ * (growiqai.replit.app, growiq.tech, etc.), on dérive l'URL du host de la
+ * requête actuelle plutôt que de la coder en dur. L'utilisateur doit simplement
+ * enregistrer chaque domaine dans LinkedIn Developers.
+ *
+ * Override possible via LINKEDIN_REDIRECT_URI (force une valeur unique).
+ */
+export function resolveRedirectUri(req?: { protocol?: string; get?: (h: string) => string | undefined }): string {
+  const forced = process.env["LINKEDIN_REDIRECT_URI"];
+  if (forced) return forced;
+  const host = req?.get?.("host");
+  if (host) {
+    // Toujours https en prod ; les domaines Replit servent en https derrière le proxy.
+    return `https://${host}/api/auth/linkedin/callback`;
+  }
+  return DEFAULT_REDIRECT_URI;
+}
+
 export function getLinkedinConfig() {
   return {
     clientId: process.env["LINKEDIN_CLIENT_ID"],
     clientSecret: process.env["LINKEDIN_CLIENT_SECRET"],
-    redirectUri:
-      process.env["LINKEDIN_REDIRECT_URI"] ??
-      "https://growiqai.replit.app/api/auth/linkedin/callback",
+    redirectUri: resolveRedirectUri(),
   };
 }
 
@@ -109,8 +131,8 @@ export function verifyState(state: string): { userId: string } | null {
 
 // ── Authorize URL ────────────────────────────────────────────────────────
 
-export function buildAuthorizeUrl(state: string): string {
-  const { clientId, redirectUri } = getLinkedinConfig();
+export function buildAuthorizeUrl(state: string, redirectUri: string): string {
+  const { clientId } = getLinkedinConfig();
   if (!clientId) throw new Error("LINKEDIN_CLIENT_ID missing");
   const u = new URL(AUTH_URL);
   u.searchParams.set("response_type", "code");
@@ -131,8 +153,8 @@ type TokenResponse = {
   scope?: string;
 };
 
-export async function exchangeCodeForToken(code: string): Promise<TokenResponse> {
-  const { clientId, clientSecret, redirectUri } = getLinkedinConfig();
+export async function exchangeCodeForToken(code: string, redirectUri: string): Promise<TokenResponse> {
+  const { clientId, clientSecret } = getLinkedinConfig();
   if (!clientId || !clientSecret) throw new Error("LinkedIn credentials missing");
   const body = new URLSearchParams({
     grant_type: "authorization_code",
