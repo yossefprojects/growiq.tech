@@ -18,12 +18,15 @@ import {
   X,
   Facebook,
   Instagram,
+  Linkedin,
   Megaphone,
   Mail,
   Trash2,
   AlertTriangle,
   Globe,
+  ExternalLink,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -65,6 +68,13 @@ type AdsStatus = {
   google: { configured: boolean; missing: string[] };
 };
 type MetaStatus = { facebook: boolean; instagram: boolean };
+type LinkedinStatus = {
+  configured: boolean;
+  connected: boolean;
+  name?: string | null;
+  email?: string | null;
+  expired?: boolean;
+};
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -406,6 +416,91 @@ function IntegrationRow({
   );
 }
 
+function LinkedinRow() {
+  const af = useAuthedFetch();
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery<LinkedinStatus>({
+    queryKey: ["linkedin-status"],
+    queryFn: () => af("/api/linkedin/status") as Promise<LinkedinStatus>,
+  });
+
+  const connect = useMutation({
+    mutationFn: () => af("/api/auth/linkedin/start") as Promise<{ url: string }>,
+    onSuccess: ({ url }) => { window.location.href = url; },
+    onError: (e: Error) => toast.error(`Erreur : ${e.message}`),
+  });
+  const disconnect = useMutation({
+    mutationFn: () => af("/api/linkedin/disconnect", { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["linkedin-status"] });
+      toast.success("LinkedIn déconnecté");
+    },
+    onError: (e: Error) => toast.error(`Erreur : ${e.message}`),
+  });
+
+  if (isLoading || !data) {
+    return (
+      <div className="flex items-center justify-between gap-3 py-3 border-b border-border/40">
+        <div className="flex items-center gap-3"><Linkedin className="w-5 h-5 text-muted-foreground" /><div className="font-medium text-sm">LinkedIn</div></div>
+        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const status: { kind: "ok" | "warn" | "err"; label: string } = !data.configured
+    ? { kind: "err", label: "Non configuré" }
+    : data.connected && data.expired
+    ? { kind: "warn", label: "Jeton expiré" }
+    : data.connected
+    ? { kind: "ok", label: "Connecté" }
+    : { kind: "err", label: "Non connecté" };
+
+  return (
+    <div className="flex items-center justify-between gap-3 py-3 border-b border-border/40">
+      <div className="flex items-center gap-3 min-w-0">
+        <Linkedin className="w-5 h-5 text-muted-foreground shrink-0" />
+        <div className="min-w-0">
+          <div className="font-medium text-sm truncate">LinkedIn</div>
+          <div className="text-xs text-muted-foreground truncate">
+            {data.connected ? `Connecté en tant que ${data.name ?? data.email ?? "toi"}` : "Publier automatiquement sur ton profil LinkedIn."}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className={cn(
+          "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full",
+          status.kind === "ok" && "bg-[#3dbf8e]/15 text-[#1a7a55]",
+          status.kind === "warn" && "bg-amber-100 text-amber-800",
+          status.kind === "err" && "bg-red-100 text-red-700",
+        )}>
+          {status.kind === "ok" ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+          {status.label}
+        </span>
+        {data.configured && (data.connected ? (
+          <button
+            onClick={() => disconnect.mutate()}
+            disabled={disconnect.isPending}
+            data-testid="button-linkedin-disconnect"
+            className="text-xs text-red-600 hover:underline disabled:opacity-50"
+          >
+            Déconnecter
+          </button>
+        ) : (
+          <button
+            onClick={() => connect.mutate()}
+            disabled={connect.isPending}
+            data-testid="button-linkedin-connect"
+            className="inline-flex items-center gap-1 text-xs bg-[#0a66c2] hover:bg-[#0958a8] text-white rounded-md px-3 py-1.5 disabled:opacity-50"
+          >
+            {connect.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}
+            Connecter
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function IntegrationsBlock() {
   const af = useAuthedFetch();
   const meta = useQuery<MetaStatus>({
@@ -433,6 +528,7 @@ function IntegrationsBlock() {
         connected={!!meta.data?.instagram}
         note="Publier automatiquement sur ton compte Instagram pro."
       />
+      <LinkedinRow />
       <IntegrationRow
         icon={Megaphone}
         name="Meta Ads (Facebook payant)"
@@ -568,6 +664,19 @@ export default function AccountPage() {
   const { user, isLoaded } = useUser();
   const af = useAuthedFetch();
   const [clerkOpen, setClerkOpen] = useState(false);
+  const [location] = useLocation();
+
+  // Toast on return from LinkedIn OAuth callback (?linkedin=ok|...)
+  useEffect(() => {
+    const qs = new URLSearchParams(window.location.search);
+    const li = qs.get("linkedin");
+    if (!li) return;
+    if (li === "ok") toast.success("LinkedIn connecté avec succès");
+    else toast.error(`LinkedIn : ${li}`);
+    // Clean URL
+    const cleaned = window.location.pathname;
+    window.history.replaceState({}, "", cleaned);
+  }, [location]);
 
   const profile = useQuery<BusinessProfile>({
     queryKey: ["business-profile"],

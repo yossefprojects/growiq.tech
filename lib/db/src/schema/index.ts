@@ -12,3 +12,4 @@ export * from "./local-users";
 export * from "./seo-audits";
 export * from "./seo-keywords";
 export * from "./seo-content-plans";
+export * from "./linkedin-connections";

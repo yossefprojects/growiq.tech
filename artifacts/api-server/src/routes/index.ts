@@ -8,6 +8,7 @@ import adsRouter from "./ads";
 import seoRouter from "./seo";
 import adminRouter from "./admin";
 import meExtrasRouter from "./me-extras";
+import linkedinRouter, { publicLinkedinRouter } from "./linkedin";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -16,6 +17,7 @@ const router: IRouter = Router();
 router.use(healthRouter);
 router.use(storageRouter);
 router.use(publicLandingRouter);
+router.use(publicLinkedinRouter);
 
 // Authenticated (any signed-in user can read their own profile)
 router.use(meRouter);
@@ -27,5 +29,6 @@ router.use(adsRouter);
 router.use(seoRouter);
 router.use(adminRouter);
 router.use(meExtrasRouter);
+router.use(linkedinRouter);
 
 export default router;
