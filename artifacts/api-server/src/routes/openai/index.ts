@@ -29,6 +29,7 @@ function uid(req: Request): string {
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
 import { publishToMeta, isMetaConfigured, getMetaProfile, getTokenStatus } from "../../lib/meta";
+import { publishLinkedinPost } from "../../lib/linkedin";
 import { uploadPublicBuffer } from "../../lib/objectStorage";
 import { logger } from "../../lib/logger";
 import {
@@ -1493,8 +1494,48 @@ async function processScheduledPosts(): Promise<void> {
           } else {
             await handlePostFailure(post, result.error, !!result.configMissing);
           }
+        } else if (post.platform === "linkedin") {
+          // LinkedIn = OAuth par-utilisateur (token dans linkedin_connections).
+          // Pas de gating admin : on publie sur le compte du propriétaire du post.
+          if (!post.userId) {
+            // Post legacy sans userId : on ne peut pas publier sans token.
+            await db
+              .update(scheduledPosts)
+              .set({
+                status: "failed",
+                attempts: (post.attempts ?? 0) + 1,
+                processingStartedAt: null,
+                errorMessage: "Post LinkedIn sans utilisateur — impossible de retrouver le compte.",
+              })
+              .where(eq(scheduledPosts.id, post.id));
+            continue;
+          }
+          const result = await publishLinkedinPost({
+            userId: post.userId,
+            text: post.content,
+            imageUrl: post.meta?.imageUrl ?? null,
+          });
+          if (result.success) {
+            await db
+              .update(scheduledPosts)
+              .set({
+                status: "sent",
+                sentAt: new Date(),
+                attempts: (post.attempts ?? 0) + 1,
+                processingStartedAt: null,
+                meta: {
+                  ...(post.meta ?? {}),
+                  linkedinPostId: result.postId,
+                  linkedinPermalink: result.permalink,
+                },
+              })
+              .where(eq(scheduledPosts.id, post.id));
+          } else {
+            // Si LinkedIn n'est pas connecté, inutile de retry — marque failed définitif.
+            await handlePostFailure(post, result.error, !!result.notConnected);
+          }
         } else {
-          // Other platforms (linkedin, twitter, tiktok) → mark as ready for manual 1-click publish
+          // Other platforms (twitter, tiktok) → mark as ready for manual 1-click publish
           await db
             .update(scheduledPosts)
             .set({ status: "ready", processingStartedAt: null })

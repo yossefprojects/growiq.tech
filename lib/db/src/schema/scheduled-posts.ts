@@ -11,6 +11,8 @@ export type ScheduledPostMeta = {
   imageUrl?: string;
   metaPostId?: string;
   metaPermalink?: string;
+  linkedinPostId?: string;
+  linkedinPermalink?: string;
   notificationEmail?: string;
   campaignName?: string;
   campaignId?: number;

@@ -78,7 +78,7 @@ Meta (FB/IG) et les Ads (Meta + Google) utilisent des **identifiants globaux dan
 - `/api/ads/*` → middleware global qui bloque tous les non-admins (sinon ils dépenseraient le budget admin)
 - Worker `processScheduledPosts` → JOIN `localUsers.isAdmin` avant d'appeler `publishToMeta`, marque `failed` sinon
 
-**LinkedIn est OK** : OAuth par-utilisateur, tokens stockés par `userId`. Idem chat / conversations / business profile / scheduled posts non-Meta.
+**LinkedIn est OK** : OAuth par-utilisateur, tokens stockés par `userId`. Idem chat / conversations / business profile / scheduled posts non-Meta. Le worker `processScheduledPosts` publie automatiquement les posts LinkedIn programmés via `publishLinkedinPost({userId: post.userId, ...})` — pas de gating admin (chacun publie sur son propre compte). Refus si `post.userId` est null (legacy) ou si la connexion LinkedIn manque/a expiré.
 
 Si on ajoute une nouvelle route qui appelle `publishToMeta`, `*MetaAds*`, ou `*GoogleAds*` → ajouter le gate `isAdmin`.
 
