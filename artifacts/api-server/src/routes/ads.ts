@@ -33,6 +33,13 @@ const router: IRouter = Router();
 // spend the admin's ad budget on their own campaigns. Gate the entire router
 // to admins; non-admins get an empty/false status so the UI degrades cleanly.
 router.use((req, res, next) => {
+  // CRITICAL: this router is mounted without a path prefix, so its middleware
+  // sees EVERY request. Only gate the actual /ads/* paths — otherwise we
+  // hijack unrelated routes like /auth/facebook/start and return `[]`.
+  if (!req.path.startsWith("/ads")) {
+    next();
+    return;
+  }
   const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
   if (isAdmin) {
     next();

@@ -141,6 +141,7 @@ Si on ajoute une nouvelle route qui appelle `publishToMeta`, `*MetaAds*`, ou `*G
 - Always run `pnpm --filter @workspace/api-spec run codegen` after changing `openapi.yaml`
 - SSE endpoints cannot use generated React Query hooks — use raw fetch
 - `response.data` from gpt-image-1 may be undefined — always use optional chaining
+- **Routers montés sans préfixe** : tous les routers dans `routes/index.ts` sont montés via `router.use(xxxRouter)` SANS path. Donc tout `router.use(middleware)` à l'intérieur d'un router voit TOUTES les requêtes API, pas seulement celles du préfixe sémantique. Toujours filtrer sur `req.path.startsWith("/<prefix>")` dans le middleware. Bug historique : le middleware admin de `routes/ads.ts` interceptait `/auth/facebook/start` et renvoyait `[]` (corrigé 2026-05-28).
 
 ## Pointers
 
