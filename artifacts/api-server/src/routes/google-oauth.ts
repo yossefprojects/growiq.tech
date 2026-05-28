@@ -106,15 +106,24 @@ const googleRouter: IRouter = Router();
 export default googleRouter;
 
 googleRouter.get("/auth/google/start", async (req, res) => {
-  if (!isGoogleOAuthConfigured()) {
-    res.status(503).json({
-      error:
-        "Google OAuth pas encore configuré côté serveur (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET).",
+  try {
+    if (!isGoogleOAuthConfigured()) {
+      res.status(503).json({
+        error:
+          "Google OAuth pas encore configuré côté serveur (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET).",
+      });
+      return;
+    }
+    const userId = uid(req);
+    const state = signGoogleState(userId);
+    const redirectUri = resolveGoogleRedirectUri(req);
+    const url = buildGoogleAuthorizeUrl(state, redirectUri);
+    req.log.info({ userId, redirectUri, urlLength: url.length, urlStart: url.slice(0, 60) }, "google_start_ok");
+    res.json({ url, redirectUri });
+  } catch (err) {
+    req.log.error({ err: err instanceof Error ? { message: err.message, stack: err.stack } : err }, "google_start_failed");
+    res.status(500).json({
+      error: err instanceof Error ? err.message : "Erreur interne au démarrage de l'OAuth Google.",
     });
-    return;
   }
-  const state = signGoogleState(uid(req));
-  const redirectUri = resolveGoogleRedirectUri(req);
-  const url = buildGoogleAuthorizeUrl(state, redirectUri);
-  res.json({ url, redirectUri });
 });

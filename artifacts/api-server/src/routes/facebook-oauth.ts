@@ -132,16 +132,25 @@ const facebookRouter: IRouter = Router();
 export default facebookRouter;
 
 facebookRouter.get("/auth/facebook/start", async (req, res) => {
-  if (!isFacebookOAuthConfigured()) {
-    res.status(503).json({
-      error: "Facebook OAuth pas encore configuré côté serveur (META_APP_ID / META_APP_SECRET).",
+  try {
+    if (!isFacebookOAuthConfigured()) {
+      res.status(503).json({
+        error: "Facebook OAuth pas encore configuré côté serveur (META_APP_ID / META_APP_SECRET).",
+      });
+      return;
+    }
+    const userId = uid(req);
+    const state = signFacebookState(userId);
+    const redirectUri = resolveFacebookRedirectUri(req);
+    const url = buildFacebookAuthorizeUrl(state, redirectUri);
+    req.log.info({ userId, redirectUri, urlLength: url.length, urlStart: url.slice(0, 60) }, "fb_start_ok");
+    res.json({ url, redirectUri });
+  } catch (err) {
+    req.log.error({ err: err instanceof Error ? { message: err.message, stack: err.stack } : err }, "fb_start_failed");
+    res.status(500).json({
+      error: err instanceof Error ? err.message : "Erreur interne au démarrage de l'OAuth Facebook.",
     });
-    return;
   }
-  const state = signFacebookState(uid(req));
-  const redirectUri = resolveFacebookRedirectUri(req);
-  const url = buildFacebookAuthorizeUrl(state, redirectUri);
-  res.json({ url, redirectUri });
 });
 
 facebookRouter.get("/facebook/status", async (req, res) => {
