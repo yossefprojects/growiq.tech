@@ -10,7 +10,6 @@ import {
   leads,
   scheduledPosts,
   agencyCampaigns,
-  localUsers,
   systemEvents,
   businessProfiles,
   seoKeywordSets,
