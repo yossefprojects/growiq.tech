@@ -162,57 +162,7 @@ function AdminGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!data.data.isAdmin) {
-    return <BetaClosedPage email={data.data.email} />;
-  }
   return <>{children}</>;
-}
-
-function BetaClosedPage({ email }: { email: string | null }) {
-  const { signOut } = useClerk();
-  const mailto = `mailto:hello@growiq.tech?subject=${encodeURIComponent(
-    "Demande d'accès à la bêta GrowIQ",
-  )}&body=${encodeURIComponent(
-    `Bonjour,\n\nJe souhaite rejoindre la bêta de GrowIQ.\n\nMon email : ${email ?? ""}\n\nMerci !`,
-  )}`;
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f7f5ff] via-background to-[#eef9f3] px-4 py-10">
-      <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl border border-[#ede9fe] p-8 text-center">
-        <img
-          src={`${window.location.origin}${basePath}/logo.svg`}
-          alt="GrowIQ"
-          className="h-14 w-14 mx-auto mb-6"
-        />
-        <h1 className="text-2xl font-extrabold text-[#1e1b4b] mb-3">
-          Bienvenue sur GrowIQ
-        </h1>
-        <p className="text-[#374151] mb-2">
-          Ton compte a bien été créé{email ? ` (${email})` : ""}.
-        </p>
-        <p className="text-[#6b7280] text-sm mb-6">
-          GrowIQ est actuellement en bêta fermée. Envoie-nous une petite demande
-          et on te débloque l'accès rapidement.
-        </p>
-        <a
-          href={mailto}
-          className="inline-block bg-[#5b54d6] hover:bg-[#4a44b8] text-white font-semibold px-6 py-3 rounded-xl shadow-sm transition-colors mb-4"
-          data-testid="button-request-access"
-        >
-          Demander mon accès
-        </a>
-        <div>
-          <button
-            type="button"
-            onClick={() => signOut({ redirectUrl: basePath || "/" })}
-            className="text-sm text-[#6b7280] hover:text-[#1e1b4b] underline"
-            data-testid="button-signout"
-          >
-            Me déconnecter
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
