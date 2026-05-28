@@ -773,7 +773,56 @@ export default function IntegrationsPage() {
     onError: (e: Error) => toastError(e.message),
   });
 
-  const data = integrationsQ.data;
+  // Guard runtime : si jamais l'API renvoie une réponse partielle (champ
+  // manquant pour une plateforme), on reconstruit un objet complet avec des
+  // valeurs par défaut "non connecté". Évite tout crash en lecture .connected.
+  const data: IntegrationsResponse | undefined = integrationsQ.data
+    ? {
+        facebook: integrationsQ.data.facebook ?? {
+          platform: "facebook",
+          configured: false,
+          connected: false,
+          expired: false,
+          label: null,
+          displayName: null,
+          expiresAt: null,
+          lastErrorMessage: null,
+        },
+        instagram: integrationsQ.data.instagram ?? {
+          platform: "instagram",
+          configured: false,
+          connected: false,
+          expired: false,
+          username: null,
+          expiresAt: null,
+        },
+        linkedin: integrationsQ.data.linkedin ?? {
+          platform: "linkedin",
+          configured: false,
+          connected: false,
+          expired: false,
+          label: null,
+          email: null,
+          pictureUrl: null,
+          expiresAt: null,
+        },
+        resend: integrationsQ.data.resend ?? {
+          platform: "resend",
+          configured: true,
+          connected: false,
+          fromEmail: null,
+          fromName: null,
+          verifiedAt: null,
+          lastErrorMessage: null,
+        },
+        googleAds: integrationsQ.data.googleAds ?? {
+          platform: "google_ads",
+          configured: false,
+          connected: false,
+          comingSoon: true,
+        },
+      }
+    : undefined;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-secondary/20">

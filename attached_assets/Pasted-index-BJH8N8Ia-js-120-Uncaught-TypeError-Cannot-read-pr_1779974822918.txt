@@ -1,0 +1,98 @@
+index-BJH8N8Ia.js:120 Uncaught TypeError: Cannot read properties of undefined (reading 'connected')
+    at Fne (index-BJH8N8Ia.js:120:15424)
+    at vp (index-BJH8N8Ia.js:8:34200)
+    at zp (index-BJH8N8Ia.js:8:62440)
+    at w1 (index-BJH8N8Ia.js:8:72982)
+    at W1 (index-BJH8N8Ia.js:8:107071)
+    at fP (index-BJH8N8Ia.js:8:106134)
+    at lg (index-BJH8N8Ia.js:8:105964)
+    at V1 (index-BJH8N8Ia.js:8:103061)
+    at lj (index-BJH8N8Ia.js:8:114671)
+    at Cc (index-BJH8N8Ia.js:8:113243)
+Fne	@	index-BJH8N8Ia.js:120
+vp	@	index-BJH8N8Ia.js:8
+zp	@	index-BJH8N8Ia.js:8
+w1	@	index-BJH8N8Ia.js:8
+W1	@	index-BJH8N8Ia.js:8
+fP	@	index-BJH8N8Ia.js:8
+lg	@	index-BJH8N8Ia.js:8
+V1	@	index-BJH8N8Ia.js:8
+lj	@	index-BJH8N8Ia.js:8
+Cc	@	index-BJH8N8Ia.js:8
+ij	@	index-BJH8N8Ia.js:8
+(anonymous)	@	index-BJH8N8Ia.js:8
+setTimeout		
+B4	@	index-BJH8N8Ia.js:9
+c	@	index-BJH8N8Ia.js:9
+batch	@	index-BJH8N8Ia.js:9
+#l	@	index-BJH8N8Ia.js:9
+setData	@	index-BJH8N8Ia.js:9
+fetch	@	index-BJH8N8Ia.js:9
+await in fetch		
+#h	@	index-BJH8N8Ia.js:9
+onSubscribe	@	index-BJH8N8Ia.js:9
+subscribe	@	index-BJH8N8Ia.js:9
+(anonymous)	@	index-BJH8N8Ia.js:9
+yw	@	index-BJH8N8Ia.js:8
+bc	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+gs	@	index-BJH8N8Ia.js:8
+L1	@	index-BJH8N8Ia.js:8
+nj	@	index-BJH8N8Ia.js:8
+Kd	@	index-BJH8N8Ia.js:8
+ej	@	index-BJH8N8Ia.js:8
+X1	@	index-BJH8N8Ia.js:8
+H1	@	index-BJH8N8Ia.js:8
+V1	@	index-BJH8N8Ia.js:8
+lj	@	index-BJH8N8Ia.js:8
+Cc	@	index-BJH8N8Ia.js:8
+ij	@	index-BJH8N8Ia.js:8
+(anonymous)	@	index-BJH8N8Ia.js:8

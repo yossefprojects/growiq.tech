@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Component, useEffect, useRef, type ErrorInfo, type ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
 import { ClerkProvider, Show, useClerk, useAuth } from "@clerk/react";
@@ -242,11 +242,62 @@ function ClerkProviderWithRoutes() {
   );
 }
 
+/**
+ * Global error boundary. Sans ça, le moindre crash dans un sous-composant
+ * (ex : data.foo.bar quand foo est undefined) blanche l'écran entier.
+ * Ici on capture, on log dans la console, et on affiche une page lisible
+ * avec un bouton "Recharger". Évite de re-vivre l'incident "Megaphone is not
+ * defined" / "Cannot read properties of undefined".
+ */
+type EBState = { error: Error | null };
+class GlobalErrorBoundary extends Component<{ children: ReactNode }, EBState> {
+  state: EBState = { error: null };
+  static getDerivedStateFromError(error: Error): EBState {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error("[GlobalErrorBoundary]", error, info);
+  }
+  reset = (): void => {
+    this.setState({ error: null });
+    window.location.reload();
+  };
+  render(): ReactNode {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-white">
+        <div className="max-w-md w-full text-center">
+          <p className="text-2xl font-extrabold text-[#1e1b4b] mb-2">
+            Oups, ça a planté.
+          </p>
+          <p className="text-sm text-[#6b7280] mb-6">
+            On a été prévenus. Recharge la page pour repartir.
+          </p>
+          <button
+            onClick={this.reset}
+            className="inline-flex items-center px-5 py-2.5 rounded-xl bg-[#5b54d6] hover:bg-[#4a44b8] text-white font-semibold shadow-sm"
+          >
+            Recharger la page
+          </button>
+          <details className="mt-6 text-left text-xs text-[#6b7280]">
+            <summary className="cursor-pointer">Détails techniques</summary>
+            <pre className="mt-2 whitespace-pre-wrap break-words bg-[#f9fafb] p-3 rounded border border-[#e5e7eb]">
+              {this.state.error.message}
+            </pre>
+          </details>
+        </div>
+      </div>
+    );
+  }
+}
+
 function App() {
   return (
-    <WouterRouter base={basePath}>
-      <ClerkProviderWithRoutes />
-    </WouterRouter>
+    <GlobalErrorBoundary>
+      <WouterRouter base={basePath}>
+        <ClerkProviderWithRoutes />
+      </WouterRouter>
+    </GlobalErrorBoundary>
   );
 }
 
