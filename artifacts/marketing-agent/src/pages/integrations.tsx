@@ -268,10 +268,18 @@ function FacebookSection({
               pour continuer à publier.
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Connecte ton compte Facebook pour publier sur ta page et ton compte
-              Instagram Business associé.
-            </p>
+            <>
+              <p className="text-sm text-muted-foreground">
+                Connecte ton compte Facebook pour publier sur ta page et ton compte
+                Instagram Business associé.
+              </p>
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+                <span className="font-semibold">Accès anticipé.</span> La
+                connexion Facebook est en cours de validation par Meta. En
+                attendant, elle fonctionne pour les comptes invités par
+                l'équipe GrowIQ. Contacte-nous si tu veux y accéder.
+              </div>
+            </>
           )}
           {fb.lastErrorMessage ? (
             <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
