@@ -13,6 +13,16 @@ import {
 
 const app: Express = express();
 
+// API JSON ne doit JAMAIS être mise en cache par le navigateur. Express met
+// par défaut un ETag sur les réponses JSON, ce qui fait que le navigateur
+// envoie If-None-Match et reçoit un 304 vide → bug critique sur les routes
+// OAuth start (le body cached ne contient plus `url`). On désactive globalement.
+app.disable("etag");
+app.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
+
 app.use(
   pinoHttp({
     logger,

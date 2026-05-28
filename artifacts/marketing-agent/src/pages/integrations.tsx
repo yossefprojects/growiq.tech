@@ -900,8 +900,16 @@ export default function IntegrationsPage() {
         setLoading(false);
         return;
       }
-      const { url } = (await r.json()) as { url: string };
-      window.location.href = url;
+      const body = (await r.json().catch(() => ({}))) as { url?: string };
+      if (!body.url || typeof body.url !== "string") {
+        // Filet de sécurité : éviter window.location.href = undefined → 404
+        toastError(
+          "Le serveur n'a pas renvoyé d'URL de connexion. Réessaie dans quelques secondes.",
+        );
+        setLoading(false);
+        return;
+      }
+      window.location.href = body.url;
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Erreur réseau");
       setLoading(false);
