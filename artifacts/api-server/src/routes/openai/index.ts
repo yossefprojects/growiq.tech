@@ -13,6 +13,7 @@ import {
   systemEvents,
   businessProfiles,
   seoKeywordSets,
+  localUsers,
   type CampaignBusinessContext,
   type AgencyBrief,
   type AgencyPlan,
@@ -28,7 +29,7 @@ function uid(req: Request): string {
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
 import { publishToMeta, isMetaConfigured, getMetaProfile, getTokenStatus } from "../../lib/meta";
-import { publishToMetaForUser } from "../../lib/meta-user";
+import { publishToMetaForUser, getMetaCredentialsForUser } from "../../lib/meta-user";
 import { publishLinkedinPost } from "../../lib/linkedin";
 import { uploadPublicBuffer } from "../../lib/objectStorage";
 import { logger } from "../../lib/logger";
@@ -981,16 +982,8 @@ router.post("/scheduled-posts", async (req, res): Promise<void> => {
     res.status(400).json({ error: "title, content, platform, scheduledFor sont requis" });
     return;
   }
-  // FB/IG utilisent les credentials admin globaux : un non-admin ne doit pas
-  // pouvoir programmer un post qui finirait par être rejeté silencieusement
-  // par le worker (ou — sans le fix worker — publié sur les pages admin).
-  if ((platform === "facebook" || platform === "instagram") && (req as unknown as { isAdmin?: boolean }).isAdmin !== true) {
-    res.status(403).json({
-      error: "Facebook et Instagram ne sont pas encore disponibles sur ton compte. Utilise LinkedIn ou Email en attendant.",
-      code: "platform_not_available",
-    });
-    return;
-  }
+  // FB/IG : le worker route automatiquement vers publishToMetaForUser
+  // (per-user OAuth) si post.userId, fallback admin sinon.
   const date = new Date(scheduledFor);
   if (isNaN(date.getTime())) {
     res.status(400).json({ error: "scheduledFor invalide" });
@@ -1231,12 +1224,6 @@ router.get("/meta/profile", async (req, res): Promise<void> => {
 
 router.post("/meta/publish", async (req, res): Promise<void> => {
   const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
-  if (!isAdmin) {
-    res.status(403).json({
-      error: "La publication Facebook/Instagram n'est pas disponible sur ton compte. Utilise LinkedIn pour publier.",
-    });
-    return;
-  }
   const { platform, message, imageUrl, scheduledPostId } = req.body as Partial<{
     platform: "facebook" | "instagram";
     message: string;
@@ -1251,7 +1238,21 @@ router.post("/meta/publish", async (req, res): Promise<void> => {
     res.status(400).json({ error: "message requis" });
     return;
   }
-  const result = await publishToMeta({ platform, message, imageUrl });
+  // Non-admin → publie via l'OAuth perso (publishToMetaForUser).
+  // Admin → garde la voie globale historique (publishToMeta env).
+  let result: { success: boolean; postId?: string; permalink?: string; error?: string; configMissing?: boolean };
+  if (isAdmin) {
+    result = await publishToMeta({ platform, message, imageUrl });
+  } else {
+    const r = await publishToMetaForUser({ userId: uid(req), platform, message, imageUrl });
+    result = {
+      success: r.success,
+      postId: r.success ? r.postId : undefined,
+      permalink: r.success ? r.permalink : undefined,
+      error: r.success ? undefined : r.error,
+      configMissing: !r.success && (r.notConnected || r.tokenExpired || r.missingInstagram),
+    };
+  }
   if (!result.success) {
     res.status(result.configMissing ? 412 : 502).json({ error: result.error });
     return;
@@ -1450,12 +1451,40 @@ async function processScheduledPosts(): Promise<void> {
           // Cas legacy : post.userId NULL = post créé avant l'auth. On utilise
           // alors les credentials admin globaux comme fallback (compatibilité).
           if (post.userId) {
-            const result = await publishToMetaForUser({
+            let result = await publishToMetaForUser({
               userId: post.userId,
               platform: post.platform,
               message: post.content,
               imageUrl: post.meta?.imageUrl,
-            });
+            }) as Awaited<ReturnType<typeof publishToMetaForUser>> & { permalink?: string };
+            // Fallback admin : si l'user est admin, n'a pas connecté son OAuth Meta
+            // perso, mais les env Meta globales sont configurées, on publie via le
+            // token admin (compat historique pour le compte qui a fait les Ads).
+            const isUserConfigError =
+              !result.success &&
+              (result.notConnected || result.tokenExpired || result.missingInstagram);
+            if (isUserConfigError) {
+              const [u] = await db
+                .select({ isAdmin: localUsers.isAdmin })
+                .from(localUsers)
+                .where(eq(localUsers.id, post.userId));
+              if (u?.isAdmin && isMetaConfigured(post.platform)) {
+                const adminRes = await publishToMeta({
+                  platform: post.platform,
+                  message: post.content,
+                  imageUrl: post.meta?.imageUrl,
+                });
+                result = adminRes.success
+                  ? { success: true, postId: adminRes.postId!, permalink: adminRes.permalink }
+                  : {
+                      success: false,
+                      error: adminRes.error ?? "Échec publication Meta",
+                      notConnected: false,
+                      tokenExpired: false,
+                      missingInstagram: false,
+                    };
+              }
+            }
             if (result.success) {
               await db
                 .update(scheduledPosts)
@@ -1921,19 +1950,8 @@ function normalizePlan(raw: unknown): AgencyPlan {
 }
 
 router.post("/agency/generate", async (req, res): Promise<void> => {
-  // Agency currently publishes only on Facebook/Instagram via global admin
-  // credentials. Until per-user Meta OAuth (or LinkedIn-only agency mode) ships,
-  // we must not let non-admins generate or launch campaigns — otherwise their
-  // posts would publish on the admin's own pages.
-  const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
-  if (!isAdmin) {
-    res.status(403).json({
-      error:
-        "L'Agence automatique publie sur Facebook/Instagram et n'est pas encore disponible sur ton compte. En attendant, utilise le chat pour créer et publier sur LinkedIn.",
-      code: "agency_admin_only",
-    });
-    return;
-  }
+  // Ouvert à tous : la publication utilise l'OAuth Meta de l'utilisateur
+  // (via publishToMetaForUser dans /agency/:id/launch + worker).
   const rateKey = uid(req) + ":generate";
   if (!checkAgencyRateLimit(rateKey)) {
     res.status(429).json({
@@ -2018,17 +2036,8 @@ router.post("/agency/generate", async (req, res): Promise<void> => {
 });
 
 router.post("/agency/:id/launch", async (req, res): Promise<void> => {
-  // Same guard as /agency/generate: launching schedules FB/IG posts that would
-  // hit the admin's pages with the global Meta token.
+  // Ouvert à tous : le worker publie via l'OAuth Meta per-user (admin = fallback env).
   const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
-  if (!isAdmin) {
-    res.status(403).json({
-      error:
-        "Le lancement de campagne Facebook/Instagram n'est pas disponible sur ton compte. Utilise le chat pour publier sur LinkedIn.",
-      code: "agency_admin_only",
-    });
-    return;
-  }
   const id = Number(req.params.id);
   if (!Number.isFinite(id)) {
     res.status(400).json({ error: "id invalide" });
@@ -2072,11 +2081,21 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
   // Évite que le worker tente de publier sur une page non liée (rejet silencieux).
   const channelsUsed = new Set(finalPlan.posts.map((p) => p.channel));
   const channelsMissing: string[] = [];
-  if (channelsUsed.has("facebook") && !isMetaConfigured("facebook")) channelsMissing.push("Facebook");
-  if (channelsUsed.has("instagram") && !isMetaConfigured("instagram")) channelsMissing.push("Instagram");
+  // Pour chaque canal utilisé, vérifie que l'utilisateur a une connexion valide
+  // (OAuth perso) OU qu'il est admin avec les env globales configurées.
+  if (channelsUsed.has("facebook")) {
+    const r = await getMetaCredentialsForUser(uid(req), "facebook");
+    const hasUserFb = "creds" in r;
+    if (!hasUserFb && !(isAdmin && isMetaConfigured("facebook"))) channelsMissing.push("Facebook");
+  }
+  if (channelsUsed.has("instagram")) {
+    const r = await getMetaCredentialsForUser(uid(req), "instagram");
+    const hasUserIg = "creds" in r;
+    if (!hasUserIg && !(isAdmin && isMetaConfigured("instagram"))) channelsMissing.push("Instagram");
+  }
   if (channelsMissing.length > 0) {
     res.status(400).json({
-      error: `Aucun canal de diffusion connecté pour : ${channelsMissing.join(", ")}. Va dans ton profil et connecte ces comptes avant de lancer.`,
+      error: `Aucun canal de diffusion connecté pour : ${channelsMissing.join(", ")}. Va dans 'Mes outils' et connecte ces comptes avant de lancer.`,
       code: "no_connected_channel",
       missing: channelsMissing,
     });
