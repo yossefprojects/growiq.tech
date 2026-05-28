@@ -114,6 +114,8 @@ router.get("/integrations", async (req, res) => {
       hasLinkedinClientId: !!process.env["LINKEDIN_CLIENT_ID"],
       hasLinkedinClientSecret: !!process.env["LINKEDIN_CLIENT_SECRET"],
       nodeEnv: process.env["NODE_ENV"] ?? null,
+      // Champ unique pour casser l'ETag à chaque requête (sinon 304 perpétuel).
+      ts: Date.now(),
     },
   });
 });
