@@ -77,11 +77,24 @@ type ResendStatus = {
   verifiedAt: string | null;
   lastErrorMessage: string | null;
 };
+type MetaAdsStatus = {
+  platform: "meta_ads";
+  configured: boolean;
+  connected: boolean;
+  expired: boolean;
+  adAccountId: string | null;
+  adAccountName: string | null;
+  currency: string | null;
+  adAccountsCount: number;
+};
 type GoogleAdsStatus = {
   platform: "google_ads";
   configured: boolean;
   connected: boolean;
-  comingSoon: boolean;
+  expired: boolean;
+  email: string | null;
+  customerId: string | null;
+  apiReady: boolean;
 };
 
 type IntegrationsResponse = {
@@ -89,6 +102,7 @@ type IntegrationsResponse = {
   instagram: InstagramStatus;
   linkedin: LinkedinStatus;
   resend: ResendStatus;
+  metaAds: MetaAdsStatus;
   googleAds: GoogleAdsStatus;
 };
 
@@ -594,22 +608,212 @@ function ResendSection({
   );
 }
 
-function GoogleAdsSection({ status }: { status: GoogleAdsStatus }) {
+function MetaAdsSection({
+  status,
+  fb,
+  onConnect,
+  onDisconnect,
+  connecting,
+}: {
+  status: MetaAdsStatus;
+  fb: FacebookStatus;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  connecting: boolean;
+}) {
+  const connected = status.connected;
+  const badge = connected ? (
+    <Badge variant="ok">Connecté</Badge>
+  ) : status.expired ? (
+    <Badge variant="warn">À reconnecter</Badge>
+  ) : (
+    <Badge variant="off">Non connecté</Badge>
+  );
+
   return (
     <Card
-      icon={() => (
-        <span className="font-bold text-[#4285F4] text-base">G</span>
+      icon={Facebook}
+      iconBg="bg-[#1877F2]/10"
+      iconColor="text-[#1877F2]"
+      title="Meta Ads (Facebook & Instagram)"
+      subtitle={
+        connected
+          ? `${status.adAccountName ?? "Compte pub"}${status.currency ? ` • ${status.currency}` : ""}`
+          : "Boost tes posts pour qu'ils touchent plus de monde (payant)"
+      }
+      badge={badge}
+    >
+      {connected ? (
+        <div className="space-y-3">
+          <div className="rounded-lg bg-[#3dbf8e]/10 border border-[#3dbf8e]/30 p-3 text-sm text-[#1a7a55]">
+            Ton compte publicitaire Meta est prêt. Tu peux maintenant booster
+            des posts Facebook ou Instagram depuis l'agence automatique.
+            {status.adAccountsCount > 1 ? (
+              <div className="mt-2 text-xs text-muted-foreground">
+                {status.adAccountsCount} comptes pub détectés — on utilise le
+                premier actif par défaut.
+              </div>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDisconnect}
+              className="text-red-600 hover:text-red-700"
+              data-testid="button-meta-ads-disconnect"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Déconnecter le compte pub
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {fb.connected && status.adAccountsCount === 0 ? (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+              Tu es connecté à Facebook, mais on n'a pas trouvé de compte
+              publicitaire. Crée d'abord un compte pub dans Meta Business Suite,
+              puis reconnecte ici pour activer le scope publicitaire.
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Booste tes meilleurs posts pour qu'ils touchent plus de monde sur
+              Facebook et Instagram. {fb.connected ? "Reconnecte ton compte" : "Connecte ton compte"} pour autoriser
+              l'accès publicitaire.
+            </p>
+          )}
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+            <span className="font-semibold">Accès anticipé.</span> L'accès
+            publicitaire Meta est en cours de validation par Meta (App Review).
+            En attendant, il fonctionne pour les comptes invités par l'équipe
+            GrowIQ.
+          </div>
+          <Button
+            onClick={onConnect}
+            disabled={connecting}
+            className="bg-[#1877F2] hover:bg-[#1465D6] text-white"
+            data-testid="button-meta-ads-connect"
+          >
+            {connecting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Facebook className="w-4 h-4 mr-2" />
+            )}
+            {fb.connected ? "Autoriser l'accès publicitaire" : "Connecter Meta Ads"}
+          </Button>
+        </div>
       )}
+    </Card>
+  );
+}
+
+function GoogleAdsSection({
+  status,
+  onConnect,
+  onDisconnect,
+  connecting,
+}: {
+  status: GoogleAdsStatus;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  connecting: boolean;
+}) {
+  const connected = status.connected;
+  const badge = connected ? (
+    <Badge variant="ok">Connecté</Badge>
+  ) : status.expired ? (
+    <Badge variant="warn">À reconnecter</Badge>
+  ) : (
+    <Badge variant="off">Non connecté</Badge>
+  );
+
+  return (
+    <Card
+      icon={() => <span className="font-bold text-[#4285F4] text-base">G</span>}
       iconBg="bg-[#4285F4]/10"
       iconColor="text-[#4285F4]"
       title="Google Ads"
-      subtitle="Lance des campagnes Search (résultats Google)"
-      badge={<Badge variant="off">Bientôt disponible</Badge>}
+      subtitle={
+        connected
+          ? status.email ?? "Compte Google connecté"
+          : "Lance des campagnes Search (résultats Google)"
+      }
+      badge={badge}
     >
-      <p className="text-sm text-muted-foreground">
-        En attente de la validation du developer token Google côté admin GrowIQ.
-        Dès que c'est prêt, tu pourras connecter ton compte Google Ads ici.
-      </p>
+      {connected ? (
+        <div className="space-y-3">
+          <div className="rounded-lg bg-[#3dbf8e]/10 border border-[#3dbf8e]/30 p-3 text-sm text-[#1a7a55]">
+            Ton compte Google est connecté.
+            {!status.apiReady ? (
+              <div className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+                On attend encore la validation Google pour créer de vraies
+                campagnes (Developer Token Basic Access). Ta connexion est
+                prête, on l'activera dès l'autorisation.
+              </div>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onConnect}
+              disabled={connecting}
+              data-testid="button-google-ads-reconnect"
+            >
+              {connecting ? (
+                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-1.5" />
+              )}
+              Reconnecter
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDisconnect}
+              className="text-red-600 hover:text-red-700"
+              data-testid="button-google-ads-disconnect"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Déconnecter
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Connecte ton compte Google pour pouvoir lancer des campagnes Google
+            Ads (recherche Google) depuis l'agence automatique.
+          </p>
+          {!status.apiReady ? (
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+              <span className="font-semibold">Connexion possible dès maintenant.</span>{" "}
+              Les vraies campagnes seront activées dès que Google valide notre
+              accès API (en cours, 2-6 semaines).
+            </div>
+          ) : null}
+          <Button
+            onClick={onConnect}
+            disabled={connecting || !status.configured}
+            className="bg-[#4285F4] hover:bg-[#3367D6] text-white"
+            data-testid="button-google-ads-connect"
+          >
+            {connecting ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <span className="font-bold mr-2">G</span>
+            )}
+            Connecter Google Ads
+          </Button>
+          {!status.configured ? (
+            <p className="text-xs text-muted-foreground">
+              OAuth Google pas encore configuré côté GrowIQ. On te prévient dès
+              que c'est ouvert.
+            </p>
+          ) : null}
+        </div>
+      )}
     </Card>
   );
 }
@@ -622,8 +826,9 @@ export default function IntegrationsPage() {
   const search = useSearch();
   const [connectingFb, setConnectingFb] = useState(false);
   const [connectingLn, setConnectingLn] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
 
-  // Toasts depuis le callback OAuth FB (query string facebook=...)
+  // Toasts depuis les callbacks OAuth (query string facebook=... / linkedin=... / google=...)
   useEffect(() => {
     const params = new URLSearchParams(search);
     const fb = params.get("facebook");
@@ -638,7 +843,13 @@ export default function IntegrationsPage() {
     } else if (ln) {
       toastError(ln);
     }
-    if (fb || ln) {
+    const gg = params.get("google");
+    if (gg === "ok") {
+      toastSuccess("Google Ads connecté !");
+    } else if (gg) {
+      toastError(gg);
+    }
+    if (fb || ln || gg) {
       // Clean URL
       window.history.replaceState({}, "", basePath + "/app/integrations");
     }
@@ -672,7 +883,7 @@ export default function IntegrationsPage() {
   });
 
   const startOAuth = async (
-    platform: "facebook" | "linkedin",
+    platform: "facebook" | "linkedin" | "google",
     setLoading: (b: boolean) => void,
   ) => {
     setLoading(true);
@@ -680,11 +891,12 @@ export default function IntegrationsPage() {
       const r = await authedFetch(`${basePath}/api/auth/${platform}/start`);
       if (!r.ok) {
         const txt = await r.text();
-        toastError(
-          platform === "facebook"
-            ? `Impossible de démarrer la connexion Facebook : ${txt}`
-            : `Impossible de démarrer la connexion LinkedIn : ${txt}`,
-        );
+        const labels: Record<typeof platform, string> = {
+          facebook: "Facebook",
+          linkedin: "LinkedIn",
+          google: "Google",
+        };
+        toastError(`Impossible de démarrer la connexion ${labels[platform]} : ${txt}`);
         setLoading(false);
         return;
       }
@@ -697,7 +909,7 @@ export default function IntegrationsPage() {
   };
 
   const disconnect = useMutation({
-    mutationFn: async (platform: "meta" | "linkedin" | "resend") => {
+    mutationFn: async (platform: "meta" | "linkedin" | "resend" | "google_ads") => {
       const r = await authedFetch(`${basePath}/api/integrations/${platform}`, {
         method: "DELETE",
       });
@@ -802,11 +1014,24 @@ export default function IntegrationsPage() {
           verifiedAt: null,
           lastErrorMessage: null,
         },
+        metaAds: integrationsQ.data.metaAds ?? {
+          platform: "meta_ads",
+          configured: false,
+          connected: false,
+          expired: false,
+          adAccountId: null,
+          adAccountName: null,
+          currency: null,
+          adAccountsCount: 0,
+        },
         googleAds: integrationsQ.data.googleAds ?? {
           platform: "google_ads",
           configured: false,
           connected: false,
-          comingSoon: true,
+          expired: false,
+          email: null,
+          customerId: null,
+          apiReady: false,
         },
       }
     : undefined;
@@ -878,7 +1103,19 @@ export default function IntegrationsPage() {
               saving={saveResend.isPending}
               testing={testResend.isPending}
             />
-            <GoogleAdsSection status={data.googleAds} />
+            <MetaAdsSection
+              status={data.metaAds}
+              fb={data.facebook}
+              onConnect={() => startOAuth("facebook", setConnectingFb)}
+              onDisconnect={() => disconnect.mutate("meta")}
+              connecting={connectingFb}
+            />
+            <GoogleAdsSection
+              status={data.googleAds}
+              onConnect={() => startOAuth("google", setConnectingGoogle)}
+              onDisconnect={() => disconnect.mutate("google_ads")}
+              connecting={connectingGoogle}
+            />
           </div>
         )}
 

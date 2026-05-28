@@ -10,6 +10,7 @@ import adminRouter from "./admin";
 import meExtrasRouter from "./me-extras";
 import linkedinRouter, { publicLinkedinRouter } from "./linkedin";
 import facebookRouter, { publicFacebookRouter } from "./facebook-oauth";
+import googleRouter, { publicGoogleRouter } from "./google-oauth";
 import integrationsRouter from "./integrations";
 import emailRouter from "./email";
 import webhooksRouter from "./webhooks";
@@ -23,6 +24,7 @@ router.use(storageRouter);
 router.use(publicLandingRouter);
 router.use(publicLinkedinRouter);
 router.use(publicFacebookRouter);
+router.use(publicGoogleRouter);
 router.use(webhooksRouter);
 
 // Authenticated (any signed-in user can read their own profile)
@@ -36,6 +38,7 @@ router.use(seoRouter);
 router.use(meExtrasRouter);
 router.use(linkedinRouter);
 router.use(facebookRouter);
+router.use(googleRouter);
 router.use(integrationsRouter);
 router.use(emailRouter);
 

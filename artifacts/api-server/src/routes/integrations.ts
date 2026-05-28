@@ -24,6 +24,7 @@ import {
   isFacebookOAuthConfigured,
 } from "../lib/facebook-oauth";
 import { isLinkedinConfigured } from "../lib/linkedin";
+import { isGoogleOAuthConfigured } from "../lib/google-oauth";
 import { sendEmail } from "../lib/email";
 import { getMonthlyEmailUsage } from "../lib/email-usage";
 import { logger } from "../lib/logger";
@@ -45,9 +46,10 @@ router.get("/integrations", async (req, res) => {
   // secrets côté serveur se reflète immédiatement.
   res.setHeader("Cache-Control", "no-store");
 
-  const [meta, resend, linkedin] = await Promise.all([
+  const [meta, resend, googleAds, linkedin] = await Promise.all([
     getUserIntegration(userId, "meta"),
     getUserIntegration(userId, "resend"),
+    getUserIntegration(userId, "google_ads"),
     db
       .select()
       .from(linkedinConnections)
@@ -59,6 +61,14 @@ router.get("/integrations", async (req, res) => {
   const now = Date.now();
   const metaExpired = !!(meta?.expiresAt && meta.expiresAt.getTime() < now);
   const linkedinExpired = !!(linkedin?.expiresAt && linkedin.expiresAt.getTime() < now);
+  // Pour Google Ads on a un refresh_token long-lived : tant qu'il est présent,
+  // on peut renouveler l'access_token. Donc "expired" UNIQUEMENT si pas de
+  // refresh_token (cas anormal où Google n'aurait rien renvoyé).
+  const googleAdsExpired = !!googleAds && !googleAds.refreshToken;
+  const selectedAdId = meta?.metadata?.selectedMetaAdAccountId ?? null;
+  const selectedAdAccount = selectedAdId
+    ? meta?.metadata?.metaAdAccounts?.find((a) => a.id === selectedAdId) ?? null
+    : null;
 
   res.json({
     facebook: {
@@ -102,20 +112,34 @@ router.get("/integrations", async (req, res) => {
       verifiedAt: resend?.metadata?.verifiedAt ?? null,
       lastErrorMessage: resend?.metadata?.lastErrorMessage ?? null,
     },
+    metaAds: {
+      platform: "meta_ads",
+      // Configuré = OAuth Meta dispo. La VRAIE possibilité de booster nécessite
+      // que l'user ait au moins un compte pub (firstActiveAd) et que Meta ait
+      // validé le scope ads_management pour notre App.
+      configured: isFacebookOAuthConfigured(),
+      // "Connected" = compte FB connecté + au moins un compte pub Meta visible
+      connected:
+        !!meta &&
+        meta.status === "active" &&
+        !metaExpired &&
+        !!selectedAdAccount,
+      expired: metaExpired,
+      adAccountId: selectedAdAccount?.id ?? null,
+      adAccountName: selectedAdAccount?.name ?? null,
+      currency: selectedAdAccount?.currency ?? null,
+      adAccountsCount: meta?.metadata?.metaAdAccounts?.length ?? 0,
+    },
     googleAds: {
       platform: "google_ads",
-      configured: false, // bientôt — en attente du developer token Basic Access
-      connected: false,
-      comingSoon: true,
-    },
-    __debug: {
-      hasMetaAppId: !!process.env["META_APP_ID"],
-      hasMetaAppSecret: !!process.env["META_APP_SECRET"],
-      hasLinkedinClientId: !!process.env["LINKEDIN_CLIENT_ID"],
-      hasLinkedinClientSecret: !!process.env["LINKEDIN_CLIENT_SECRET"],
-      nodeEnv: process.env["NODE_ENV"] ?? null,
-      // Champ unique pour casser l'ETag à chaque requête (sinon 304 perpétuel).
-      ts: Date.now(),
+      configured: isGoogleOAuthConfigured(),
+      connected: !!googleAds && googleAds.status === "active" && !googleAdsExpired,
+      expired: googleAdsExpired,
+      email: googleAds?.metadata?.googleAdsEmail ?? null,
+      customerId: googleAds?.metadata?.googleAdsCustomerId ?? null,
+      // Tradeoff signalé : tant que le Developer Token Basic Access Google n'est
+      // pas validé, on peut connecter l'OAuth mais pas créer de vraies campagnes.
+      apiReady: !!process.env["GOOGLE_ADS_DEVELOPER_TOKEN"],
     },
   });
 });

@@ -31,6 +31,21 @@ export type UserIntegrationMetadata = {
   instagramAccount?: { id: string; username?: string };
   // Meta : id de la page FB actuellement sélectionnée pour publier
   selectedFacebookPageId?: string;
+  // Meta Ads : comptes publicitaires Meta auxquels l'user a accès (scope ads_management)
+  metaAdAccounts?: Array<{
+    id: string; // ex "act_1234567890"
+    name: string;
+    accountStatus?: number; // 1 = ACTIVE
+    currency?: string;
+  }>;
+  // Meta Ads : id du compte publicitaire actuellement sélectionné pour booster les posts
+  selectedMetaAdAccountId?: string;
+  // Google Ads : customer ID du compte choisi (ex "1234567890"). En attente du Developer Token.
+  googleAdsCustomerId?: string;
+  // Google Ads : login customer ID si compte sous MCC
+  googleAdsLoginCustomerId?: string;
+  // Google Ads : email du compte Google connecté
+  googleAdsEmail?: string;
   // Resend : domaine d'envoi (ex: contact@monentreprise.com)
   fromEmail?: string;
   // Resend : nom d'affichage (ex: "GrowIQ — Marie")

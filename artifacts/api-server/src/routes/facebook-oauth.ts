@@ -13,6 +13,7 @@ import {
   buildFacebookAuthorizeUrl,
   exchangeFacebookCode,
   exchangeForLongLivedToken,
+  fetchFacebookAdAccounts,
   fetchFacebookMe,
   fetchFacebookPages,
   isFacebookOAuthConfigured,
@@ -79,6 +80,11 @@ publicFacebookRouter.get("/auth/facebook/callback", async (req, res) => {
     const first = pages[0];
     const ig = first.instagram_business_account;
 
+    // Récupère aussi les comptes publicitaires Meta (ads_management). Non-fatal :
+    // si l'user a refusé le scope ou n'a pas de compte pub, on continue.
+    const adAccounts = await fetchFacebookAdAccounts(longToken.access_token);
+    const firstActiveAd = adAccounts.find((a) => a.account_status === 1) ?? adAccounts[0];
+
     const expiresAt = longToken.expires_in
       ? new Date(Date.now() + longToken.expires_in * 1000)
       : null;
@@ -101,6 +107,13 @@ publicFacebookRouter.get("/auth/facebook/callback", async (req, res) => {
         selectedFacebookPageId: first.id,
         instagramAccount: ig ? { id: ig.id, username: ig.username } : undefined,
         displayName: me.name,
+        metaAdAccounts: adAccounts.map((a) => ({
+          id: a.id,
+          name: a.name,
+          accountStatus: a.account_status,
+          currency: a.currency,
+        })),
+        selectedMetaAdAccountId: firstActiveAd?.id,
       },
       status: "active",
       lastVerifiedAt: new Date(),

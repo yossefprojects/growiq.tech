@@ -36,6 +36,9 @@ const DEFAULT_SCOPES = [
   "instagram_basic",
   "instagram_content_publish",
   "business_management",
+  // Meta Ads — booster les posts en payant. Nécessite App Review Meta.
+  "ads_management",
+  "ads_read",
 ].join(",");
 
 export type FacebookConfig = {
@@ -209,6 +212,28 @@ export async function fetchFacebookMe(
   const r = await fetch(u.toString());
   if (!r.ok) throw new Error(`Facebook /me failed (${r.status}): ${await r.text()}`);
   return (await r.json()) as { id: string; name: string; email?: string };
+}
+
+export type FacebookAdAccount = {
+  id: string; // ex "act_1234567890"
+  name: string;
+  account_status?: number; // 1 = ACTIVE, 2 = DISABLED, etc.
+  currency?: string;
+};
+
+export async function fetchFacebookAdAccounts(userToken: string): Promise<FacebookAdAccount[]> {
+  const u = new URL(`${GRAPH_BASE}/me/adaccounts`);
+  u.searchParams.set("fields", "id,name,account_status,currency");
+  u.searchParams.set("access_token", userToken);
+  const r = await fetch(u.toString());
+  if (!r.ok) {
+    const txt = await r.text();
+    logger.warn({ status: r.status, body: txt }, "fetchFacebookAdAccounts failed");
+    // Non-fatal : l'user peut avoir refusé ads_management ou ne pas avoir de compte pub
+    return [];
+  }
+  const data = (await r.json()) as { data?: FacebookAdAccount[] };
+  return data.data ?? [];
 }
 
 export async function fetchFacebookPages(userToken: string): Promise<FacebookPage[]> {
