@@ -192,9 +192,7 @@ function FacebookSection({
   connecting: boolean;
 }) {
   const connected = fb.connected;
-  const badge = !fb.configured ? (
-    <Badge variant="off">Pas encore disponible</Badge>
-  ) : connected ? (
+  const badge = connected ? (
     <Badge variant="ok">Connecté</Badge>
   ) : fb.expired ? (
     <Badge variant="warn">À reconnecter</Badge>
@@ -215,12 +213,7 @@ function FacebookSection({
       }
       badge={badge}
     >
-      {!fb.configured ? (
-        <p className="text-sm text-muted-foreground">
-          La connexion Facebook arrive très bientôt. On attend la validation Meta
-          côté admin GrowIQ.
-        </p>
-      ) : connected ? (
+      {connected ? (
         <div className="space-y-3">
           <div className="rounded-lg bg-[#3dbf8e]/10 border border-[#3dbf8e]/30 p-3 text-sm text-[#1a7a55]">
             Ton compte est connecté. Tu peux publier des posts depuis l'agence
@@ -316,9 +309,7 @@ function LinkedinSection({
   onDisconnect: () => void;
   connecting: boolean;
 }) {
-  const badge = !ln.configured ? (
-    <Badge variant="off">Pas encore disponible</Badge>
-  ) : ln.connected ? (
+  const badge = ln.connected ? (
     <Badge variant="ok">Connecté</Badge>
   ) : ln.expired ? (
     <Badge variant="warn">À reconnecter</Badge>
@@ -339,11 +330,7 @@ function LinkedinSection({
       }
       badge={badge}
     >
-      {!ln.configured ? (
-        <p className="text-sm text-muted-foreground">
-          LinkedIn n'est pas configuré côté serveur.
-        </p>
-      ) : ln.connected ? (
+      {ln.connected ? (
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
