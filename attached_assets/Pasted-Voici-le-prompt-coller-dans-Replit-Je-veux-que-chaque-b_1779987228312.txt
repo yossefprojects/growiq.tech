@@ -1,0 +1,55 @@
+Voici le prompt à coller dans Replit :
+
+---
+
+Je veux que chaque bouton "Connecter" sur la page "Mes outils" ouvre une **nouvelle page dédiée** (pas une modale) pour guider l'utilisateur dans la connexion de son intégration.
+
+**Routes à créer :**
+- `/app/integrations/facebook` → page de connexion Facebook & Instagram
+- `/app/integrations/linkedin` → page de connexion LinkedIn
+- `/app/integrations/google-ads` → page de connexion Google Ads
+- `/app/integrations/meta-ads` → page de connexion Meta Ads
+
+**Design de chaque page :**
+- Header avec **"← Retour à Mes outils"**
+- Titre clair : ex "Connecter Facebook & Instagram"
+- **Stepper visuel** (étape 1 / 2 / 3 / 4) qui guide l'utilisateur
+- À chaque étape : instruction claire + bouton qui ouvre le bon site dans un nouvel onglet
+- Dernière étape : champ pour coller le token/ID + bouton "Vérifier et connecter"
+- Si succès : page de confirmation ✅ avec bouton "Retour à Mes outils"
+- Si échec : message clair avec quelle étape revoir
+
+**Contenu de chaque page :**
+
+**Facebook & Instagram** (`/app/integrations/facebook`) :
+- Étape 1 : Bouton "Ouvrir Facebook Developers" → `https://developers.facebook.com/tools/explorer`
+- Étape 2 : "Sélectionne ton app et coche les permissions nécessaires"
+- Étape 3 : "Clique Generate Access Token et autorise"
+- Étape 4 : "Colle ton token ici" + vérification automatique
+
+**LinkedIn** (`/app/integrations/linkedin`) :
+- Étape 1 : Bouton "Ouvrir LinkedIn Developers" → `https://www.linkedin.com/developers/apps`
+- Étape 2 : "Ouvre ton app → Auth → génère un token"
+- Étape 3 : "Colle ton token ici" + vérification automatique
+
+**Google Ads** (`/app/integrations/google-ads`) :
+- Étape 1 : Bouton "Ouvrir Google Ads" → `https://ads.google.com`
+- Étape 2 : "Note ton Customer ID en haut à droite (format xxx-xxx-xxxx)"
+- Étape 3 : "Colle ton Customer ID ici" + vérification automatique
+
+**Meta Ads** (`/app/integrations/meta-ads`) :
+- Étape 1 : Bouton "Ouvrir Meta Business Manager" → `https://business.facebook.com`
+- Étape 2 : "Va dans Paramètres → Comptes publicitaires"
+- Étape 3 : "Note ton Ad Account ID (format act_xxxxxxxxxx)"
+- Étape 4 : "Colle ton Ad Account ID ici" + vérification automatique
+
+**Règles absolues :**
+- Design moderne, épuré, rassurant — même style que le reste de GrowIQ
+- Zéro message d'erreur technique
+- Mobile-friendly
+- Les liens externes s'ouvrent toujours dans un nouvel onglet
+- Animation de succès ✅ quand la connexion est validée
+
+---
+
+Colle ça dans Replit 👍
