@@ -581,6 +581,12 @@ function IntegrationsBlock() {
           ? `Ta clé Resend perso (${data.resend.fromEmail ?? "expéditeur configuré"})`
           : "Envoi des récapitulatifs et alertes via Resend (freemium 100/mois inclus)."}
         connected={true}
+        // Déconnecter uniquement si l'user a configuré SA propre clé Resend.
+        // En mode freemium (clé partagée GrowIQ), pas de déconnexion possible.
+        onDisconnect={data.resend.connected
+          ? () => disconnect.mutate({ platform: "resend", label: "Emailing" })
+          : undefined}
+        busy={pendingPlatform === "resend"}
         testId="email"
       />
     </div>
