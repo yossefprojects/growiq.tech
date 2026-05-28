@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Megaphone, Search, Shield, User as UserIcon } from "lucide-react";
+import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Plug, Search, Shield, User as UserIcon } from "lucide-react";
 import { useAuth, useUser } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -273,8 +273,8 @@ export function Sidebar({
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-md px-2 py-1.5 transition-colors"
           data-testid="link-integrations"
         >
-          <Megaphone className="w-4 h-4" />
-          <span>Publicités payantes</span>
+          <Plug className="w-4 h-4" />
+          <span>Mes outils</span>
         </Link>
         <AdminLink />
         
