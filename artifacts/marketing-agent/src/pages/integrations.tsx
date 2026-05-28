@@ -900,11 +900,14 @@ export default function IntegrationsPage() {
         setLoading(false);
         return;
       }
-      const body = (await r.json().catch(() => ({}))) as { url?: string };
+      const raw = await r.text();
+      let body: { url?: string } = {};
+      try { body = JSON.parse(raw); } catch { /* ignore */ }
+      // eslint-disable-next-line no-console
+      console.log("[oauth-start]", platform, "status=", r.status, "ct=", r.headers.get("content-type"), "len=", raw.length, "rawSample=", raw.slice(0, 300), "parsedUrl=", body.url);
       if (!body.url || typeof body.url !== "string") {
-        // Filet de sécurité : éviter window.location.href = undefined → 404
         toastError(
-          "Le serveur n'a pas renvoyé d'URL de connexion. Réessaie dans quelques secondes.",
+          `Pas d'URL OAuth reçue (status ${r.status}, len ${raw.length}). Ouvre la console navigateur pour le détail.`,
         );
         setLoading(false);
         return;
