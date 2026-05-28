@@ -41,20 +41,6 @@ export default router;
 router.get("/integrations", async (req, res) => {
   const userId = uid(req);
 
-  // Diagnostic temporaire : vérifier la visibilité des secrets dans le
-  // container (présence des clés uniquement, jamais les valeurs).
-  req.log.info(
-    {
-      hasMetaAppId: !!process.env["META_APP_ID"],
-      hasMetaAppSecret: !!process.env["META_APP_SECRET"],
-      hasLinkedinClientId: !!process.env["LINKEDIN_CLIENT_ID"],
-      hasLinkedinClientSecret: !!process.env["LINKEDIN_CLIENT_SECRET"],
-      fbConfigured: isFacebookOAuthConfigured(),
-      lnConfigured: isLinkedinConfigured(),
-    },
-    "integrations.env_check",
-  );
-
   // Évite les 304 cache côté client : on veut que toute mise à jour de
   // secrets côté serveur se reflète immédiatement.
   res.setHeader("Cache-Control", "no-store");
@@ -121,6 +107,13 @@ router.get("/integrations", async (req, res) => {
       configured: false, // bientôt — en attente du developer token Basic Access
       connected: false,
       comingSoon: true,
+    },
+    __debug: {
+      hasMetaAppId: !!process.env["META_APP_ID"],
+      hasMetaAppSecret: !!process.env["META_APP_SECRET"],
+      hasLinkedinClientId: !!process.env["LINKEDIN_CLIENT_ID"],
+      hasLinkedinClientSecret: !!process.env["LINKEDIN_CLIENT_SECRET"],
+      nodeEnv: process.env["NODE_ENV"] ?? null,
     },
   });
 });
