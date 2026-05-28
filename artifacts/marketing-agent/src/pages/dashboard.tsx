@@ -76,9 +76,9 @@ export default function DashboardPage() {
   });
   const noIntegration =
     !!integrationsSummary &&
-    !integrationsSummary.facebook.connected &&
-    !integrationsSummary.linkedin.connected &&
-    !integrationsSummary.resend.connected;
+    !integrationsSummary.facebook?.connected &&
+    !integrationsSummary.linkedin?.connected &&
+    !integrationsSummary.resend?.connected;
 
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [toolboxOpen, setToolboxOpen] = useState(false);
