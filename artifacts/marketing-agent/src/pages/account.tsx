@@ -376,19 +376,31 @@ function PreferencesForm({ profile }: { profile: BusinessProfile }) {
 
 // ── Integrations ─────────────────────────────────────────────────────────
 
-function IntegrationRow({
-  icon: Icon, name, connected, note, ctaLabel, ctaHref, comingSoon, connectDisabledReason,
+type IntegrationsStatus = {
+  facebook: { connected: boolean; expired: boolean; label: string | null; displayName: string | null };
+  instagram: { connected: boolean; expired: boolean; username: string | null };
+  linkedin: { connected: boolean; expired: boolean; label: string | null; email: string | null };
+  resend: { connected: boolean; fromEmail: string | null };
+  metaAds: { connected: boolean; expired: boolean; adAccountName: string | null; currency: string | null };
+  googleAds: { connected: boolean; expired: boolean; email: string | null; customerId: string | null };
+};
+
+function PlatformRow({
+  icon: Icon, name, note, connected, expired,
+  onConnect, onDisconnect, connectHref,
+  busy, testId,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   name: string;
+  note: string;
   connected: boolean;
-  note?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
-  // Quand true, on remplace le badge + le bouton "Connecter" par un état
-  // "Bientôt disponible" expliquant pourquoi (validation Meta/Google en cours).
-  comingSoon?: boolean;
-  connectDisabledReason?: string;
+  expired?: boolean;
+  // Soit une action JS (déclenche OAuth), soit un lien wouter (page manuelle)
+  onConnect?: () => void;
+  onDisconnect?: () => void;
+  connectHref?: string;
+  busy?: boolean;
+  testId: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-3 border-b border-border/40 last:border-b-0">
@@ -396,131 +408,57 @@ function IntegrationRow({
         <Icon className="w-5 h-5 text-muted-foreground shrink-0" />
         <div className="min-w-0">
           <div className="font-medium text-sm truncate">{name}</div>
-          {note && <div className="text-xs text-muted-foreground truncate">{note}</div>}
+          <div className="text-xs text-muted-foreground truncate">{note}</div>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {comingSoon ? (
+        {connected ? (
+          <>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold bg-[#3dbf8e]/15 text-[#1a7a55] px-2 py-1 rounded-full">
+              <Check className="w-3 h-3" /> Connecté
+            </span>
+            {onDisconnect && (
+              <button
+                onClick={onDisconnect}
+                disabled={busy}
+                data-testid={`button-${testId}-disconnect`}
+                className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "Déconnecter"}
+              </button>
+            )}
+          </>
+        ) : (
           <>
             <span
-              className="inline-flex items-center gap-1 text-xs font-semibold bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full"
-              title={connectDisabledReason}
+              className={cn(
+                "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full",
+                expired ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700",
+              )}
             >
-              <Clock className="w-3 h-3" /> Bientôt
+              <X className="w-3 h-3" /> {expired ? "Jeton expiré" : "Non connecté"}
             </span>
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              aria-label={`Connecter ${name} — ${connectDisabledReason ?? "Bientôt disponible"}`}
-              title={connectDisabledReason ?? "Bientôt disponible"}
-              className="text-xs bg-muted text-muted-foreground rounded-md px-3 py-1.5 cursor-not-allowed"
-            >
-              Connecter (bientôt)
-            </button>
+            {onConnect ? (
+              <button
+                onClick={onConnect}
+                disabled={busy}
+                data-testid={`button-${testId}-connect`}
+                className="inline-flex items-center gap-1 text-xs bg-[#0a66c2] hover:bg-[#0958a8] text-white rounded-md px-3 py-1.5 disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}
+                Connecter
+              </button>
+            ) : connectHref ? (
+              <Link
+                href={connectHref}
+                data-testid={`link-${testId}-connect`}
+                className="inline-flex items-center gap-1 text-xs bg-[#0a66c2] hover:bg-[#0958a8] text-white rounded-md px-3 py-1.5"
+              >
+                <ExternalLink className="w-3 h-3" /> Connecter
+              </Link>
+            ) : null}
           </>
-        ) : connected ? (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold bg-[#3dbf8e]/15 text-[#1a7a55] px-2 py-1 rounded-full">
-            <Check className="w-3 h-3" /> Connecté
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-            <X className="w-3 h-3" /> Non connecté
-          </span>
         )}
-        {ctaHref && !comingSoon && (
-          <Link
-            href={ctaHref}
-            className="text-xs text-[#5b54d6] hover:underline whitespace-nowrap"
-          >
-            {ctaLabel}
-          </Link>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function LinkedinRow() {
-  const af = useAuthedFetch();
-  const qc = useQueryClient();
-  const { data, isLoading } = useQuery<LinkedinStatus>({
-    queryKey: ["linkedin-status"],
-    queryFn: () => af("/api/linkedin/status") as Promise<LinkedinStatus>,
-  });
-
-  const connect = useMutation({
-    mutationFn: () => af("/api/auth/linkedin/start") as Promise<{ url: string }>,
-    onSuccess: ({ url }) => { window.location.href = url; },
-    onError: (e: Error) => toast.error(`Erreur : ${e.message}`),
-  });
-  const disconnect = useMutation({
-    mutationFn: () => af("/api/linkedin/disconnect", { method: "POST" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["linkedin-status"] });
-      toast.success("LinkedIn déconnecté");
-    },
-    onError: (e: Error) => toast.error(`Erreur : ${e.message}`),
-  });
-
-  if (isLoading || !data) {
-    return (
-      <div className="flex items-center justify-between gap-3 py-3 border-b border-border/40">
-        <div className="flex items-center gap-3"><Linkedin className="w-5 h-5 text-muted-foreground" /><div className="font-medium text-sm">LinkedIn</div></div>
-        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const status: { kind: "ok" | "warn" | "err"; label: string } = !data.configured
-    ? { kind: "err", label: "Non configuré" }
-    : data.connected && data.expired
-    ? { kind: "warn", label: "Jeton expiré" }
-    : data.connected
-    ? { kind: "ok", label: "Connecté" }
-    : { kind: "err", label: "Non connecté" };
-
-  return (
-    <div className="flex items-center justify-between gap-3 py-3 border-b border-border/40">
-      <div className="flex items-center gap-3 min-w-0">
-        <Linkedin className="w-5 h-5 text-muted-foreground shrink-0" />
-        <div className="min-w-0">
-          <div className="font-medium text-sm truncate">LinkedIn</div>
-          <div className="text-xs text-muted-foreground truncate">
-            {data.connected ? `Connecté en tant que ${data.name ?? data.email ?? "toi"}` : "Publier automatiquement sur ton profil LinkedIn."}
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <span className={cn(
-          "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full",
-          status.kind === "ok" && "bg-[#3dbf8e]/15 text-[#1a7a55]",
-          status.kind === "warn" && "bg-amber-100 text-amber-800",
-          status.kind === "err" && "bg-red-100 text-red-700",
-        )}>
-          {status.kind === "ok" ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-          {status.label}
-        </span>
-        {data.configured && (data.connected ? (
-          <button
-            onClick={() => disconnect.mutate()}
-            disabled={disconnect.isPending}
-            data-testid="button-linkedin-disconnect"
-            className="text-xs text-red-600 hover:underline disabled:opacity-50"
-          >
-            Déconnecter
-          </button>
-        ) : (
-          <button
-            onClick={() => connect.mutate()}
-            disabled={connect.isPending}
-            data-testid="button-linkedin-connect"
-            className="inline-flex items-center gap-1 text-xs bg-[#0a66c2] hover:bg-[#0958a8] text-white rounded-md px-3 py-1.5 disabled:opacity-50"
-          >
-            {connect.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}
-            Connecter
-          </button>
-        ))}
       </div>
     </div>
   );
@@ -528,77 +466,122 @@ function LinkedinRow() {
 
 function IntegrationsBlock() {
   const af = useAuthedFetch();
-  const { isAdmin, isLoading: meLoading } = useMe();
-  // L'admin voit l'état réel de ses credentials globaux. Les non-admins
-  // voient les mêmes lignes mais avec un statut "Bientôt disponible" tant
-  // que l'App Review Meta / le developer token Google ne sont pas validés.
-  const meta = useQuery<MetaStatus>({
-    queryKey: ["meta-status"],
-    queryFn: () => af("/api/meta/status") as Promise<MetaStatus>,
-    enabled: isAdmin,
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery<IntegrationsStatus>({
+    queryKey: ["integrations-status"],
+    queryFn: () => af("/api/integrations") as Promise<IntegrationsStatus>,
   });
-  const ads = useQuery<AdsStatus>({
-    queryKey: ["ads-status"],
-    queryFn: () => af("/api/ads/status") as Promise<AdsStatus>,
-    enabled: isAdmin,
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["integrations-status"] });
+
+  const startOAuth = async (path: string, label: string) => {
+    try {
+      const r = await af(path) as { url?: string };
+      if (!r?.url) {
+        toast.error(`Pas d'URL de connexion ${label} reçue. Réessaie ou utilise la connexion manuelle.`);
+        return;
+      }
+      window.location.href = r.url;
+    } catch (e) {
+      toast.error(`Erreur : ${(e as Error).message}`);
+    }
+  };
+
+  const disconnect = useMutation({
+    mutationFn: (vars: { platform: string; label: string }) =>
+      af(`/api/integrations/${vars.platform}`, { method: "DELETE" }),
+    onSuccess: (_d, vars) => { invalidate(); toast.success(`${vars.label} déconnecté`); },
+    onError: (e: Error) => toast.error(`Erreur : ${e.message}`),
   });
-  if (meLoading || (isAdmin && (meta.isLoading || ads.isLoading))) {
+
+  if (isLoading || !data) {
     return <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-[#5b54d6]" /></div>;
   }
-  const META_PENDING = "On attend la validation de Meta (App Review). Tu pourras connecter ton propre compte dès que c'est approuvé.";
-  const GOOGLE_PENDING = "On attend la validation de Google (Developer Token). Tu pourras connecter ton propre compte Google Ads dès que c'est approuvé.";
+
+  const pendingPlatform = disconnect.isPending ? disconnect.variables?.platform : null;
+
   return (
     <div>
-      <IntegrationRow
+      <PlatformRow
         icon={Facebook}
-        name="Facebook (publication gratuite)"
-        connected={isAdmin ? !!meta.data?.facebook : false}
-        note={isAdmin
-          ? "Publier automatiquement des posts sur ta page Facebook."
-          : "Publier automatiquement sur ta propre page Facebook (en cours de validation Meta)."}
-        comingSoon={!isAdmin}
-        connectDisabledReason={META_PENDING}
+        name="Facebook"
+        note={data.facebook.connected
+          ? `Connecté${data.facebook.label ? ` — ${data.facebook.label}` : ""}`
+          : "Publier automatiquement sur ta page Facebook."}
+        connected={data.facebook.connected}
+        expired={data.facebook.expired}
+        onConnect={() => startOAuth("/api/auth/facebook/start", "Facebook")}
+        onDisconnect={() => disconnect.mutate({ platform: "meta", label: "Facebook & Instagram" })}
+        busy={pendingPlatform === "meta"}
+        testId="facebook"
       />
-      <IntegrationRow
+      <PlatformRow
         icon={Instagram}
-        name="Instagram (publication gratuite)"
-        connected={isAdmin ? !!meta.data?.instagram : false}
-        note={isAdmin
-          ? "Publier automatiquement sur ton compte Instagram pro."
-          : "Publier automatiquement sur ton propre compte Instagram pro (en cours de validation Meta)."}
-        comingSoon={!isAdmin}
-        connectDisabledReason={META_PENDING}
+        name="Instagram"
+        note={data.instagram.connected
+          ? `@${data.instagram.username ?? ""} connecté`
+          : data.facebook.connected
+            ? "Lie ton compte Instagram pro à ta page Facebook pour publier ici aussi."
+            : "Connecte d'abord Facebook (Instagram est lié à ta page FB)."}
+        connected={data.instagram.connected}
+        expired={data.instagram.expired}
+        // Instagram passe par l'OAuth Meta = même bouton que Facebook
+        onConnect={data.facebook.connected ? undefined : () => startOAuth("/api/auth/facebook/start", "Facebook")}
+        connectHref={data.facebook.connected ? "/app/integrations/facebook" : undefined}
+        onDisconnect={() => disconnect.mutate({ platform: "meta", label: "Facebook & Instagram" })}
+        busy={pendingPlatform === "meta"}
+        testId="instagram"
       />
-      <LinkedinRow />
-      <IntegrationRow
+      <PlatformRow
+        icon={Linkedin}
+        name="LinkedIn"
+        note={data.linkedin.connected
+          ? `Connecté en tant que ${data.linkedin.label ?? data.linkedin.email ?? "toi"}`
+          : "Publier automatiquement sur ton profil LinkedIn."}
+        connected={data.linkedin.connected}
+        expired={data.linkedin.expired}
+        onConnect={() => startOAuth("/api/auth/linkedin/start", "LinkedIn")}
+        onDisconnect={() => disconnect.mutate({ platform: "linkedin", label: "LinkedIn" })}
+        busy={pendingPlatform === "linkedin"}
+        testId="linkedin"
+      />
+      <PlatformRow
         icon={Megaphone}
         name="Meta Ads (Facebook payant)"
-        connected={isAdmin ? !!ads.data?.meta.configured : false}
-        note={isAdmin
-          ? (ads.data?.meta.configured ? "Tu peux booster des posts en publicité." : "En attente de la validation Meta.")
-          : "Booster tes posts en publicité depuis ton propre compte (en cours de validation Meta)."}
-        comingSoon={!isAdmin}
-        connectDisabledReason={META_PENDING}
-        ctaLabel="Détails →"
-        ctaHref="/app/integrations"
+        note={data.metaAds.connected
+          ? `${data.metaAds.adAccountName ?? "Compte publicitaire"}${data.metaAds.currency ? ` (${data.metaAds.currency})` : ""}`
+          : data.facebook.connected
+            ? "Renseigne ton compte publicitaire pour booster tes posts."
+            : "Connecte d'abord Facebook, puis renseigne ton compte publicitaire."}
+        connected={data.metaAds.connected}
+        expired={data.metaAds.expired}
+        // Pas d'OAuth dédié — renseignement manuel de l'Ad Account ID
+        connectHref="/app/integrations/meta-ads"
+        onDisconnect={() => disconnect.mutate({ platform: "meta_ads", label: "Meta Ads" })}
+        busy={pendingPlatform === "meta_ads"}
+        testId="meta-ads"
       />
-      <IntegrationRow
+      <PlatformRow
         icon={Megaphone}
         name="Google Ads"
-        connected={isAdmin ? !!ads.data?.google.configured : false}
-        note={isAdmin
-          ? (ads.data?.google.configured ? "Tu peux lancer des campagnes Google Search." : "En attente de la validation Google.")
-          : "Lancer des campagnes Google Search depuis ton propre compte (en cours de validation Google)."}
-        comingSoon={!isAdmin}
-        connectDisabledReason={GOOGLE_PENDING}
-        ctaLabel="Détails →"
-        ctaHref="/app/integrations"
+        note={data.googleAds.connected
+          ? data.googleAds.email ?? "Compte Google connecté"
+          : "Lancer des campagnes Google Search depuis ton propre compte."}
+        connected={data.googleAds.connected}
+        expired={data.googleAds.expired}
+        onConnect={() => startOAuth("/api/auth/google/start", "Google Ads")}
+        onDisconnect={() => disconnect.mutate({ platform: "google_ads", label: "Google Ads" })}
+        busy={pendingPlatform === "google_ads"}
+        testId="google-ads"
       />
-      <IntegrationRow
+      <PlatformRow
         icon={Mail}
         name="Emails transactionnels"
+        note={data.resend.connected
+          ? `Ta clé Resend perso (${data.resend.fromEmail ?? "expéditeur configuré"})`
+          : "Envoi des récapitulatifs et alertes via Resend (freemium 100/mois inclus)."}
         connected={true}
-        note="Envoi des récapitulatifs et alertes via Resend."
+        testId="email"
       />
     </div>
   );

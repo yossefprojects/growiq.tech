@@ -262,8 +262,33 @@ router.post("/integrations/resend/test", async (req, res) => {
 
 router.delete("/integrations/:platform", async (req, res) => {
   const platform = req.params.platform;
+  const userId = uid(req);
   if (platform === "linkedin") {
-    await db.delete(linkedinConnections).where(eq(linkedinConnections.userId, uid(req)));
+    await db.delete(linkedinConnections).where(eq(linkedinConnections.userId, userId));
+    res.json({ ok: true });
+    return;
+  }
+  // Déconnecter Meta Ads seul = retirer juste la sélection ad account,
+  // sans toucher à la connexion Facebook/Instagram principale.
+  if (platform === "meta_ads" || platform === "meta-ads") {
+    const meta = await getUserIntegration(userId, "meta");
+    if (meta) {
+      const { metaAdAccounts: _ads, selectedMetaAdAccountId: _sel, ...restMeta } = meta.metadata ?? {};
+      void _ads; void _sel;
+      await upsertUserIntegration({
+        userId,
+        platform: "meta",
+        accessToken: meta.accessToken,
+        refreshToken: meta.refreshToken,
+        expiresAt: meta.expiresAt,
+        scopes: meta.scopes,
+        accountId: meta.accountId,
+        accountLabel: meta.accountLabel,
+        metadata: restMeta,
+        status: meta.status,
+        lastVerifiedAt: meta.lastVerifiedAt,
+      });
+    }
     res.json({ ok: true });
     return;
   }
@@ -271,6 +296,6 @@ router.delete("/integrations/:platform", async (req, res) => {
     res.status(400).json({ error: "platform inconnue" });
     return;
   }
-  await deleteUserIntegration(uid(req), platform);
+  await deleteUserIntegration(userId, platform);
   res.json({ ok: true });
 });
