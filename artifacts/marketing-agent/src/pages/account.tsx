@@ -576,7 +576,7 @@ function IntegrationsBlock() {
       />
       <PlatformRow
         icon={Mail}
-        name="Emails transactionnels"
+        name="Emailing"
         note={data.resend.connected
           ? `Ta clé Resend perso (${data.resend.fromEmail ?? "expéditeur configuré"})`
           : "Envoi des récapitulatifs et alertes via Resend (freemium 100/mois inclus)."}
