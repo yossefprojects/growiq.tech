@@ -410,6 +410,7 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
           subject: campaign.subject,
           body: campaign.bodyText,
           html: campaign.bodyHtml,
+          userId, // per-user : clé Resend perso ou quota freemium
           tags: [
             { name: "campaign_id", value: String(id) },
             { name: "user_id", value: userId.slice(0, 60) },

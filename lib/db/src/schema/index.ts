@@ -16,3 +16,5 @@ export * from "./linkedin-connections";
 export * from "./email-contacts";
 export * from "./email-campaigns";
 export * from "./email-events";
+export * from "./user-integrations";
+export * from "./email-usage";

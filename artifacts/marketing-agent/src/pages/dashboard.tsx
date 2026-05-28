@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/react";
 import {
   useListOpenaiConversations,
   useListOpenaiCampaigns,
@@ -22,6 +23,7 @@ import {
   ArrowRight,
   Sparkles,
   Mail,
+  Plug,
 } from "lucide-react";
 import { Sidebar } from "@/components/sidebar";
 import { CampaignLaunchModal } from "@/components/campaign-launch-modal";
@@ -45,9 +47,38 @@ type ActionCard = {
   help?: string;
 };
 
+type IntegrationsSummary = {
+  facebook: { connected: boolean };
+  linkedin: { connected: boolean };
+  resend: { connected: boolean };
+};
+
+const basePathDashboard = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export default function DashboardPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+
+  // Carte onboarding "Connecte tes outils" si rien de configuré.
+  // Ne bloque pas l'UI : on l'affiche en bandeau au-dessus des actions.
+  const { data: integrationsSummary } = useQuery<IntegrationsSummary>({
+    queryKey: ["integrations", "summary"],
+    queryFn: async () => {
+      const token = await getToken();
+      const r = await fetch(`${basePathDashboard}/api/integrations`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!r.ok) throw new Error("failed");
+      return (await r.json()) as IntegrationsSummary;
+    },
+    staleTime: 60_000,
+  });
+  const noIntegration =
+    !!integrationsSummary &&
+    !integrationsSummary.facebook.connected &&
+    !integrationsSummary.linkedin.connected &&
+    !integrationsSummary.resend.connected;
 
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
   const [toolboxOpen, setToolboxOpen] = useState(false);
@@ -242,6 +273,31 @@ export default function DashboardPage() {
             </div>
             <AdminIconButton variant="solid" className="mt-1" />
           </div>
+
+          {/* Onboarding banner — visible tant qu'aucune intégration n'est connectée */}
+          {noIntegration ? (
+            <button
+              onClick={() => setLocation("/app/integrations")}
+              data-testid="onboarding-connect-tools"
+              className="w-full mb-6 group relative overflow-hidden rounded-2xl p-5 sm:p-6 text-left bg-gradient-to-br from-[#fef3c7] via-[#fde68a] to-[#fbbf24] text-[#1e1b4b] shadow-sm hover:shadow-md transition-all"
+            >
+              <div className="flex items-start gap-4">
+                <div className="shrink-0 rounded-xl bg-white/40 p-3">
+                  <Plug className="w-6 h-6 text-[#1e1b4b]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-lg sm:text-xl mb-1">
+                    Commence par connecter tes réseaux
+                  </div>
+                  <p className="text-sm text-[#1e1b4b]/80">
+                    L'agent a besoin d'un accès à tes comptes Facebook, LinkedIn
+                    ou Resend pour publier en ton nom. Ça prend 1 minute.
+                  </p>
+                </div>
+                <ArrowRight className="w-5 h-5 mt-1 shrink-0 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </button>
+          ) : null}
 
           {/* Action cards */}
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-10">

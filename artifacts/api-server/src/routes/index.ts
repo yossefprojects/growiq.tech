@@ -9,6 +9,8 @@ import seoRouter from "./seo";
 import adminRouter from "./admin";
 import meExtrasRouter from "./me-extras";
 import linkedinRouter, { publicLinkedinRouter } from "./linkedin";
+import facebookRouter, { publicFacebookRouter } from "./facebook-oauth";
+import integrationsRouter from "./integrations";
 import emailRouter from "./email";
 import webhooksRouter from "./webhooks";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
@@ -20,6 +22,7 @@ router.use(healthRouter);
 router.use(storageRouter);
 router.use(publicLandingRouter);
 router.use(publicLinkedinRouter);
+router.use(publicFacebookRouter);
 router.use(webhooksRouter);
 
 // Authenticated (any signed-in user can read their own profile)
@@ -32,6 +35,8 @@ router.use(adsRouter);
 router.use(seoRouter);
 router.use(meExtrasRouter);
 router.use(linkedinRouter);
+router.use(facebookRouter);
+router.use(integrationsRouter);
 router.use(emailRouter);
 
 // Admin-only routes (CRM)

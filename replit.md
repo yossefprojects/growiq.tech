@@ -67,7 +67,41 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 - **Communication** : en français, pas d'emojis sauf demande explicite, vulgarisation pour utilisateur non-technique
 - **Style code review** : signaler proactivement les compromis et limites techniques avant de coder
 
-## Multi-tenant — règles de gating admin
+## Multi-tenant — OAuth per-user
+
+Depuis la refonte multi-tenant, chaque user connecte SES propres comptes via `/app/integrations` :
+
+- **Facebook + Instagram** : OAuth Meta unique → token long-lived 60j stocké dans `user_integrations` (platform="meta"). Metadata jsonb contient `facebookPages[]`, `instagramAccount`, `selectedFacebookPageId`. MVP : on prend la 1ère page FB (pas de sélecteur multi-pages). IG = compte business lié à la page FB.
+- **LinkedIn** : OAuth existant, table dédiée `linkedin_connections` (conservée pour compatibilité).
+- **Resend** : clé API perso + domaine d'envoi → stocké dans `user_integrations` (platform="resend"). Si pas de clé perso : freemium 100 emails/mois via clé admin partagée (`email_usage` (userId, year, month)).
+- **Google Ads** : placeholder UI "bientôt", en attente du developer token Basic Access côté admin.
+
+Helpers backend :
+- `lib/user-integrations.ts` : `upsertUserIntegration/getUserIntegration/deleteUserIntegration/markIntegrationStatus`
+- `lib/meta-user.ts` : `publishToMetaForUser({userId, platform, message, imageUrl})` — marque le token `expired` automatiquement sur codes erreur Meta 190/102/463.
+- `lib/facebook-oauth.ts` : state CSRF signé HMAC via `SESSION_SECRET` + nonce single-use 10min, scopes `pages_manage_posts/instagram_content_publish/...`, échange code → long-lived token + fetch pages avec `ig_business_account`.
+- `lib/email.ts` : option `{userId}` → ordre de résolution : clé Resend perso → quota admin freemium (avec `reserveEmailsFromQuota` atomique + `refundEmailsToQuota` en cas d'échec) → fallback env. Sans userId = envoi système (notifications admin).
+- `lib/email-usage.ts` : `reserveEmailsFromQuota(userId, count)` atomique avec UPSERT contraint sur quota. Reset implicite chaque mois (clé (year, month)).
+
+Routes per-user (toutes authed, **pas admin-only**) :
+- `GET /api/integrations` → statut agrégé `{facebook, instagram, linkedin, resend, googleAds}`
+- `GET /api/integrations/email-usage` → `{usingOwnKey, used, quota, remaining}`
+- `POST /api/integrations/resend` (apiKey re_*, fromEmail, fromName?) + `/test`
+- `DELETE /api/integrations/:platform` (meta | linkedin | resend | google_ads)
+- `GET /api/auth/facebook/start` (authed) → URL OAuth
+- `GET /api/auth/facebook/callback` (PUBLIC — callback OAuth)
+- `GET /api/facebook/status`, `POST /api/facebook/disconnect`
+
+Worker `processScheduledPosts` :
+- FB/IG : si `post.userId` non-null → `publishToMetaForUser` (fatal sur notConnected/tokenExpired/missingInstagram, pas de retry). Si NULL (legacy pre-auth) → fallback admin `publishToMeta`.
+- Email : `sendEmail({userId: post.userId})` → clé perso ou quota freemium.
+
+**Tradeoffs signalés** :
+- Tokens stockés en clair (cohérent avec `linkedin_connections` existant) → à chiffrer at-rest dans une migration ultérieure groupée.
+- Pas de refresh token Meta auto → l'user reconnecte à expiration via notification.
+- Pas de webhook Meta deauthorize/permission_revoked (à brancher en suivi — pour l'instant on détecte l'expiration à la publication suivante).
+
+## Admin-only — règles de gating (anciens flows globaux)
 
 Meta (FB/IG) et les Ads (Meta + Google) utilisent des **identifiants globaux dans les env secrets** (le compte admin GrowIQ). Ils ne sont PAS par-utilisateur. Tout endpoint qui les touche doit être gated `isAdmin`:
 

@@ -29,6 +29,7 @@ function uid(req: Request): string {
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
 import { publishToMeta, isMetaConfigured, getMetaProfile, getTokenStatus } from "../../lib/meta";
+import { publishToMetaForUser } from "../../lib/meta-user";
 import { publishLinkedinPost } from "../../lib/linkedin";
 import { uploadPublicBuffer } from "../../lib/objectStorage";
 import { logger } from "../../lib/logger";
@@ -540,7 +541,7 @@ router.post("/openai/send-email", async (req, res): Promise<void> => {
     return;
   }
 
-  const result = await sendEmail({ to: recipients, subject, body, from });
+  const result = await sendEmail({ to: recipients, subject, body, from, userId: uid(req) });
   if (result.success) {
     res.json({ success: true, provider: result.provider, recipients: recipients.length });
     return;
@@ -1421,6 +1422,8 @@ async function processScheduledPosts(): Promise<void> {
             to: post.meta.recipients,
             subject,
             body: post.content,
+            // Per-user : clé Resend du propriétaire ou quota freemium GrowIQ
+            userId: post.userId ?? undefined,
           });
           if (result.success) {
             await db
@@ -1440,59 +1443,66 @@ async function processScheduledPosts(): Promise<void> {
             );
           }
         } else if (post.platform === "facebook" || post.platform === "instagram") {
-          // SECURITY: Meta credentials are global admin env secrets. We MUST
-          // refuse to publish FB/IG posts owned by non-admin users — otherwise
-          // their scheduled posts would publish on the admin's own pages.
-          let ownerIsAdmin = false;
+          // Multi-tenant : on publie sur la PAGE de l'utilisateur (token stocké
+          // dans user_integrations, platform="meta"). Si le user n'a rien
+          // connecté, on échoue avec un message clair plutôt que de spammer ses
+          // pages avec les nôtres.
+          //
+          // Cas legacy : post.userId NULL = post créé avant l'auth. On utilise
+          // alors les credentials admin globaux comme fallback (compatibilité).
           if (post.userId) {
-            const [owner] = await db
-              .select({ isAdmin: localUsers.isAdmin })
-              .from(localUsers)
-              .where(eq(localUsers.id, post.userId));
-            ownerIsAdmin = owner?.isAdmin === true;
+            const result = await publishToMetaForUser({
+              userId: post.userId,
+              platform: post.platform,
+              message: post.content,
+              imageUrl: post.meta?.imageUrl,
+            });
+            if (result.success) {
+              await db
+                .update(scheduledPosts)
+                .set({
+                  status: "sent",
+                  sentAt: new Date(),
+                  attempts: (post.attempts ?? 0) + 1,
+                  processingStartedAt: null,
+                  meta: {
+                    ...(post.meta ?? {}),
+                    metaPostId: result.postId,
+                    metaPermalink: result.permalink,
+                  },
+                })
+                .where(eq(scheduledPosts.id, post.id));
+            } else {
+              // notConnected / tokenExpired / missingInstagram : faute config
+              // utilisateur, pas une transient → on n'essaie pas de retry.
+              const fatal = !!(result.notConnected || result.tokenExpired || result.missingInstagram);
+              await handlePostFailure(post, result.error, fatal);
+            }
           } else {
-            // Legacy NULL-userId rows were created before auth; treat as admin-owned.
-            ownerIsAdmin = true;
-          }
-          if (!ownerIsAdmin) {
-            await db
-              .update(scheduledPosts)
-              .set({
-                status: "failed",
-                attempts: (post.attempts ?? 0) + 1,
-                processingStartedAt: null,
-                errorMessage:
-                  "Publication Facebook/Instagram bloquée : compte non autorisé sur les pages GrowIQ.",
-              })
-              .where(eq(scheduledPosts.id, post.id));
-            logger.warn(
-              { postId: post.id, userId: post.userId, platform: post.platform },
-              "Blocked Meta publish: non-admin owner",
-            );
-            continue;
-          }
-          const result = await publishToMeta({
-            platform: post.platform,
-            message: post.content,
-            imageUrl: post.meta?.imageUrl,
-          });
-          if (result.success) {
-            await db
-              .update(scheduledPosts)
-              .set({
-                status: "sent",
-                sentAt: new Date(),
-                attempts: (post.attempts ?? 0) + 1,
-                processingStartedAt: null,
-                meta: {
-                  ...(post.meta ?? {}),
-                  metaPostId: result.postId,
-                  metaPermalink: result.permalink,
-                },
-              })
-              .where(eq(scheduledPosts.id, post.id));
-          } else {
-            await handlePostFailure(post, result.error, !!result.configMissing);
+            // Legacy : pre-auth row → fallback token admin global.
+            const result = await publishToMeta({
+              platform: post.platform,
+              message: post.content,
+              imageUrl: post.meta?.imageUrl,
+            });
+            if (result.success) {
+              await db
+                .update(scheduledPosts)
+                .set({
+                  status: "sent",
+                  sentAt: new Date(),
+                  attempts: (post.attempts ?? 0) + 1,
+                  processingStartedAt: null,
+                  meta: {
+                    ...(post.meta ?? {}),
+                    metaPostId: result.postId,
+                    metaPermalink: result.permalink,
+                  },
+                })
+                .where(eq(scheduledPosts.id, post.id));
+            } else {
+              await handlePostFailure(post, result.error, !!result.configMissing);
+            }
           }
         } else if (post.platform === "linkedin") {
           // LinkedIn = OAuth par-utilisateur (token dans linkedin_connections).
