@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Plug, Search, Shield, User as UserIcon } from "lucide-react";
-import { useAuth, useUser } from "@clerk/react";
+import { Trash2, MessageSquare, Plus, Loader2, Rocket, Wrench, PlayCircle, Sparkles, Plug, Search, Shield, User as UserIcon, LogOut } from "lucide-react";
+import { useAuth, useUser, SignOutButton } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
@@ -279,6 +279,16 @@ export function Sidebar({
         <AdminLink />
         
         <AccountLink />
+        <SignOutButton redirectUrl="/">
+          <button
+            type="button"
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-md px-2 py-1.5 transition-colors w-full"
+            data-testid="button-signout"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Se déconnecter</span>
+          </button>
+        </SignOutButton>
       </div>
     </div>
   );
