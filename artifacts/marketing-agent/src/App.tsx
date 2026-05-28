@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
-import { ClerkProvider, useClerk, useAuth } from "@clerk/react";
+import { ClerkProvider, Show, useClerk, useAuth } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -103,19 +103,17 @@ const clerkLocalization = {
   },
 };
 
-function ClerkLoading() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f7f5ff] via-background to-[#eef9f3]">
-      <Loader2 className="w-6 h-6 animate-spin text-[#5b54d6]" />
-    </div>
-  );
-}
-
 function HomeRedirect() {
-  const { isLoaded, isSignedIn } = useAuth();
-  if (!isLoaded) return <ClerkLoading />;
-  if (isSignedIn) return <Redirect to="/app" />;
-  return <HomePage />;
+  return (
+    <>
+      <Show when="signed-in">
+        <Redirect to="/app" />
+      </Show>
+      <Show when="signed-out">
+        <HomePage />
+      </Show>
+    </>
+  );
 }
 
 type MeResponse = { userId: string; email: string | null; isAdmin: boolean };
@@ -168,10 +166,16 @@ function AdminGate({ children }: { children: React.ReactNode }) {
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isLoaded, isSignedIn } = useAuth();
-  if (!isLoaded) return <ClerkLoading />;
-  if (!isSignedIn) return <Redirect to="/sign-in" />;
-  return <AdminGate>{children}</AdminGate>;
+  return (
+    <>
+      <Show when="signed-in">
+        <AdminGate>{children}</AdminGate>
+      </Show>
+      <Show when="signed-out">
+        <Redirect to="/sign-in" />
+      </Show>
+    </>
+  );
 }
 
 function ClerkQueryClientCacheInvalidator() {
@@ -222,7 +226,7 @@ function ClerkProviderWithRoutes() {
       proxyUrl={clerkProxyUrl}
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
-      signUpUrl={`${basePath}/sign-in`}
+      signUpUrl={`${basePath}/sign-up`}
       localization={clerkLocalization}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
