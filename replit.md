@@ -66,6 +66,7 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 
 - **Communication** : en français, pas d'emojis sauf demande explicite, vulgarisation pour utilisateur non-technique
 - **Style code review** : signaler proactivement les compromis et limites techniques avant de coder
+- **Pre-publish check obligatoire** : avant chaque déploiement (ou avant de proposer `suggest_deploy`), systématiquement (1) `pnpm run typecheck` + `pnpm --filter @workspace/marketing-agent run build` pour valider le bundle Vite, (2) screenshot de la home `/` et de `/app` (ou login) via le tool screenshot pour vérifier qu'il n'y a pas d'écran blanc / d'erreur JS bloquante côté client. Ne jamais skip ce check même pour des "petits" changements UI — c'est ce qui a causé l'incident `Megaphone is not defined` en prod.
 
 ## Multi-tenant — OAuth per-user
 
