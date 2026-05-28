@@ -167,8 +167,8 @@ export const requireAdmin: RequestHandler = (req, res, next) => {
   }
   if (!r.isAdmin) {
     res.status(403).json({
-      error: "GrowIQ est en bêta fermée. Demande un accès à l'équipe pour commencer.",
-      code: "beta_closed",
+      error: "Cette fonctionnalité est réservée à l'administration.",
+      code: "admin_only",
     });
     return;
   }
