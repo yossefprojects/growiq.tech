@@ -12,6 +12,7 @@ import linkedinRouter, { publicLinkedinRouter } from "./linkedin";
 import facebookRouter, { publicFacebookRouter } from "./facebook-oauth";
 import googleRouter, { publicGoogleRouter } from "./google-oauth";
 import integrationsRouter from "./integrations";
+import manualIntegrationsRouter from "./manual-integrations";
 import emailRouter from "./email";
 import webhooksRouter from "./webhooks";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
@@ -40,6 +41,7 @@ router.use(linkedinRouter);
 router.use(facebookRouter);
 router.use(googleRouter);
 router.use(integrationsRouter);
+router.use(manualIntegrationsRouter);
 router.use(emailRouter);
 
 // Admin-only routes (CRM)

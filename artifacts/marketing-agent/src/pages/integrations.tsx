@@ -306,6 +306,13 @@ function FacebookSection({
             )}
             Connecter Facebook
           </Button>
+          <Link
+            href="/app/integrations/facebook"
+            className="block text-xs text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
+            data-testid="link-facebook-manual"
+          >
+            Ou connecter manuellement avec un token
+          </Link>
         </div>
       )}
     </Card>
@@ -395,6 +402,13 @@ function LinkedinSection({
             )}
             Connecter LinkedIn
           </Button>
+          <Link
+            href="/app/integrations/linkedin"
+            className="block text-xs text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
+            data-testid="link-linkedin-manual"
+          >
+            Ou connecter manuellement avec un token
+          </Link>
         </div>
       )}
     </Card>
@@ -702,6 +716,13 @@ function MetaAdsSection({
             )}
             {fb.connected ? "Autoriser l'accès publicitaire" : "Connecter Meta Ads"}
           </Button>
+          <Link
+            href="/app/integrations/meta-ads"
+            className="block text-xs text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
+            data-testid="link-meta-ads-manual"
+          >
+            Ou renseigner manuellement ton Ad Account ID
+          </Link>
         </div>
       )}
     </Card>
@@ -806,6 +827,13 @@ function GoogleAdsSection({
             )}
             Connecter Google Ads
           </Button>
+          <Link
+            href="/app/integrations/google-ads"
+            className="block text-xs text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
+            data-testid="link-google-ads-manual"
+          >
+            Ou renseigner manuellement ton Customer ID
+          </Link>
           {!status.configured ? (
             <p className="text-xs text-muted-foreground">
               OAuth Google pas encore configuré côté GrowIQ. On te prévient dès
@@ -900,15 +928,9 @@ export default function IntegrationsPage() {
         setLoading(false);
         return;
       }
-      const raw = await r.text();
-      let body: { url?: string } = {};
-      try { body = JSON.parse(raw); } catch { /* ignore */ }
-      // eslint-disable-next-line no-console
-      console.log("[oauth-start]", platform, "status=", r.status, "ct=", r.headers.get("content-type"), "len=", raw.length, "rawSample=", raw.slice(0, 300), "parsedUrl=", body.url);
+      const body = (await r.json().catch(() => ({}))) as { url?: string };
       if (!body.url || typeof body.url !== "string") {
-        toastError(
-          `Pas d'URL OAuth reçue (status ${r.status}, len ${raw.length}). Ouvre la console navigateur pour le détail.`,
-        );
+        toastError("Le serveur n'a pas renvoyé d'URL de connexion. Réessaie ou utilise la connexion manuelle.");
         setLoading(false);
         return;
       }

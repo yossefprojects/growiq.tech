@@ -12,6 +12,12 @@ import LandingPage from "@/pages/landing";
 import HomePage from "@/pages/home";
 import AgencyPage from "@/pages/agency";
 import IntegrationsPage from "@/pages/integrations";
+import {
+  FacebookConnectPage,
+  LinkedinConnectPage,
+  MetaAdsConnectPage,
+  GoogleAdsConnectPage,
+} from "@/pages/integrations-connect";
 import SeoPage from "@/pages/seo";
 import EmailsPage from "@/pages/emails";
 import AdminPage from "@/pages/admin";
@@ -207,6 +213,10 @@ function Router() {
       <Route path="/app/chat">{() => <RequireAuth><ChatPage /></RequireAuth>}</Route>
       <Route path="/app/agency">{() => <RequireAuth><AgencyPage /></RequireAuth>}</Route>
       <Route path="/app/integrations">{() => <RequireAuth><IntegrationsPage /></RequireAuth>}</Route>
+      <Route path="/app/integrations/facebook">{() => <RequireAuth><FacebookConnectPage /></RequireAuth>}</Route>
+      <Route path="/app/integrations/linkedin">{() => <RequireAuth><LinkedinConnectPage /></RequireAuth>}</Route>
+      <Route path="/app/integrations/meta-ads">{() => <RequireAuth><MetaAdsConnectPage /></RequireAuth>}</Route>
+      <Route path="/app/integrations/google-ads">{() => <RequireAuth><GoogleAdsConnectPage /></RequireAuth>}</Route>
       <Route path="/app/seo">{() => <RequireAuth><SeoPage /></RequireAuth>}</Route>
       <Route path="/app/emails">{() => <RequireAuth><EmailsPage /></RequireAuth>}</Route>
       <Route path="/app/admin">{() => <RequireAuth><AdminPage /></RequireAuth>}</Route>
