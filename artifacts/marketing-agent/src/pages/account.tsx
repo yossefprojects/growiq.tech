@@ -475,17 +475,54 @@ function IntegrationsBlock() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["integrations-status"] });
 
   const startOAuth = async (path: string, label: string) => {
+    // Petite fenêtre de connexion : l'utilisateur ne quitte jamais GrowIQ.
+    // Ouverte de façon synchrone pour ne pas être bloquée par le navigateur.
+    const popup = window.open(
+      "about:blank",
+      "growiq_oauth",
+      "width=600,height=720,menubar=no,toolbar=no,location=no,status=no",
+    );
     try {
       const r = await af(path) as { url?: string };
       if (!r?.url) {
         toast.error(`Pas d'URL de connexion ${label} reçue. Réessaie ou utilise la connexion manuelle.`);
+        popup?.close();
         return;
       }
-      window.location.href = r.url;
+      if (!popup) {
+        // Fenêtre bloquée d'emblée → on bascule sur l'onglet courant.
+        window.location.href = r.url;
+      } else if (!popup.closed) {
+        popup.location.href = r.url;
+      }
+      // Si l'utilisateur a fermé la fenêtre avant la fin : on ne force rien.
     } catch (e) {
       toast.error(`Erreur : ${(e as Error).message}`);
+      popup?.close();
     }
   };
+
+  // Résultats envoyés par la petite fenêtre de connexion (popup).
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      const d = e.data as
+        | { source?: string; platform?: string; status?: string }
+        | undefined;
+      if (!d || d.source !== "growiq-oauth") return;
+      const labels: Record<string, string> = {
+        facebook: "Facebook",
+        linkedin: "LinkedIn",
+        google: "Google Ads",
+      };
+      const label = labels[d.platform ?? ""] ?? "Compte";
+      if (d.status === "ok") toast.success(`${label} connecté !`);
+      else if (d.status) toast.error(d.status);
+      invalidate();
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [invalidate]);
 
   const disconnect = useMutation({
     mutationFn: (vars: { platform: string; label: string }) =>
@@ -788,11 +825,25 @@ export default function AccountPage() {
   const [clerkOpen, setClerkOpen] = useState(false);
   const [location] = useLocation();
 
-  // Toast on return from LinkedIn OAuth callback (?linkedin=ok|...)
+  // Retour du callback LinkedIn (?linkedin=ok|...)
   useEffect(() => {
     const qs = new URLSearchParams(window.location.search);
     const li = qs.get("linkedin");
     if (!li) return;
+    // Si on est dans la petite fenêtre de connexion : prévenir la page
+    // principale GrowIQ puis se fermer automatiquement.
+    if (window.opener && window.opener !== window) {
+      try {
+        window.opener.postMessage(
+          { source: "growiq-oauth", platform: "linkedin", status: li },
+          window.location.origin,
+        );
+      } catch {
+        /* origines différentes : on ignore */
+      }
+      window.close();
+      return;
+    }
     if (li === "ok") toast.success("LinkedIn connecté avec succès");
     else toast.error(li);
     // Clean URL

@@ -856,32 +856,69 @@ export default function IntegrationsPage() {
   const [connectingLn, setConnectingLn] = useState(false);
   const [connectingGoogle, setConnectingGoogle] = useState(false);
 
-  // Toasts depuis les callbacks OAuth (query string facebook=... / linkedin=... / google=...)
+  // Résultats des callbacks OAuth (query string facebook=... / linkedin=... / google=...)
   useEffect(() => {
     const params = new URLSearchParams(search);
     const fb = params.get("facebook");
-    if (fb === "ok") {
-      toastSuccess("Facebook connecté !");
-    } else if (fb) {
-      toastError(fb);
-    }
     const ln = params.get("linkedin");
-    if (ln === "ok") {
-      toastSuccess("LinkedIn connecté !");
-    } else if (ln) {
-      toastError(ln);
-    }
     const gg = params.get("google");
-    if (gg === "ok") {
-      toastSuccess("Google Ads connecté !");
-    } else if (gg) {
-      toastError(gg);
+    if (!fb && !ln && !gg) return;
+
+    const platform = fb ? "facebook" : ln ? "linkedin" : "google";
+    const status = (fb || ln || gg) as string;
+
+    // Si cette page s'est ouverte DANS la petite fenêtre de connexion, on
+    // prévient la fenêtre principale GrowIQ et on se ferme automatiquement.
+    if (window.opener && window.opener !== window) {
+      try {
+        window.opener.postMessage(
+          { source: "growiq-oauth", platform, status },
+          window.location.origin,
+        );
+      } catch {
+        /* origines différentes : on ignore, le toast de secours s'affichera */
+      }
+      window.close();
+      return;
     }
-    if (fb || ln || gg) {
-      // Clean URL
-      window.history.replaceState({}, "", basePath + "/app/integrations");
-    }
+
+    // Cas normal (pas de fenêtre / fenêtre bloquée) : on affiche le toast ici.
+    if (fb === "ok") toastSuccess("Facebook connecté !");
+    else if (fb) toastError(fb);
+    if (ln === "ok") toastSuccess("LinkedIn connecté !");
+    else if (ln) toastError(ln);
+    if (gg === "ok") toastSuccess("Google Ads connecté !");
+    else if (gg) toastError(gg);
+    window.history.replaceState({}, "", basePath + "/app/integrations");
   }, [search]);
+
+  // Écoute les résultats envoyés par la petite fenêtre de connexion (popup).
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      const d = e.data as
+        | { source?: string; platform?: string; status?: string }
+        | undefined;
+      if (!d || d.source !== "growiq-oauth") return;
+      setConnectingFb(false);
+      setConnectingLn(false);
+      setConnectingGoogle(false);
+      const labels: Record<string, string> = {
+        facebook: "Facebook",
+        linkedin: "LinkedIn",
+        google: "Google Ads",
+      };
+      const label = labels[d.platform ?? ""] ?? "Compte";
+      if (d.status === "ok") {
+        toastSuccess(`${label} connecté !`);
+      } else if (d.status) {
+        toastError(d.status);
+      }
+      void qc.invalidateQueries({ queryKey: ["integrations"] });
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [qc]);
 
   const authedFetch = async (url: string, init?: RequestInit) => {
     const token = await getToken();
@@ -915,6 +952,15 @@ export default function IntegrationsPage() {
     setLoading: (b: boolean) => void,
   ) => {
     setLoading(true);
+    // On ouvre la fenêtre TOUT DE SUITE (de façon synchrone dans le clic) pour
+    // ne pas se faire bloquer par le navigateur. La connexion se fait dans cette
+    // petite fenêtre : l'utilisateur ne quitte jamais GrowIQ. Une fois terminée,
+    // la fenêtre se ferme seule et prévient la page principale (voir useEffect).
+    const popup = window.open(
+      "about:blank",
+      "growiq_oauth",
+      "width=600,height=720,menubar=no,toolbar=no,location=no,status=no",
+    );
     try {
       const r = await authedFetch(`${basePath}/api/auth/${platform}/start`);
       if (!r.ok) {
@@ -925,18 +971,36 @@ export default function IntegrationsPage() {
           google: "Google",
         };
         toastError(`Impossible de démarrer la connexion ${labels[platform]} : ${txt}`);
+        popup?.close();
         setLoading(false);
         return;
       }
       const body = (await r.json().catch(() => ({}))) as { url?: string };
       if (!body.url || typeof body.url !== "string") {
         toastError("Le serveur n'a pas renvoyé d'URL de connexion. Réessaie ou utilise la connexion manuelle.");
+        popup?.close();
         setLoading(false);
         return;
       }
-      window.location.href = body.url;
+      if (!popup) {
+        // Fenêtre bloquée d'emblée par le navigateur → on bascule sur l'onglet courant.
+        window.location.href = body.url;
+      } else if (popup.closed) {
+        // L'utilisateur a fermé la fenêtre avant la fin : on ne force rien.
+        setLoading(false);
+      } else {
+        popup.location.href = body.url;
+        // Si l'utilisateur ferme la fenêtre sans finir, on relâche le spinner.
+        const timer = window.setInterval(() => {
+          if (popup.closed) {
+            window.clearInterval(timer);
+            setLoading(false);
+          }
+        }, 700);
+      }
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Erreur réseau");
+      popup?.close();
       setLoading(false);
     }
   };
