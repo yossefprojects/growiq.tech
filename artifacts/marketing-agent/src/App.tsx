@@ -203,6 +203,42 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+const CANONICAL_ORIGIN = "https://growiq.tech";
+
+/**
+ * Met à jour dynamiquement <link rel="canonical"> et og:url à chaque
+ * changement de route. Sans ça, toutes les pages héritent du canonical
+ * codé en dur dans index.html (la home), ce que Lighthouse signale comme
+ * "rel=canonical invalide : pointe vers la racine au lieu de la page".
+ * On normalise sur le domaine de prod pour que l'URL canonique reste
+ * stable quel que soit l'environnement (dev Replit vs prod).
+ */
+function CanonicalTag() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    const path = location === "/" ? "" : location.replace(/\/+$/, "");
+    const url = path ? `${CANONICAL_ORIGIN}${path}` : `${CANONICAL_ORIGIN}/`;
+
+    let canonical = document.querySelector<HTMLLinkElement>(
+      'link[rel="canonical"]',
+    );
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.rel = "canonical";
+      document.head.appendChild(canonical);
+    }
+    canonical.href = url;
+
+    const ogUrl = document.querySelector<HTMLMetaElement>(
+      'meta[property="og:url"]',
+    );
+    if (ogUrl) ogUrl.content = url;
+  }, [location]);
+
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -244,6 +280,7 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
+          <CanonicalTag />
           <Router />
           <SonnerToaster richColors closeButton position="top-right" />
         </TooltipProvider>
