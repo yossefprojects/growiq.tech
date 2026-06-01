@@ -370,13 +370,20 @@ export function FacebookConnectPage() {
           ),
         },
         {
-          title: "Génère le token",
-          description:
-            "Clique sur « Generate Access Token » en haut à droite. Connecte-toi avec ton Facebook et autorise l'accès à ta page.",
+          title: "Génère le token (très important : token Utilisateur)",
+          description: (
+            <>
+              Dans le menu déroulant en haut à droite, choisis bien{" "}
+              <span className="font-semibold">« User Token » (token utilisateur)</span> — surtout PAS un token de Page,
+              sinon la connexion échouera. Clique ensuite sur{" "}
+              <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">Generate Access Token</span>,
+              connecte-toi avec ton Facebook et autorise l'accès à ta page.
+            </>
+          ),
         },
       ]}
       finalStepTitle="Colle ton token ici"
-      finalLabel="Copie le « Access Token » qui apparaît tout en haut de la page Facebook Developers et colle-le ci-dessous."
+      finalLabel="Copie le « Access Token » (token utilisateur) qui apparaît tout en haut de la page Facebook Developers et colle-le ci-dessous."
       placeholder="EAAxxxxxxxxx..."
       apiPath="/api/integrations/facebook/manual"
       bodyKey="accessToken"
