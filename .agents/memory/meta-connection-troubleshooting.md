@@ -15,6 +15,8 @@ description: Diagnosing why users can't connect Facebook/Instagram in GrowIQ
 - **Cause:** the Meta app **Growiq.ai (ID 3484923875007702)** is in **Development mode**, not Live.
 - In dev mode only roles (admin/developer/tester) can OAuth & publish. Public users are blocked.
 - **Why:** going Live requires Business Verification + App Review of `pages_manage_posts` & `instagram_content_publish`, then flipping the Live switch.
+- Verified `META_APP_ID` env == 3484923875007702, so GrowIQ's OAuth targets the correct app — "Application inactive" is purely the Meta dev-mode block, NOT a config/redirect bug.
+- **Gotcha:** even the owner sees "Application inactive" if (a) the Facebook account logged into the browser ≠ the app's admin account, or (b) they are a Business-portfolio admin but NOT listed under **App Roles → Roles**. Being a BM admin ≠ being an app role. Fix: add that exact FB account as Admin/Tester under App Roles and accept the invite.
 
 **Key guidance:** the manual token flow is too error-prone for non-technical users. Since the account owner is the app **admin**, steer them to the one-click OAuth button (works in dev mode for admins/testers). Reserve manual paste as a last resort.
 
