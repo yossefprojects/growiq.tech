@@ -1,0 +1,1 @@
+- [Meta connection troubleshooting](meta-connection-troubleshooting.md) — #100 'nonexisting field (accounts)' = wrong token type; 'Application inactive' = app still in Dev mode; prefer one-click OAuth over manual token paste.

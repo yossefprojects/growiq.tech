@@ -54,6 +54,16 @@ function fbErrorMessage(body: unknown): string {
   return typeof body === "string" ? body : "Réponse Facebook inattendue.";
 }
 
+// Détecte le cas "mauvais type de token" : l'utilisateur a collé un token de
+// Page ou d'application au lieu d'un token Utilisateur. Meta renvoie alors
+// code 100 « nonexisting field (accounts) » car le nœud n'est pas un User.
+function isWrongTokenTypeError(body: unknown): boolean {
+  const e = (body as { error?: { message?: string; code?: number } })?.error;
+  if (!e) return false;
+  const msg = (e.message ?? "").toLowerCase();
+  return e.code === 100 && msg.includes("nonexisting field (accounts)");
+}
+
 // ── 1. Facebook + Instagram (manual access token) ────────────────────────
 
 const fbSchema = z.object({
@@ -91,6 +101,15 @@ router.post("/integrations/facebook/manual", async (req, res) => {
     `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,category,instagram_business_account{id,username}&access_token=${encodeURIComponent(accessToken)}`,
   );
   if (!pagesResp.ok) {
+    if (isWrongTokenTypeError(pagesResp.body)) {
+      res.status(400).json({
+        ok: false,
+        error:
+          "Ce token n'est pas du bon type. Tu as collé un token de Page ou d'application au lieu d'un token Utilisateur. " +
+          "Dans l'outil Meta, en haut à droite, choisis bien « Get User Access Token » (token utilisateur), coche les permissions pages_show_list, pages_manage_posts, instagram_basic et instagram_content_publish, puis génère un nouveau token et recolle-le ici.",
+      });
+      return;
+    }
     res.status(400).json({
       ok: false,
       error: `Impossible de lister tes pages Facebook : ${fbErrorMessage(pagesResp.body)}`,
