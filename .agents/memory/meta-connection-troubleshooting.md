@@ -21,3 +21,8 @@ description: Diagnosing why users can't connect Facebook/Instagram in GrowIQ
 **Key guidance:** the manual token flow is too error-prone for non-technical users. Since the account owner is the app **admin**, steer them to the one-click OAuth button (works in dev mode for admins/testers). Reserve manual paste as a last resort.
 
 **Note:** the "Getting Started with Marketing API" email = ads/paid (Marketing API) access only; it does NOT mean organic-publishing App Review is approved.
+
+## OAuth dialog fails entirely: "Invalid Scopes" / "Ce contenu n'est pas disponible"
+- **Cause:** the OAuth `scope` list contained an advanced permission the app is NOT approved for (here `ads_management`/`ads_read`, added when wiring Meta Ads). Requesting *any* un-approved advanced scope makes Meta reject the **whole** authorization dialog — even the basic publishing scopes that would otherwise work for an admin/tester in dev mode.
+- The dev-only diagnostic ("This message is only shown to developers... Invalid Scopes: ...") confirms the logged-in user IS an app role; the block is scope-level, not role-level.
+- **Rule:** never put App-Review-gated advanced scopes (ads_management, ads_read, and any not-yet-approved permission) in the default login scope list. Keep the login to the minimum needed, and gate advanced scopes behind a separate opt-in re-OAuth that you only enable after that specific permission is approved.

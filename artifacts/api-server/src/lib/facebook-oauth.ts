@@ -36,9 +36,11 @@ const DEFAULT_SCOPES = [
   "instagram_basic",
   "instagram_content_publish",
   "business_management",
-  // Meta Ads — booster les posts en payant. Nécessite App Review Meta.
-  "ads_management",
-  "ads_read",
+  // NOTE : les scopes Meta Ads (ads_management, ads_read) sont volontairement
+  // retirés du login par défaut. Tant que Meta n'a pas approuvé l'App Review,
+  // demander ces scopes avancés fait échouer TOUT le dialogue d'autorisation
+  // ("Invalid Scopes" / "Ce contenu n'est pas disponible"), même pour publier.
+  // À réintégrer dans un flow Meta Ads opt-in une fois l'approbation obtenue.
 ].join(",");
 
 export type FacebookConfig = {
