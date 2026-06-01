@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "L6M5WFn2CIPdXImM2vZyo"
+uri = "file://docs/dossier-app-review-meta.md"
+type = "text"
+title = "Dossier App Review Meta — GrowIQ (clé en main)"
