@@ -31,6 +31,7 @@ import {
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMe } from "@/hooks/use-me";
+import { useT } from "@/lib/i18n";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -184,6 +185,7 @@ function TextInput({
 function ProfileForm({ profile }: { profile: BusinessProfile }) {
   const af = useAuthedFetch();
   const qc = useQueryClient();
+  const t = useT();
   const [form, setForm] = useState({
     firstName: profile.firstName ?? "",
     lastName: profile.lastName ?? "",
@@ -198,46 +200,46 @@ function ProfileForm({ profile }: { profile: BusinessProfile }) {
     mutationFn: () => af("/api/openai/business-profile", { method: "PUT", body: JSON.stringify(form) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["business-profile"] });
-      toast.success("Profil enregistré");
+      toast.success(t("Profil enregistré"));
     },
-    onError: (e: Error) => toast.error(`Erreur : ${e.message}`),
+    onError: (e: Error) => toast.error(t("Erreur : {message}", { message: e.message })),
   });
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <Label>Prénom</Label>
+          <Label>{t("Prénom")}</Label>
           <TextInput value={form.firstName} onChange={(v) => setForm({ ...form, firstName: v })} testid="input-first-name" />
         </div>
         <div>
-          <Label>Nom</Label>
+          <Label>{t("Nom")}</Label>
           <TextInput value={form.lastName} onChange={(v) => setForm({ ...form, lastName: v })} testid="input-last-name" />
         </div>
       </div>
       <div>
-        <Label>Nom de l'entreprise</Label>
-        <TextInput value={form.businessName} onChange={(v) => setForm({ ...form, businessName: v })} placeholder="Ma Petite Boutique" testid="input-business-name" />
+        <Label>{t("Nom de l'entreprise")}</Label>
+        <TextInput value={form.businessName} onChange={(v) => setForm({ ...form, businessName: v })} placeholder={t("Ma Petite Boutique")} testid="input-business-name" />
       </div>
       <div>
-        <Label>Secteur d'activité</Label>
-        <TextInput value={form.activity} onChange={(v) => setForm({ ...form, activity: v })} placeholder="Ex : Boulangerie artisanale" testid="input-activity" />
+        <Label>{t("Secteur d'activité")}</Label>
+        <TextInput value={form.activity} onChange={(v) => setForm({ ...form, activity: v })} placeholder={t("Ex : Boulangerie artisanale")} testid="input-activity" />
       </div>
       <div>
-        <Label>Site web</Label>
+        <Label>{t("Site web")}</Label>
         <TextInput value={form.companyWebsite} onChange={(v) => setForm({ ...form, companyWebsite: v })} placeholder="https://monsite.com" testid="input-website" />
       </div>
       <div>
-        <Label>Cible / clientèle</Label>
-        <TextInput value={form.targetAudience} onChange={(v) => setForm({ ...form, targetAudience: v })} placeholder="Ex : Jeunes parents urbains" testid="input-target" />
+        <Label>{t("Cible / clientèle")}</Label>
+        <TextInput value={form.targetAudience} onChange={(v) => setForm({ ...form, targetAudience: v })} placeholder={t("Ex : Jeunes parents urbains")} testid="input-target" />
       </div>
       <div>
-        <Label>Description du business</Label>
+        <Label>{t("Description du business")}</Label>
         <textarea
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
           rows={4}
-          placeholder="Ce que tu vends, ta différence, ton histoire en quelques phrases. Ces infos servent à personnaliser toutes les réponses de l'agent IA."
+          placeholder={t("Ce que tu vends, ta différence, ton histoire en quelques phrases. Ces infos servent à personnaliser toutes les réponses de l'agent IA.")}
           data-testid="input-description"
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5b54d6]/30"
         />
@@ -250,7 +252,7 @@ function ProfileForm({ profile }: { profile: BusinessProfile }) {
           data-testid="button-save-profile"
         >
           {m.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Enregistrer
+          {t("Enregistrer")}
         </button>
       </div>
     </div>
@@ -262,6 +264,7 @@ function ProfileForm({ profile }: { profile: BusinessProfile }) {
 function PreferencesForm({ profile }: { profile: BusinessProfile }) {
   const af = useAuthedFetch();
   const qc = useQueryClient();
+  const t = useT();
   const [tone, setTone] = useState(profile.tone ?? "");
   const [language, setLanguage] = useState(profile.language ?? "fr");
   const [primaryGoal, setPrimaryGoal] = useState(profile.primaryGoal ?? "");
@@ -278,35 +281,35 @@ function PreferencesForm({ profile }: { profile: BusinessProfile }) {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["business-profile"] });
-      toast.success("Préférences enregistrées");
+      toast.success(t("Préférences enregistrées"));
     },
-    onError: (e: Error) => toast.error(`Erreur : ${e.message}`),
+    onError: (e: Error) => toast.error(t("Erreur : {message}", { message: e.message })),
   });
 
   return (
     <div className="space-y-5">
       <div>
-        <Label>Ton de communication</Label>
+        <Label>{t("Ton de communication")}</Label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {TONES.map((t) => (
+          {TONES.map((opt) => (
             <button
-              key={t.id}
-              onClick={() => setTone(t.id)}
-              data-testid={`tone-${t.id}`}
+              key={opt.id}
+              onClick={() => setTone(opt.id)}
+              data-testid={`tone-${opt.id}`}
               className={cn(
                 "text-left rounded-lg border p-3 transition-colors",
-                tone === t.id ? "border-[#5b54d6] bg-[#5b54d6]/10" : "border-border/60 hover:border-[#5b54d6]/50",
+                tone === opt.id ? "border-[#5b54d6] bg-[#5b54d6]/10" : "border-border/60 hover:border-[#5b54d6]/50",
               )}
             >
-              <div className="font-semibold text-sm">{t.label}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{t.desc}</div>
+              <div className="font-semibold text-sm">{t(opt.label)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{t(opt.desc)}</div>
             </button>
           ))}
         </div>
       </div>
 
       <div>
-        <Label>Langue préférée</Label>
+        <Label>{t("Langue préférée")}</Label>
         <div className="flex gap-2 flex-wrap">
           {LANGUAGES.map((l) => (
             <button
@@ -318,27 +321,27 @@ function PreferencesForm({ profile }: { profile: BusinessProfile }) {
                 language === l.id ? "border-[#5b54d6] bg-[#5b54d6]/10 text-[#5b54d6] font-semibold" : "border-border/60 hover:border-[#5b54d6]/50",
               )}
             >
-              {l.label}
+              {t(l.label)}
             </button>
           ))}
         </div>
       </div>
 
       <div>
-        <Label>Objectif principal</Label>
+        <Label>{t("Objectif principal")}</Label>
         <select
           value={primaryGoal}
           onChange={(e) => setPrimaryGoal(e.target.value)}
           data-testid="select-primary-goal"
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
-          <option value="">— Aucun choisi —</option>
-          {GOAL_OPTIONS.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+          <option value="">{t("— Aucun choisi —")}</option>
+          {GOAL_OPTIONS.map((g) => <option key={g.id} value={g.id}>{t(g.label)}</option>)}
         </select>
       </div>
 
       <div>
-        <Label>Autres objectifs (plusieurs possibles)</Label>
+        <Label>{t("Autres objectifs (plusieurs possibles)")}</Label>
         <div className="flex flex-wrap gap-2">
           {GOAL_OPTIONS.map((g) => {
             const on = goals.includes(g.id);
@@ -353,7 +356,7 @@ function PreferencesForm({ profile }: { profile: BusinessProfile }) {
                 )}
               >
                 {on && <Check className="w-3 h-3 inline mr-1" />}
-                {g.label}
+                {t(g.label)}
               </button>
             );
           })}
@@ -368,7 +371,7 @@ function PreferencesForm({ profile }: { profile: BusinessProfile }) {
           data-testid="button-save-preferences"
         >
           {m.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Enregistrer les préférences
+          {t("Enregistrer les préférences")}
         </button>
       </div>
     </div>
@@ -403,6 +406,7 @@ function PlatformRow({
   busy?: boolean;
   testId: string;
 }) {
+  const t = useT();
   return (
     <div className="flex items-center justify-between gap-3 py-3 border-b border-border/40 last:border-b-0">
       <div className="flex items-center gap-3 min-w-0">
@@ -416,7 +420,7 @@ function PlatformRow({
         {connected ? (
           <>
             <span className="inline-flex items-center gap-1 text-xs font-semibold bg-[#3dbf8e]/15 text-[#1a7a55] px-2 py-1 rounded-full">
-              <Check className="w-3 h-3" /> Connecté
+              <Check className="w-3 h-3" /> {t("Connecté")}
             </span>
             {onDisconnect && (
               <button
@@ -425,7 +429,7 @@ function PlatformRow({
                 data-testid={`button-${testId}-disconnect`}
                 className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline disabled:opacity-50"
               >
-                {busy ? <Loader2 className="w-3 h-3 animate-spin inline" /> : "Déconnecter"}
+                {busy ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t("Déconnecter")}
               </button>
             )}
           </>
@@ -437,7 +441,7 @@ function PlatformRow({
                 expired ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700",
               )}
             >
-              <X className="w-3 h-3" /> {expired ? "Jeton expiré" : "Non connecté"}
+              <X className="w-3 h-3" /> {expired ? t("Jeton expiré") : t("Non connecté")}
             </span>
             {onConnect ? (
               <button
@@ -447,7 +451,7 @@ function PlatformRow({
                 className="inline-flex items-center gap-1 text-xs bg-[#0a66c2] hover:bg-[#0958a8] text-white rounded-md px-3 py-1.5 disabled:opacity-50"
               >
                 {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}
-                Connecter
+                {t("Connecter")}
               </button>
             ) : connectHref ? (
               <Link
@@ -455,7 +459,7 @@ function PlatformRow({
                 data-testid={`link-${testId}-connect`}
                 className="inline-flex items-center gap-1 text-xs bg-[#0a66c2] hover:bg-[#0958a8] text-white rounded-md px-3 py-1.5"
               >
-                <ExternalLink className="w-3 h-3" /> Connecter
+                <ExternalLink className="w-3 h-3" /> {t("Connecter")}
               </Link>
             ) : null}
           </>
@@ -468,6 +472,7 @@ function PlatformRow({
 function IntegrationsBlock() {
   const af = useAuthedFetch();
   const qc = useQueryClient();
+  const t = useT();
 
   const { data, isLoading } = useQuery<IntegrationsStatus>({
     queryKey: ["integrations-status"],
@@ -486,7 +491,7 @@ function IntegrationsBlock() {
     try {
       const r = await af(path) as { url?: string };
       if (!r?.url) {
-        toast.error(`Pas d'URL de connexion ${label} reçue. Réessaie ou utilise la connexion manuelle.`);
+        toast.error(t("Pas d'URL de connexion {label} reçue. Réessaie ou utilise la connexion manuelle.", { label }));
         popup?.close();
         return;
       }
@@ -516,8 +521,8 @@ function IntegrationsBlock() {
         linkedin: "LinkedIn",
         google: "Google Ads",
       };
-      const label = labels[d.platform ?? ""] ?? "Compte";
-      if (d.status === "ok") toast.success(`${label} connecté !`);
+      const label = labels[d.platform ?? ""] ?? t("Compte");
+      if (d.status === "ok") toast.success(t("{label} connecté !", { label }));
       else if (d.status) toast.error(d.status);
       invalidate();
     };
@@ -528,8 +533,8 @@ function IntegrationsBlock() {
   const disconnect = useMutation({
     mutationFn: (vars: { platform: string; label: string }) =>
       af(`/api/integrations/${vars.platform}`, { method: "DELETE" }),
-    onSuccess: (_d, vars) => { invalidate(); toast.success(`${vars.label} déconnecté`); },
-    onError: (e: Error) => toast.error(`Erreur : ${e.message}`),
+    onSuccess: (_d, vars) => { invalidate(); toast.success(t("{label} déconnecté", { label: vars.label })); },
+    onError: (e: Error) => toast.error(t("Erreur : {message}", { message: e.message })),
   });
 
   if (isLoading || !data) {
@@ -544,8 +549,8 @@ function IntegrationsBlock() {
         icon={Facebook}
         name="Facebook"
         note={data.facebook.connected
-          ? `Connecté${data.facebook.label ? ` — ${data.facebook.label}` : ""}`
-          : "Publier automatiquement sur ta page Facebook."}
+          ? (data.facebook.label ? t("Connecté — {label}", { label: data.facebook.label }) : t("Connecté"))
+          : t("Publier automatiquement sur ta page Facebook.")}
         connected={data.facebook.connected}
         expired={data.facebook.expired}
         onConnect={() => startOAuth("/api/auth/facebook/start", "Facebook")}
@@ -557,10 +562,10 @@ function IntegrationsBlock() {
         icon={Instagram}
         name="Instagram"
         note={data.instagram.connected
-          ? `@${data.instagram.username ?? ""} connecté`
+          ? t("@{username} connecté", { username: data.instagram.username ?? "" })
           : data.facebook.connected
-            ? "Lie ton compte Instagram pro à ta page Facebook pour publier ici aussi."
-            : "Connecte d'abord Facebook (Instagram est lié à ta page FB)."}
+            ? t("Lie ton compte Instagram pro à ta page Facebook pour publier ici aussi.")
+            : t("Connecte d'abord Facebook (Instagram est lié à ta page FB).")}
         connected={data.instagram.connected}
         expired={data.instagram.expired}
         // Instagram passe par l'OAuth Meta = même bouton que Facebook
@@ -574,8 +579,8 @@ function IntegrationsBlock() {
         icon={Linkedin}
         name="LinkedIn"
         note={data.linkedin.connected
-          ? `Connecté en tant que ${data.linkedin.label ?? data.linkedin.email ?? "toi"}`
-          : "Publier automatiquement sur ton profil LinkedIn."}
+          ? t("Connecté en tant que {name}", { name: data.linkedin.label ?? data.linkedin.email ?? t("toi") })
+          : t("Publier automatiquement sur ton profil LinkedIn.")}
         connected={data.linkedin.connected}
         expired={data.linkedin.expired}
         onConnect={() => startOAuth("/api/auth/linkedin/start", "LinkedIn")}
@@ -585,12 +590,12 @@ function IntegrationsBlock() {
       />
       <PlatformRow
         icon={Megaphone}
-        name="Meta Ads (Facebook payant)"
+        name={t("Meta Ads (Facebook payant)")}
         note={data.metaAds.connected
-          ? `${data.metaAds.adAccountName ?? "Compte publicitaire"}${data.metaAds.currency ? ` (${data.metaAds.currency})` : ""}`
+          ? `${data.metaAds.adAccountName ?? t("Compte publicitaire")}${data.metaAds.currency ? ` (${data.metaAds.currency})` : ""}`
           : data.facebook.connected
-            ? "Renseigne ton compte publicitaire pour booster tes posts."
-            : "Connecte d'abord Facebook, puis renseigne ton compte publicitaire."}
+            ? t("Renseigne ton compte publicitaire pour booster tes posts.")
+            : t("Connecte d'abord Facebook, puis renseigne ton compte publicitaire.")}
         connected={data.metaAds.connected}
         expired={data.metaAds.expired}
         // Pas d'OAuth dédié — renseignement manuel de l'Ad Account ID
@@ -603,8 +608,8 @@ function IntegrationsBlock() {
         icon={Megaphone}
         name="Google Ads"
         note={data.googleAds.connected
-          ? data.googleAds.email ?? "Compte Google connecté"
-          : "Lancer des campagnes Google Search depuis ton propre compte."}
+          ? data.googleAds.email ?? t("Compte Google connecté")
+          : t("Lancer des campagnes Google Search depuis ton propre compte.")}
         connected={data.googleAds.connected}
         expired={data.googleAds.expired}
         onConnect={() => startOAuth("/api/auth/google/start", "Google Ads")}
@@ -614,10 +619,10 @@ function IntegrationsBlock() {
       />
       <PlatformRow
         icon={Mail}
-        name="Emailing"
+        name={t("Emailing")}
         note={data.resend.connected
-          ? `Ta clé Resend perso (${data.resend.fromEmail ?? "expéditeur configuré"})`
-          : "Envoi des récapitulatifs et alertes via Resend (freemium 100/mois inclus)."}
+          ? t("Ta clé Resend perso ({email})", { email: data.resend.fromEmail ?? t("expéditeur configuré") })
+          : t("Envoi des récapitulatifs et alertes via Resend (freemium 100/mois inclus).")}
         connected={true}
         // Déconnecter uniquement si l'user a configuré SA propre clé Resend.
         // En mode freemium (clé partagée GrowIQ), pas de déconnexion possible.
@@ -644,6 +649,7 @@ function StatTile({ value, label }: { value: number; label: string }) {
 
 function StatsBlock() {
   const af = useAuthedFetch();
+  const t = useT();
   const { data, isLoading } = useQuery<Stats>({
     queryKey: ["me-stats"],
     queryFn: () => af("/api/me/stats") as Promise<Stats>,
@@ -653,14 +659,14 @@ function StatsBlock() {
   }
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <StatTile value={data.postsSent} label="Posts publiés" />
-      <StatTile value={data.postsTotal} label="Posts au total" />
-      <StatTile value={data.agencyCampaigns} label="Campagnes" />
-      <StatTile value={data.landingPages} label="Landing pages" />
-      <StatTile value={data.leads} label="Leads collectés" />
-      <StatTile value={data.conversations} label="Conversations" />
-      <StatTile value={data.seoAudits + data.seoKeywordSets + data.seoContentPlans} label="Analyses SEO" />
-      <StatTile value={data.adCampaigns} label="Campagnes payantes" />
+      <StatTile value={data.postsSent} label={t("Posts publiés")} />
+      <StatTile value={data.postsTotal} label={t("Posts au total")} />
+      <StatTile value={data.agencyCampaigns} label={t("Campagnes")} />
+      <StatTile value={data.landingPages} label={t("Landing pages")} />
+      <StatTile value={data.leads} label={t("Leads collectés")} />
+      <StatTile value={data.conversations} label={t("Conversations")} />
+      <StatTile value={data.seoAudits + data.seoKeywordSets + data.seoContentPlans} label={t("Analyses SEO")} />
+      <StatTile value={data.adCampaigns} label={t("Campagnes payantes")} />
     </div>
   );
 }
@@ -670,28 +676,29 @@ function StatsBlock() {
 function DangerZone() {
   const af = useAuthedFetch();
   const qc = useQueryClient();
+  const t = useT();
   const [confirm, setConfirm] = useState("");
   const m = useMutation({
     mutationFn: () => af("/api/me/data", { method: "DELETE" }),
     onSuccess: () => {
       qc.invalidateQueries();
-      toast.success("Toutes tes données ont été effacées");
+      toast.success(t("Toutes tes données ont été effacées"));
       setConfirm("");
     },
-    onError: (e: Error) => toast.error(`Erreur : ${e.message}`),
+    onError: (e: Error) => toast.error(t("Erreur : {message}", { message: e.message })),
   });
 
   return (
     <div className="rounded-2xl border border-red-200 bg-red-50/50 p-5 sm:p-6">
       <div className="flex items-center gap-3 mb-2">
         <AlertTriangle className="w-5 h-5 text-red-600" />
-        <h2 className="font-bold text-lg text-red-900">Zone sensible</h2>
+        <h2 className="font-bold text-lg text-red-900">{t("Zone sensible")}</h2>
       </div>
       <p className="text-sm text-red-900/80 mb-4">
-        Effacer toutes tes données (profil business, conversations, posts programmés, landing pages, leads, campagnes, données SEO). Ton compte de connexion reste actif. <strong>Action irréversible.</strong>
+        {t("Effacer toutes tes données (profil business, conversations, posts programmés, landing pages, leads, campagnes, données SEO). Ton compte de connexion reste actif.")} <strong>{t("Action irréversible.")}</strong>
       </p>
       <div className="bg-white rounded-lg border border-red-200 p-4">
-        <Label>Pour confirmer, tape « SUPPRIMER »</Label>
+        <Label>{t("Pour confirmer, tape « SUPPRIMER »")}</Label>
         <input
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
@@ -705,7 +712,7 @@ function DangerZone() {
           className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm font-medium disabled:opacity-40"
         >
           {m.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          Effacer toutes mes données
+          {t("Effacer toutes mes données")}
         </button>
       </div>
     </div>
@@ -715,6 +722,7 @@ function DangerZone() {
 // ── Clerk profile modal ──────────────────────────────────────────────────
 
 function ClerkProfileDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -736,7 +744,7 @@ function ClerkProfileDialog({ open, onClose }: { open: boolean; onClose: () => v
         <button
           onClick={onClose}
           className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm hover:bg-gray-50 transition"
-          aria-label="Fermer"
+          aria-label={t("Fermer")}
           data-testid="button-close-clerk-profile"
         >
           <X className="w-4 h-4 text-gray-700" />
@@ -779,6 +787,7 @@ type AccountMeState =
 
 function AdminCard() {
   const af = useAuthedFetch();
+  const t = useT();
   const { data } = useQuery<AccountMeState>({
     queryKey: ["me"],
     queryFn: async () => {
@@ -805,11 +814,11 @@ function AdminCard() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-base sm:text-lg">Admin CRM</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-[#5b54d6] text-white rounded-full px-2 py-0.5">Réservé admin</span>
+            <span className="font-bold text-base sm:text-lg">{t("Admin CRM")}</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-[#5b54d6] text-white rounded-full px-2 py-0.5">{t("Réservé admin")}</span>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Voir tous les utilisateurs inscrits, leurs projets et leurs campagnes.
+            {t("Voir tous les utilisateurs inscrits, leurs projets et leurs campagnes.")}
           </p>
         </div>
         <ArrowLeft className="w-5 h-5 rotate-180 text-[#5b54d6] shrink-0 group-hover:translate-x-1 transition-transform" />
@@ -823,6 +832,7 @@ function AdminCard() {
 export default function AccountPage() {
   const { user, isLoaded } = useUser();
   const af = useAuthedFetch();
+  const t = useT();
   const [clerkOpen, setClerkOpen] = useState(false);
   const [location] = useLocation();
 
@@ -845,7 +855,7 @@ export default function AccountPage() {
       window.close();
       return;
     }
-    if (li === "ok") toast.success("LinkedIn connecté avec succès");
+    if (li === "ok") toast.success(t("LinkedIn connecté avec succès"));
     else toast.error(li);
     // Clean URL
     const cleaned = window.location.pathname;
@@ -862,14 +872,14 @@ export default function AccountPage() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
         <div className="flex items-center justify-between gap-3 mb-6">
           <Link href="/app" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="w-4 h-4" /> Retour au tableau de bord
+            <ArrowLeft className="w-4 h-4" /> {t("Retour au tableau de bord")}
           </Link>
           <LanguageSwitcher />
         </div>
 
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight mb-2">Mon compte</h1>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight mb-2">{t("Mon compte")}</h1>
         <p className="text-muted-foreground mb-8 text-sm sm:text-base">
-          Gère ton profil, tes préférences de communication et tes intégrations. Plus tu donnes d'infos, plus l'agent IA personnalise ses réponses pour toi.
+          {t("Gère ton profil, tes préférences de communication et tes intégrations. Plus tu donnes d'infos, plus l'agent IA personnalise ses réponses pour toi.")}
         </p>
 
         {/* Identity header */}
@@ -889,7 +899,7 @@ export default function AccountPage() {
                 <div className="font-bold text-lg truncate">
                   {profile.data?.firstName || profile.data?.lastName
                     ? `${profile.data.firstName ?? ""} ${profile.data.lastName ?? ""}`.trim()
-                    : (user?.fullName ?? "Bienvenue")}
+                    : (user?.fullName ?? t("Bienvenue"))}
                 </div>
                 <div className="text-sm text-muted-foreground truncate">{user?.primaryEmailAddress?.emailAddress}</div>
               </div>
@@ -899,7 +909,7 @@ export default function AccountPage() {
                 data-testid="button-open-clerk"
               >
                 <Lock className="w-4 h-4" />
-                Sécurité & email
+                {t("Sécurité & email")}
               </button>
             </div>
           )}
@@ -911,37 +921,37 @@ export default function AccountPage() {
         {profile.isLoading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#5b54d6]" /></div>
         ) : !profile.data ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">Impossible de charger ton profil.</div>
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{t("Impossible de charger ton profil.")}</div>
         ) : (
           <>
             <Section
               icon={Building2}
-              title="Profil business"
-              subtitle="Ces infos personnalisent les réponses de l'agent IA et le contenu généré."
+              title={t("Profil business")}
+              subtitle={t("Ces infos personnalisent les réponses de l'agent IA et le contenu généré.")}
             >
               <ProfileForm profile={profile.data} />
             </Section>
 
             <Section
               icon={Sparkles}
-              title="Préférences de l'agent IA"
-              subtitle="Choisis comment l'agent communique pour toi."
+              title={t("Préférences de l'agent IA")}
+              subtitle={t("Choisis comment l'agent communique pour toi.")}
             >
               <PreferencesForm profile={profile.data} />
             </Section>
 
             <Section
               icon={Plug}
-              title="Connexions & intégrations"
-              subtitle="Quels services sont reliés à ton compte."
+              title={t("Connexions & intégrations")}
+              subtitle={t("Quels services sont reliés à ton compte.")}
             >
               <IntegrationsBlock />
             </Section>
 
             <Section
               icon={BarChart3}
-              title="Statistiques d'utilisation"
-              subtitle="Aperçu de ton activité depuis l'inscription."
+              title={t("Statistiques d'utilisation")}
+              subtitle={t("Aperçu de ton activité depuis l'inscription.")}
             >
               <StatsBlock />
             </Section>

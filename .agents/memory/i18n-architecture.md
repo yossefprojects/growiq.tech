@@ -22,3 +22,7 @@ The app was authored 100% in French. We added a FR/EN switch using a
 4. Typecheck. Strings not yet wrapped just remain French — safe to ship partially.
 
 **Gotcha:** the key must match the French source *exactly* (accents, punctuation, emojis, spacing). Copy-paste the source.
+
+**Wave rollout (how it's being done):** translate page-by-page. For big pages, delegate the wrapping to a subagent that edits only its own page file and writes its FR→EN pairs to `.local/i18n-pairs/<page>.json` (do NOT let parallel subagents edit `dict.ts` — conflicts). Then the main agent rebuilds `dict.ts` from all pair files, deduping (earlier section wins). The huge agency page (~2.4k lines) can time out a single subagent — split or resume. Done so far: shell, sidebar/menu, home (accueil), account (compte), agency (agence). Remaining: emails, integrations, seo, chat, dashboard, admin, landing, auth-pages, modals.
+
+**Public landing has no switcher** — a logged-out visitor on `/` can't change language; the home page only shows EN if a preference was already persisted (localStorage/server). Add a public switcher only if asked.

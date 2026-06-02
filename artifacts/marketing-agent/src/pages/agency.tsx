@@ -36,6 +36,7 @@ import { sanitizeEmailHtml } from "@/lib/sanitize-html";
 import { Button } from "@/components/ui/button";
 import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { useT } from "@/lib/i18n";
 import { useConnectedChannels } from "@/hooks/use-connected-channels";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -349,6 +350,7 @@ export default function AgencyPage() {
   const [emailStatus, setEmailStatus] = useState<{ sent: boolean; error?: string } | null>(null);
   const [emailCampaign, setEmailCampaign] = useState<EmailCampaignRow | null>(null);
   const [emailSendResult, setEmailSendResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const t = useT();
 
   useEffect(() => {
     void loadCampaigns();
@@ -365,15 +367,15 @@ export default function AgencyPage() {
 
   async function generatePlan() {
     if (!brief.product.trim()) {
-      toast.error("Dis-moi d'abord ce que tu proposes 🙂");
+      toast.error(t("Dis-moi d'abord ce que tu proposes 🙂"));
       return;
     }
     if (!brief.audience.trim()) {
-      toast.error("Dis-moi à qui tu veux parler 🙂");
+      toast.error(t("Dis-moi à qui tu veux parler 🙂"));
       return;
     }
     if (!brief.objective) {
-      toast.error("Choisis ce que tu veux obtenir 🎯");
+      toast.error(t("Choisis ce que tu veux obtenir 🎯"));
       return;
     }
     // Ads reste sur "Bientôt" (validations Meta/Google externes en cours).
@@ -400,7 +402,7 @@ export default function AgencyPage() {
         });
         if (!r.ok) {
           const err = await r.json().catch(() => ({ error: "Oups" }));
-          toast.error(friendlyError(err.error));
+          toast.error(t(friendlyError(err.error)));
           setStep("form");
           return;
         }
@@ -408,7 +410,7 @@ export default function AgencyPage() {
         setEmailCampaign(created);
         setStep("email-preview");
       } catch {
-        toast.error("La connexion a coupé. On réessaie ?");
+        toast.error(t("La connexion a coupé. On réessaie ?"));
         setStep("form");
       } finally {
         setLoading(false);
@@ -438,7 +440,7 @@ export default function AgencyPage() {
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({ error: "Oups" }));
-        toast.error(friendlyError(err.error));
+        toast.error(t(friendlyError(err.error)));
         setStep("form");
         return;
       }
@@ -446,7 +448,7 @@ export default function AgencyPage() {
       setCampaign(created);
       setStep("preview");
     } catch {
-      toast.error("La connexion a coupé. On réessaie ?");
+      toast.error(t("La connexion a coupé. On réessaie ?"));
       setStep("form");
     } finally {
       setLoading(false);
@@ -467,7 +469,7 @@ export default function AgencyPage() {
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({ error: "Oups" }));
-        toast.error(friendlyError(err.error));
+        toast.error(t(friendlyError(err.error)));
         return;
       }
       const data = await r.json();
@@ -475,9 +477,9 @@ export default function AgencyPage() {
       setEmailStatus(data.emailStatus ?? null);
       await loadCampaigns();
       setStep("success");
-      toast.success("C'est parti ! 🚀");
+      toast.success(t("C'est parti ! 🚀"));
     } catch {
-      toast.error("La connexion a coupé. On réessaie ?");
+      toast.error(t("La connexion a coupé. On réessaie ?"));
     } finally {
       setLoading(false);
     }
@@ -524,10 +526,10 @@ export default function AgencyPage() {
   }
 
   async function deleteCampaign(id: number) {
-    if (!confirm("Tu veux vraiment supprimer cette campagne ? Les messages déjà programmés resteront.")) return;
+    if (!confirm(t("Tu veux vraiment supprimer cette campagne ? Les messages déjà programmés resteront."))) return;
     await fetch(API(`/agency/${id}`), { method: "DELETE" });
     await loadCampaigns();
-    toast.success("Supprimée");
+    toast.success(t("Supprimée"));
   }
 
   return (
@@ -536,14 +538,14 @@ export default function AgencyPage() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
           <Link href="/app" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground shrink-0">
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Retour</span>
+            <span className="hidden sm:inline">{t("Retour")}</span>
           </Link>
           <Link href="/" className="flex items-center gap-2.5 group" data-testid="link-home">
             <BrandIcon size={36} className="shrink-0 drop-shadow-sm" />
             <div className="leading-tight">
               <BrandWordmark className="text-lg" />
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider hidden sm:block">
-                Ton assistant marketing
+                {t("Ton assistant marketing")}
               </div>
             </div>
           </Link>
@@ -551,12 +553,12 @@ export default function AgencyPage() {
             <LanguageSwitcher />
             {step !== "dashboard" && (
               <Button variant="ghost" size="sm" onClick={() => setStep("dashboard")} data-testid="link-dashboard">
-                Mes campagnes ({campaigns.length})
+                {t("Mes campagnes ({count})", { count: campaigns.length })}
               </Button>
             )}
             {step !== "form" && step !== "loading" && (
               <Button variant="ghost" size="sm" onClick={resetForNew}>
-                Nouvelle
+                {t("Nouvelle")}
               </Button>
             )}
           </div>
@@ -669,6 +671,7 @@ function BriefForm({
   onSubmit: () => void;
   loading: boolean;
 }) {
+  const t = useT();
   const [step, setStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const [showEncouragement, setShowEncouragement] = useState<string | null>(null);
@@ -702,13 +705,13 @@ function BriefForm({
 
   // Récap dynamique du bandeau du bas selon le type choisi.
   const footerByType: Record<CampaignType, string> = {
-    social: "🎁 Posts gratuits. On publie sur tes réseaux après ta validation, pas de carte bancaire demandée.",
-    ads: "💳 La publicité payante demande un budget. Tu valides chaque dépense avant qu'on lance.",
-    email: "📩 Envoi à ta base de contacts. Tu valides le contenu avant le départ.",
+    social: t("🎁 Posts gratuits. On publie sur tes réseaux après ta validation, pas de carte bancaire demandée."),
+    ads: t("💳 La publicité payante demande un budget. Tu valides chaque dépense avant qu'on lance."),
+    email: t("📩 Envoi à ta base de contacts. Tu valides le contenu avant le départ."),
   };
   const footerText = brief.campaignType
     ? footerByType[brief.campaignType]
-    : "🎁 C'est gratuit pour commencer. Choisis ton type de campagne pour voir ce que je peux faire pour toi.";
+    : t("🎁 C'est gratuit pour commencer. Choisis ton type de campagne pour voir ce que je peux faire pour toi.");
 
   return (
     <div className="space-y-6">
@@ -716,13 +719,13 @@ function BriefForm({
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 shadow-lg shadow-violet-500/40 animate-pop-in">
           <Wand2 className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">On fait connaissance ? ✨</h1>
-        <p className="text-muted-foreground text-lg">Une petite question à la fois, c'est promis 🙂</p>
+        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("On fait connaissance ? ✨")}</h1>
+        <p className="text-muted-foreground text-lg">{t("Une petite question à la fois, c'est promis 🙂")}</p>
       </div>
 
-      <div className="max-w-md mx-auto space-y-2" aria-label="progression">
+      <div className="max-w-md mx-auto space-y-2" aria-label={t("progression")}>
         <div className="flex items-center justify-between text-xs font-semibold">
-          <span className="text-violet-700">Étape {step + 1} sur {totalSteps}</span>
+          <span className="text-violet-700">{t("Étape {step} sur {total}", { step: step + 1, total: totalSteps })}</span>
           <span className="text-muted-foreground">{Math.round(progressPercent)}%</span>
         </div>
         <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
@@ -736,7 +739,7 @@ function BriefForm({
       {showEncouragement ? (
         <div className="flex flex-col items-center justify-center py-16 animate-in fade-in zoom-in-95 duration-300" data-testid="encouragement">
           <div className="text-6xl mb-3 animate-bounce">🎉</div>
-          <p className="text-2xl font-bold bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{showEncouragement}</p>
+          <p className="text-2xl font-bold bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t(showEncouragement)}</p>
         </div>
       ) : (
         <div
@@ -876,27 +879,28 @@ function StepCampaignType({
   currentStep: number;
   totalSteps: number;
 }) {
+  const t = useT();
   return (
     <>
       <div className="space-y-1">
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
-          Question {currentStep} sur {totalSteps}
+          {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">Quel type de campagne tu veux lancer ? 🚀</h2>
+        <h2 className="text-2xl font-bold">{t("Quel type de campagne tu veux lancer ? 🚀")}</h2>
         <p className="text-muted-foreground text-sm">
-          Choisis le canal qui te ressemble. Chaque type est conçu pour un objectif différent.
+          {t("Choisis le canal qui te ressemble. Chaque type est conçu pour un objectif différent.")}
         </p>
       </div>
       <div className="grid md:grid-cols-3 gap-4">
-        {CAMPAIGN_TYPES.map((t) => {
-          const Icon = t.icon;
-          const active = value === t.value;
+        {CAMPAIGN_TYPES.map((ct) => {
+          const Icon = ct.icon;
+          const active = value === ct.value;
           return (
             <button
-              key={t.value}
+              key={ct.value}
               type="button"
-              data-testid={`campaign-type-${t.value}`}
-              onClick={() => setValue(t.value)}
+              data-testid={`campaign-type-${ct.value}`}
+              onClick={() => setValue(ct.value)}
               aria-pressed={active}
               className={`relative text-left p-5 rounded-2xl border-2 transition-all hover:scale-[1.02] flex flex-col ${
                 active
@@ -904,28 +908,28 @@ function StepCampaignType({
                   : "border-slate-200 hover:border-violet-300 bg-white"
               }`}
             >
-              {!t.available && (
+              {!ct.available && (
                 <span className="absolute top-3 right-3 text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider">
-                  Bientôt
+                  {t("Bientôt")}
                 </span>
               )}
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${t.color} flex items-center justify-center mb-3 shadow-md`}>
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${ct.color} flex items-center justify-center mb-3 shadow-md`}>
                 <Icon className="w-6 h-6 text-white" />
               </div>
               <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="font-bold text-base">{t.label}</span>
-                <span className="text-xs font-semibold text-violet-600 uppercase">{t.sub}</span>
+                <span className="font-bold text-base">{t(ct.label)}</span>
+                <span className="text-xs font-semibold text-violet-600 uppercase">{t(ct.sub)}</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{t.description}</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{t(ct.description)}</p>
               <div className="mt-4 pt-3 border-t border-slate-200/70 space-y-1.5">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                  Ce que je vais faire pour toi :
+                  {t("Ce que je vais faire pour toi :")}
                 </div>
                 <ul className="space-y-1">
-                  {t.details.map((d, i) => (
+                  {ct.details.map((d, i) => (
                     <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-700 leading-snug">
                       <CheckIcon className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" />
-                      <span>{d}</span>
+                      <span>{t(d)}</span>
                     </li>
                   ))}
                 </ul>
@@ -940,7 +944,7 @@ function StepCampaignType({
         data-testid="button-next-type"
         className="w-full h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
       >
-        Continuer →
+        {t("Continuer →")}
       </Button>
     </>
   );
@@ -967,18 +971,19 @@ function StepProduct({
   currentStep: number;
   totalSteps: number;
 }) {
+  const t = useT();
   return (
     <>
       <div className="space-y-1">
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
-          Question {currentStep} sur {totalSteps}
+          {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">Tu proposes quoi ? 🤔</h2>
-        <p className="text-muted-foreground text-sm">Dis-le avec tes mots, comme si tu en parlais à un ami.</p>
+        <h2 className="text-2xl font-bold">{t("Tu proposes quoi ? 🤔")}</h2>
+        <p className="text-muted-foreground text-sm">{t("Dis-le avec tes mots, comme si tu en parlais à un ami.")}</p>
       </div>
       <Textarea
         data-testid="input-product"
-        placeholder="Ex : Je vends des bougies parfumées faites à la main, dans ma boutique à Lyon et en ligne."
+        placeholder={t("Ex : Je vends des bougies parfumées faites à la main, dans ma boutique à Lyon et en ligne.")}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         rows={3}
@@ -986,17 +991,17 @@ function StepProduct({
         autoFocus
       />
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">💡 Pas d'idée ? Clique sur un exemple :</p>
+        <p className="text-xs font-medium text-muted-foreground">{t("💡 Pas d'idée ? Clique sur un exemple :")}</p>
         <div className="flex flex-wrap gap-2">
           {PRODUCT_EXAMPLES.map((ex) => (
             <button
               key={ex.label}
               type="button"
-              onClick={() => setValue(ex.text)}
+              onClick={() => setValue(t(ex.text))}
               className="px-3 py-2 rounded-full border bg-white hover:bg-violet-50 hover:border-violet-300 text-sm transition-all hover:scale-105"
               data-testid={`example-product-${ex.label}`}
             >
-              {ex.emoji} {ex.label}
+              {ex.emoji} {t(ex.label)}
             </button>
           ))}
         </div>
@@ -1011,7 +1016,7 @@ function StepProduct({
           data-testid="button-next-1"
           className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
         >
-          Continuer →
+          {t("Continuer →")}
         </Button>
       </div>
     </>
@@ -1039,18 +1044,19 @@ function StepAudience({
   currentStep: number;
   totalSteps: number;
 }) {
+  const t = useT();
   return (
     <>
       <div className="space-y-1">
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
-          Question {currentStep} sur {totalSteps}
+          {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">À qui tu veux parler ? 👥</h2>
-        <p className="text-muted-foreground text-sm">Décris les gens que tu aimerais avoir comme clients : âge, ce qu'ils aiment, où ils habitent.</p>
+        <h2 className="text-2xl font-bold">{t("À qui tu veux parler ? 👥")}</h2>
+        <p className="text-muted-foreground text-sm">{t("Décris les gens que tu aimerais avoir comme clients : âge, ce qu'ils aiment, où ils habitent.")}</p>
       </div>
       <Textarea
         data-testid="input-audience"
-        placeholder="Ex : Des femmes entre 30 et 50 ans qui aiment leur intérieur et les choses bien faites."
+        placeholder={t("Ex : Des femmes entre 30 et 50 ans qui aiment leur intérieur et les choses bien faites.")}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         rows={3}
@@ -1058,17 +1064,17 @@ function StepAudience({
         autoFocus
       />
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">💡 Pas d'idée ? Clique sur un exemple :</p>
+        <p className="text-xs font-medium text-muted-foreground">{t("💡 Pas d'idée ? Clique sur un exemple :")}</p>
         <div className="flex flex-wrap gap-2">
           {AUDIENCE_EXAMPLES.map((ex) => (
             <button
               key={ex.label}
               type="button"
-              onClick={() => setValue(ex.text)}
+              onClick={() => setValue(t(ex.text))}
               className="px-3 py-2 rounded-full border bg-white hover:bg-violet-50 hover:border-violet-300 text-sm transition-all hover:scale-105"
               data-testid={`example-audience-${ex.label}`}
             >
-              {ex.emoji} {ex.label}
+              {ex.emoji} {t(ex.label)}
             </button>
           ))}
         </div>
@@ -1083,7 +1089,7 @@ function StepAudience({
           data-testid="button-next-2"
           className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
         >
-          Continuer →
+          {t("Continuer →")}
         </Button>
       </div>
     </>
@@ -1120,15 +1126,16 @@ function StepSocialNetworks({
     SOCIAL_NETWORKS.some((n) => n.value === c && n.available),
   );
   const canNext = hasAtLeastOne; // sujet est optionnel
+  const t = useT();
   return (
     <>
       <div className="space-y-1">
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
-          Question {currentStep} sur {totalSteps}
+          {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">Sur quels réseaux on publie ? 📱</h2>
+        <h2 className="text-2xl font-bold">{t("Sur quels réseaux on publie ? 📱")}</h2>
         <p className="text-muted-foreground text-sm">
-          Choisis un ou plusieurs réseaux. Je m'occupe du reste.
+          {t("Choisis un ou plusieurs réseaux. Je m'occupe du reste.")}
         </p>
       </div>
       <div className="grid sm:grid-cols-3 gap-3">
@@ -1154,7 +1161,7 @@ function StepSocialNetworks({
             >
               {disabled && (
                 <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">
-                  Bientôt
+                  {t("Bientôt")}
                 </span>
               )}
               <div className={`w-10 h-10 rounded-lg ${n.bg} flex items-center justify-center mb-2`}>
@@ -1173,15 +1180,15 @@ function StepSocialNetworks({
 
       <div className="space-y-2 pt-2">
         <Label htmlFor="subject" className="text-sm font-semibold">
-          Quel est le sujet de ton post ? <span className="text-muted-foreground font-normal">(optionnel)</span>
+          {t("Quel est le sujet de ton post ?")} <span className="text-muted-foreground font-normal">{t("(optionnel)")}</span>
         </Label>
         <p className="text-xs text-muted-foreground">
-          Par exemple : « Promo de Noël », « Ouverture du nouveau salon », « Témoignage cliente ». Si tu laisses vide, je trouve les sujets pour toi.
+          {t("Par exemple : « Promo de Noël », « Ouverture du nouveau salon », « Témoignage cliente ». Si tu laisses vide, je trouve les sujets pour toi.")}
         </p>
         <Textarea
           id="subject"
           data-testid="input-subject"
-          placeholder="Ex : Annonce de ma nouvelle collection de bougies de Noël."
+          placeholder={t("Ex : Annonce de ma nouvelle collection de bougies de Noël.")}
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           rows={2}
@@ -1199,7 +1206,7 @@ function StepSocialNetworks({
           data-testid="button-next-networks"
           className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
         >
-          Continuer →
+          {t("Continuer →")}
         </Button>
       </div>
     </>
@@ -1240,6 +1247,7 @@ function StepAdsDetails({
   const budgetValid = budget.trim().length > 0;
   const hasAtLeastOne = channels.some((c) => ADS_NETWORKS.some((n) => n.value === c));
   const canNext = urlValid && budgetValid && hasAtLeastOne;
+  const t = useT();
 
   const BUDGET_PRESETS = ["50 € / mois", "150 € / mois", "300 € / mois", "500 € / mois"];
 
@@ -1247,16 +1255,16 @@ function StepAdsDetails({
     <>
       <div className="space-y-1">
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
-          Question {currentStep} sur {totalSteps}
+          {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">Détails de ta publicité 🎯</h2>
+        <h2 className="text-2xl font-bold">{t("Détails de ta publicité 🎯")}</h2>
         <p className="text-muted-foreground text-sm">
-          Quelques infos précises pour que je puisse cibler les bonnes personnes.
+          {t("Quelques infos précises pour que je puisse cibler les bonnes personnes.")}
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label className="text-sm font-semibold">Quels réseaux publicitaires ?</Label>
+        <Label className="text-sm font-semibold">{t("Quels réseaux publicitaires ?")}</Label>
         <div className="grid sm:grid-cols-2 gap-3">
           {ADS_NETWORKS.map((n) => {
             const Icon = n.icon;
@@ -1278,7 +1286,7 @@ function StepAdsDetails({
                   <Icon className={`w-5 h-5 ${n.color}`} />
                 </div>
                 <div className="font-semibold text-sm">{n.label}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{n.desc}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{t(n.desc)}</div>
                 {checked && (
                   <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center">
                     <CheckIcon className="w-3 h-3 text-white" />
@@ -1292,10 +1300,10 @@ function StepAdsDetails({
 
       <div className="space-y-2">
         <Label htmlFor="siteUrl" className="text-sm font-semibold inline-flex items-center gap-1.5">
-          <Globe className="w-4 h-4 text-violet-600" /> Le lien de ton site (URL)
+          <Globe className="w-4 h-4 text-violet-600" /> {t("Le lien de ton site (URL)")}
         </Label>
         <p className="text-xs text-muted-foreground">
-          C'est la page où on enverra les gens qui cliquent sur ta pub.
+          {t("C'est la page où on enverra les gens qui cliquent sur ta pub.")}
         </p>
         <input
           id="siteUrl"
@@ -1307,16 +1315,16 @@ function StepAdsDetails({
           className="w-full h-11 px-3 rounded-md border border-input bg-white text-base"
         />
         {siteUrl.trim() && !urlValid && (
-          <p className="text-xs text-amber-600">⚠️ L'adresse doit commencer par http:// ou https://</p>
+          <p className="text-xs text-amber-600">{t("⚠️ L'adresse doit commencer par http:// ou https://")}</p>
         )}
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="budget" className="text-sm font-semibold inline-flex items-center gap-1.5">
-          <Zap className="w-4 h-4 text-violet-600" /> Ton budget estimé
+          <Zap className="w-4 h-4 text-violet-600" /> {t("Ton budget estimé")}
         </Label>
         <p className="text-xs text-muted-foreground">
-          Combien tu es prêt à dépenser. On commence petit, on ajuste après.
+          {t("Combien tu es prêt à dépenser. On commence petit, on ajuste après.")}
         </p>
         <div className="flex flex-wrap gap-2 mb-2">
           {BUDGET_PRESETS.map((b) => (
@@ -1331,7 +1339,7 @@ function StepAdsDetails({
               }`}
               data-testid={`budget-preset-${b.replace(/\s/g, "-")}`}
             >
-              {b}
+              {t(b)}
             </button>
           ))}
         </div>
@@ -1339,7 +1347,7 @@ function StepAdsDetails({
           id="budget"
           type="text"
           data-testid="input-budget"
-          placeholder="Ou écris ton montant : ex. 250 € pour 2 semaines"
+          placeholder={t("Ou écris ton montant : ex. 250 € pour 2 semaines")}
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
           className="w-full h-11 px-3 rounded-md border border-input bg-white text-base"
@@ -1356,7 +1364,7 @@ function StepAdsDetails({
           data-testid="button-next-ads"
           className="flex-1 h-14 text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none"
         >
-          Continuer →
+          {t("Continuer →")}
         </Button>
       </div>
     </>
@@ -1386,15 +1394,16 @@ function StepObjective({
   currentStep: number;
   totalSteps: number;
 }) {
+  const t = useT();
   const isLast = currentStep === totalSteps;
   return (
     <>
       <div className="space-y-1">
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
-          Question {currentStep} sur {totalSteps}{isLast ? " — la dernière !" : ""}
+          {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}{isLast ? t(" — la dernière !") : ""}
         </div>
-        <h2 className="text-2xl font-bold">Qu'est-ce que tu veux obtenir ? 🎯</h2>
-        <p className="text-muted-foreground text-sm">Choisis ce qui compte le plus pour toi en ce moment.</p>
+        <h2 className="text-2xl font-bold">{t("Qu'est-ce que tu veux obtenir ? 🎯")}</h2>
+        <p className="text-muted-foreground text-sm">{t("Choisis ce qui compte le plus pour toi en ce moment.")}</p>
       </div>
       <div className="grid sm:grid-cols-3 gap-3">
         {objectives.map((o) => {
@@ -1414,17 +1423,17 @@ function StepObjective({
               <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${o.color} flex items-center justify-center mb-2 shadow-sm`}>
                 <Icon className="w-5 h-5 text-white" />
               </div>
-              <div className="font-semibold text-sm">{o.label}</div>
-              <div className="text-xs text-muted-foreground mt-1">{o.description}</div>
+              <div className="font-semibold text-sm">{t(o.label)}</div>
+              <div className="text-xs text-muted-foreground mt-1">{t(o.description)}</div>
               <div className="mt-3 pt-3 border-t border-slate-200/70 space-y-1.5">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                  Ce que je vais faire pour toi :
+                  {t("Ce que je vais faire pour toi :")}
                 </div>
                 <ul className="space-y-1">
                   {o.details.map((d, i) => (
                     <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-700 leading-snug">
                       <CheckIcon className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" />
-                      <span>{d}</span>
+                      <span>{t(d)}</span>
                     </li>
                   ))}
                 </ul>
@@ -1447,7 +1456,7 @@ function StepObjective({
             <Loader2 className="w-6 h-6 animate-spin" />
           ) : (
             <>
-              <Wand2 className="w-6 h-6 mr-2" /> Créer ma campagne 🚀
+              <Wand2 className="w-6 h-6 mr-2" /> {t("Créer ma campagne 🚀")}
             </>
           )}
         </Button>
@@ -1474,7 +1483,8 @@ function ComingSoonScreen({
   onBack: () => void;
   onNew: () => void;
 }) {
-  const typeMeta = CAMPAIGN_TYPES.find((t) => t.value === brief.campaignType);
+  const t = useT();
+  const typeMeta = CAMPAIGN_TYPES.find((ct) => ct.value === brief.campaignType);
   const Icon = typeMeta?.icon ?? Sparkles;
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -1483,9 +1493,9 @@ function ComingSoonScreen({
           <Icon className="w-10 h-10 text-white" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Bientôt disponible 🚧</h1>
+          <h1 className="text-3xl font-bold">{t("Bientôt disponible 🚧")}</h1>
           <p className="text-muted-foreground text-lg">
-            On travaille dur sur les campagnes <strong>{typeMeta?.label}</strong>. C'est en bonne voie !
+            {t("On travaille dur sur les campagnes")} <strong>{typeMeta ? t(typeMeta.label) : ""}</strong>{t(". C'est en bonne voie !")}
           </p>
         </div>
       </div>
@@ -1495,34 +1505,34 @@ function ComingSoonScreen({
           <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="text-sm font-semibold text-amber-900">
-              Pourquoi ce n'est pas encore prêt ?
+              {t("Pourquoi ce n'est pas encore prêt ?")}
             </p>
             <p className="text-xs text-amber-800 leading-relaxed">
               {brief.campaignType === "ads"
-                ? "On attend les validations finales de Meta (Business Manager) et de Google (developer token). Délai estimé : quelques semaines. En attendant, tu peux lancer une campagne Réseaux Sociaux gratuite — c'est déjà très efficace !"
-                : "On finalise le système de gestion de tes contacts et de programmation des envois. En attendant, tu peux lancer une campagne Réseaux Sociaux gratuite pour préparer le terrain."}
+                ? t("On attend les validations finales de Meta (Business Manager) et de Google (developer token). Délai estimé : quelques semaines. En attendant, tu peux lancer une campagne Réseaux Sociaux gratuite — c'est déjà très efficace !")
+                : t("On finalise le système de gestion de tes contacts et de programmation des envois. En attendant, tu peux lancer une campagne Réseaux Sociaux gratuite pour préparer le terrain.")}
             </p>
           </div>
         </div>
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm p-5 space-y-4">
-        <h3 className="font-semibold text-sm">Ton brief (gardé pour cette session) 📝</h3>
+        <h3 className="font-semibold text-sm">{t("Ton brief (gardé pour cette session) 📝")}</h3>
         <p className="text-xs text-muted-foreground -mt-2">
-          Pour l'instant on ne le sauvegarde pas côté serveur — tu pourras le ressaisir quand la fonctionnalité sera prête.
+          {t("Pour l'instant on ne le sauvegarde pas côté serveur — tu pourras le ressaisir quand la fonctionnalité sera prête.")}
         </p>
         <div className="space-y-2 text-sm">
           <div className="flex gap-2">
-            <span className="text-muted-foreground min-w-24">Ce que tu proposes :</span>
+            <span className="text-muted-foreground min-w-24">{t("Ce que tu proposes :")}</span>
             <span className="font-medium flex-1">{brief.product}</span>
           </div>
           <div className="flex gap-2">
-            <span className="text-muted-foreground min-w-24">Ta cible :</span>
+            <span className="text-muted-foreground min-w-24">{t("Ta cible :")}</span>
             <span className="font-medium flex-1">{brief.audience}</span>
           </div>
           {brief.siteUrl && (
             <div className="flex gap-2">
-              <span className="text-muted-foreground min-w-24">Ton site :</span>
+              <span className="text-muted-foreground min-w-24">{t("Ton site :")}</span>
               <a href={brief.siteUrl} target="_blank" rel="noreferrer" className="font-medium text-blue-600 hover:underline flex-1 break-all">
                 {brief.siteUrl}
               </a>
@@ -1530,12 +1540,12 @@ function ComingSoonScreen({
           )}
           {brief.budget && (
             <div className="flex gap-2">
-              <span className="text-muted-foreground min-w-24">Ton budget :</span>
+              <span className="text-muted-foreground min-w-24">{t("Ton budget :")}</span>
               <span className="font-medium flex-1">{brief.budget}</span>
             </div>
           )}
           <div className="flex gap-2">
-            <span className="text-muted-foreground min-w-24">Ton objectif :</span>
+            <span className="text-muted-foreground min-w-24">{t("Ton objectif :")}</span>
             <span className="font-medium flex-1">{brief.objective}</span>
           </div>
         </div>
@@ -1543,10 +1553,10 @@ function ComingSoonScreen({
 
       <div className="bg-white rounded-xl border shadow-sm p-5 space-y-3">
         <Label htmlFor="notif-email" className="text-sm font-semibold">
-          📬 Préviens-moi quand c'est disponible
+          {t("📬 Préviens-moi quand c'est disponible")}
         </Label>
         <p className="text-xs text-muted-foreground">
-          Laisse ton email, on te recontacte dès que la fonctionnalité est prête.
+          {t("Laisse ton email, on te recontacte dès que la fonctionnalité est prête.")}
         </p>
         <input
           id="notif-email"
@@ -1558,20 +1568,20 @@ function ComingSoonScreen({
           className="w-full h-11 px-3 rounded-md border border-input bg-white text-base"
         />
         <p className="text-[11px] text-muted-foreground italic">
-          Pour l'instant on ne stocke pas ton email automatiquement — note-le, on l'ajoutera à la liste d'attente bientôt.
+          {t("Pour l'instant on ne stocke pas ton email automatiquement — note-le, on l'ajoutera à la liste d'attente bientôt.")}
         </p>
       </div>
 
       <div className="flex gap-3">
         <Button variant="outline" onClick={onBack} className="h-12 flex-1">
-          ← Modifier mon brief
+          {t("← Modifier mon brief")}
         </Button>
         <Button
           onClick={onNew}
           data-testid="button-new-social"
           className="h-12 flex-1 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700"
         >
-          <MessageCircle className="w-4 h-4 mr-2" /> Essayer Réseaux Sociaux
+          <MessageCircle className="w-4 h-4 mr-2" /> {t("Essayer Réseaux Sociaux")}
         </Button>
       </div>
     </div>
@@ -1579,6 +1589,7 @@ function ComingSoonScreen({
 }
 
 function LoadingScreen() {
+  const t = useT();
   const messages = [
     "Je lis tes réponses… 📖",
     "J'écris des messages qui parlent à tes clients… ✍️",
@@ -1589,8 +1600,8 @@ function LoadingScreen() {
   ];
   const [idx, setIdx] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setIdx((i) => Math.min(i + 1, messages.length - 1)), 8000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setIdx((i) => Math.min(i + 1, messages.length - 1)), 8000);
+    return () => clearInterval(timer);
   }, []);
   return (
     <div className="flex flex-col items-center justify-center py-24 space-y-8">
@@ -1601,10 +1612,10 @@ function LoadingScreen() {
         <div className="absolute inset-0 rounded-full border-4 border-purple-300 animate-ping opacity-30" />
       </div>
       <div className="text-center space-y-3">
-        <h2 className="text-2xl font-bold">Je travaille pour toi…</h2>
-        <p className="text-muted-foreground text-lg transition-all min-h-[28px]">{messages[idx]}</p>
+        <h2 className="text-2xl font-bold">{t("Je travaille pour toi…")}</h2>
+        <p className="text-muted-foreground text-lg transition-all min-h-[28px]">{t(messages[idx])}</p>
         <p className="text-sm text-muted-foreground pt-6 max-w-md mx-auto">
-          ☕ C'est le bon moment pour aller te chercher un café. Ça prend environ une minute.
+          {t("☕ C'est le bon moment pour aller te chercher un café. Ça prend environ une minute.")}
         </p>
       </div>
     </div>
@@ -1634,6 +1645,7 @@ function PreviewScreen({
   onBack: () => void;
   loading: boolean;
 }) {
+  const t = useT();
   const launched = campaign.status === "launched";
   const { plan } = campaign;
   const channelsUsed = Array.from(new Set(plan.posts.map((p) => p.channel)));
@@ -1657,12 +1669,12 @@ function PreviewScreen({
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">Voilà ce que j'ai préparé 🎉</h1>
-          <p className="text-muted-foreground">Regarde, modifie si tu veux, puis appuie sur le gros bouton vert.</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("Voilà ce que j'ai préparé 🎉")}</h1>
+          <p className="text-muted-foreground">{t("Regarde, modifie si tu veux, puis appuie sur le gros bouton vert.")}</p>
         </div>
         <div className="flex items-center gap-2 bg-white border rounded-full px-4 py-2 shadow-sm">
           <HelpCircle className="w-4 h-4 text-violet-600" />
-          <Label htmlFor="explain" className="text-sm cursor-pointer">Explique-moi tout</Label>
+          <Label htmlFor="explain" className="text-sm cursor-pointer">{t("Explique-moi tout")}</Label>
           <Switch id="explain" checked={explainMode} onCheckedChange={setExplainMode} data-testid="switch-explain" />
         </div>
       </div>
@@ -1670,7 +1682,7 @@ function PreviewScreen({
       {explainMode && (
         <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 border-2 border-purple-200 rounded-2xl p-6 space-y-3" data-testid="explain-box">
           <h3 className="font-bold text-lg flex items-center gap-2 text-purple-900">
-            <Lightbulb className="w-5 h-5" /> Mes choix, expliqués comme à un enfant
+            <Lightbulb className="w-5 h-5" /> {t("Mes choix, expliqués comme à un enfant")}
           </h3>
           {plan.decisions && plan.decisions.length > 0 ? (
             <ul className="space-y-3">
@@ -1683,39 +1695,42 @@ function PreviewScreen({
             </ul>
           ) : (
             <p className="text-sm text-purple-900 bg-white/70 rounded-lg p-3">
-              😊 Cette campagne a été créée avant cette nouveauté, donc je n'ai pas gardé le détail de mes choix. Pour les prochaines, tu verras ici tout ce que j'ai décidé et pourquoi.
+              {t("😊 Cette campagne a été créée avant cette nouveauté, donc je n'ai pas gardé le détail de mes choix. Pour les prochaines, tu verras ici tout ce que j'ai décidé et pourquoi.")}
             </p>
           )}
         </div>
       )}
 
       <div className="grid md:grid-cols-3 gap-4">
-        <FriendlyCard emoji="👥" title="Pour qui je travaille" body={plan.audienceSummary} />
+        <FriendlyCard emoji="👥" title={t("Pour qui je travaille")} body={plan.audienceSummary} />
         <FriendlyCard
           emoji="📊"
-          title="Ce que ça pourrait donner"
+          title={t("Ce que ça pourrait donner")}
           body={`${plan.estimatedResults.impressions}\n${plan.estimatedResults.clicks}\n${plan.estimatedResults.conversions}`}
         />
         <FriendlyCard
           emoji="📅"
-          title="Quand on publie"
-          body={`${plan.posts.length} messages sur 7 jours\nsur ${channelsUsed.map((c) => c === "facebook" ? "Facebook" : c === "linkedin" ? "LinkedIn" : "Instagram").join(" et ")}`}
+          title={t("Quand on publie")}
+          body={t("{count} messages sur 7 jours\nsur {channels}", {
+            count: plan.posts.length,
+            channels: channelsUsed.map((c) => c === "facebook" ? "Facebook" : c === "linkedin" ? "LinkedIn" : "Instagram").join(t(" et ")),
+          })}
         />
       </div>
 
       <div className="bg-white rounded-2xl border p-5 space-y-2">
-        <h3 className="font-semibold flex items-center gap-2">🎯 Comment je vais les trouver</h3>
+        <h3 className="font-semibold flex items-center gap-2">{t("🎯 Comment je vais les trouver")}</h3>
         <p className="text-sm text-muted-foreground whitespace-pre-line">{plan.targetingNarrative}</p>
       </div>
 
       <div className="bg-white rounded-2xl border p-5 space-y-2">
-        <h3 className="font-semibold flex items-center gap-2">💰 Côté argent</h3>
+        <h3 className="font-semibold flex items-center gap-2">{t("💰 Côté argent")}</h3>
         <p className="text-sm text-muted-foreground whitespace-pre-line">{plan.budgetNarrative}</p>
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-xl font-bold">📬 Tes messages prêts à partir ({plan.posts.length})</h2>
-        <p className="text-sm text-muted-foreground">Tu peux modifier le texte ou la date en cliquant dessus.</p>
+        <h2 className="text-xl font-bold">{t("📬 Tes messages prêts à partir ({count})", { count: plan.posts.length })}</h2>
+        <p className="text-sm text-muted-foreground">{t("Tu peux modifier le texte ou la date en cliquant dessus.")}</p>
         <div className="grid md:grid-cols-2 gap-4">
           {plan.posts.map((post, i) => (
             <PostCard
@@ -1733,7 +1748,7 @@ function PreviewScreen({
       {plan.recommendations?.length > 0 && (
         <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 space-y-2">
           <h3 className="font-bold flex items-center gap-2 text-amber-900">
-            <Lightbulb className="w-5 h-5" /> Mes petits conseils en plus
+            <Lightbulb className="w-5 h-5" /> {t("Mes petits conseils en plus")}
           </h3>
           <ul className="text-sm text-amber-900 space-y-2">
             {plan.recommendations.map((r, i) => <li key={i}>✨ {r}</li>)}
@@ -1751,23 +1766,23 @@ function PreviewScreen({
               <Lightbulb className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-amber-900 space-y-1">
                 <p className="font-semibold">
-                  Tu dois connecter {missingChannels.join(" et ")} pour pouvoir lancer cette campagne.
+                  {t("Tu dois connecter {channels} pour pouvoir lancer cette campagne.", { channels: missingChannels.join(t(" et ")) })}
                 </p>
                 <p>
-                  Va dans ton profil et connecte le ou les comptes manquants. Sans ça, tes messages ne pourront pas partir.{" "}
+                  {t("Va dans ton profil et connecte le ou les comptes manquants. Sans ça, tes messages ne pourront pas partir.")}{" "}
                   <Link href="/app/account" className="underline font-medium">
-                    Ouvrir mon profil →
+                    {t("Ouvrir mon profil →")}
                   </Link>
                 </p>
               </div>
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="email" className="font-semibold">📧 Ton email (facultatif)</Label>
+            <Label htmlFor="email" className="font-semibold">{t("📧 Ton email (facultatif)")}</Label>
             <input
               id="email"
               type="email"
-              placeholder="pour qu'on te confirme par email"
+              placeholder={t("pour qu'on te confirme par email")}
               value={notificationEmail}
               onChange={(e) => setNotificationEmail(e.target.value)}
               data-testid="input-email"
@@ -1782,12 +1797,12 @@ function PreviewScreen({
               data-testid="checkbox-todo"
             />
             <Label htmlFor="todo-checkbox" className="text-sm text-slate-600 cursor-pointer">
-              TODO: case à cocher
+              {t("TODO: case à cocher")}
             </Label>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={onBack} disabled={loading} className="flex-1 h-12">
-              ← Refaire les réponses
+              {t("← Refaire les réponses")}
             </Button>
             <Button
               onClick={onLaunch}
@@ -1795,11 +1810,11 @@ function PreviewScreen({
               data-testid="button-launch"
               className="flex-[2] h-14 text-lg font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/30 disabled:from-slate-400 disabled:to-slate-500 disabled:shadow-none"
             >
-              {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <>🚀 Lancer</>}
+              {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <>{t("🚀 Lancer")}</>}
             </Button>
           </div>
           <p className="text-center text-xs text-muted-foreground">
-            ✅ Une fois lancé, je publie tout seul aux horaires prévus. Tu n'as plus rien à faire.
+            {t("✅ Une fois lancé, je publie tout seul aux horaires prévus. Tu n'as plus rien à faire.")}
           </p>
         </div>
       )}
@@ -1808,8 +1823,8 @@ function PreviewScreen({
         <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 flex items-center gap-3">
           <CheckCircle2 className="w-8 h-8 text-green-600" />
           <div>
-            <p className="font-bold text-green-900">Campagne lancée le {new Date(campaign.launchedAt!).toLocaleString("fr-FR")} ✨</p>
-            <p className="text-sm text-green-800">Les messages partiront tout seuls aux dates prévues. Profite de ta journée !</p>
+            <p className="font-bold text-green-900">{t("Campagne lancée le {date} ✨", { date: new Date(campaign.launchedAt!).toLocaleString("fr-FR") })}</p>
+            <p className="text-sm text-green-800">{t("Les messages partiront tout seuls aux dates prévues. Profite de ta journée !")}</p>
           </div>
         </div>
       )}
@@ -1841,6 +1856,7 @@ function PostCard({
   onCopyChange: (c: string) => void;
   onDateChange: (d: string) => void;
 }) {
+  const t = useT();
   const isoForInput = (() => {
     const d = new Date(post.scheduledFor);
     if (isNaN(d.getTime())) return "";
@@ -1864,7 +1880,7 @@ function PostCard({
 
       <div className="p-4 space-y-3 bg-white border-t">
         <div className="flex items-center gap-2 text-xs font-semibold text-violet-700">
-          ✏️ Modifie si tu veux
+          {t("✏️ Modifie si tu veux")}
         </div>
         {editable ? (
           <Textarea
@@ -1896,6 +1912,7 @@ function PostCard({
 }
 
 function InstagramMockup({ post, index }: { post: PlannedPost; index: number }) {
+  const t = useT();
   return (
     <div className="bg-white">
       <div className="flex items-center justify-between px-3 py-2.5">
@@ -1907,7 +1924,7 @@ function InstagramMockup({ post, index }: { post: PlannedPost; index: number }) 
           </div>
           <div className="leading-tight">
             <div className="text-xs font-semibold">ta_marque</div>
-            <div className="text-[10px] text-slate-500">Sponsorisé</div>
+            <div className="text-[10px] text-slate-500">{t("Sponsorisé")}</div>
           </div>
         </div>
         <MoreHorizontal className="w-4 h-4 text-slate-700" />
@@ -1918,7 +1935,7 @@ function InstagramMockup({ post, index }: { post: PlannedPost; index: number }) 
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
             <Instagram className="w-8 h-8" />
-            Image en cours…
+            {t("Image en cours…")}
           </div>
         )}
       </div>
@@ -1931,18 +1948,19 @@ function InstagramMockup({ post, index }: { post: PlannedPost; index: number }) 
           </div>
           <Bookmark className="w-5 h-5 text-slate-800" />
         </div>
-        <div className="text-xs font-semibold">{124 + index * 17} mentions J'aime</div>
+        <div className="text-xs font-semibold">{t("{count} mentions J'aime", { count: 124 + index * 17 })}</div>
         <div className="text-xs text-slate-700 whitespace-pre-wrap break-words">
           <span className="font-semibold">ta_marque</span>{" "}
           <span>{post.copy}</span>
         </div>
-        <div className="text-[10px] text-slate-400 uppercase">Il y a quelques instants</div>
+        <div className="text-[10px] text-slate-400 uppercase">{t("Il y a quelques instants")}</div>
       </div>
     </div>
   );
 }
 
 function FacebookMockup({ post, index }: { post: PlannedPost; index: number }) {
+  const t = useT();
   return (
     <div className="bg-white">
       <div className="flex items-center justify-between px-3 py-2.5">
@@ -1951,9 +1969,9 @@ function FacebookMockup({ post, index }: { post: PlannedPost; index: number }) {
             T
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold text-slate-900">Ta marque</div>
+            <div className="text-sm font-semibold text-slate-900">{t("Ta marque")}</div>
             <div className="text-[11px] text-slate-500 flex items-center gap-1">
-              Sponsorisé · <span className="text-blue-600">🌐</span>
+              {t("Sponsorisé · ")}<span className="text-blue-600">🌐</span>
             </div>
           </div>
         </div>
@@ -1968,13 +1986,13 @@ function FacebookMockup({ post, index }: { post: PlannedPost; index: number }) {
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
             <Facebook className="w-8 h-8" />
-            Image en cours…
+            {t("Image en cours…")}
           </div>
         )}
       </div>
       <div className="px-3 py-2 bg-slate-50 flex items-center justify-between">
         <div className="text-[11px] text-slate-600 font-semibold uppercase tracking-wide">
-          En savoir plus
+          {t("En savoir plus")}
         </div>
         <div className="text-[10px] text-slate-500">tamarque.fr</div>
       </div>
@@ -1985,18 +2003,19 @@ function FacebookMockup({ post, index }: { post: PlannedPost; index: number }) {
           </span>
           <span>{286 + index * 23}</span>
         </div>
-        <div className="text-[11px] text-slate-500">{34 + index * 3} commentaires · {12 + index} partages</div>
+        <div className="text-[11px] text-slate-500">{t("{comments} commentaires · {shares} partages", { comments: 34 + index * 3, shares: 12 + index })}</div>
       </div>
       <div className="grid grid-cols-3 border-t text-xs text-slate-600 font-medium">
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><ThumbsUp className="w-3.5 h-3.5" /> J'aime</button>
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><MessageCircle className="w-3.5 h-3.5" /> Commenter</button>
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><Share2 className="w-3.5 h-3.5" /> Partager</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><ThumbsUp className="w-3.5 h-3.5" /> {t("J'aime")}</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><MessageCircle className="w-3.5 h-3.5" /> {t("Commenter")}</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><Share2 className="w-3.5 h-3.5" /> {t("Partager")}</button>
       </div>
     </div>
   );
 }
 
 function LinkedinMockup({ post, index }: { post: PlannedPost; index: number }) {
+  const t = useT();
   return (
     <div className="bg-white">
       <div className="flex items-center justify-between px-3 py-2.5">
@@ -2005,8 +2024,8 @@ function LinkedinMockup({ post, index }: { post: PlannedPost; index: number }) {
             T
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold text-slate-900">Ta marque</div>
-            <div className="text-[11px] text-slate-500">Entreprise · Sponsorisé</div>
+            <div className="text-sm font-semibold text-slate-900">{t("Ta marque")}</div>
+            <div className="text-[11px] text-slate-500">{t("Entreprise · Sponsorisé")}</div>
           </div>
         </div>
         <Linkedin className="w-5 h-5 text-[#0a66c2]" />
@@ -2020,7 +2039,7 @@ function LinkedinMockup({ post, index }: { post: PlannedPost; index: number }) {
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
             <Linkedin className="w-8 h-8" />
-            Image en cours…
+            {t("Image en cours…")}
           </div>
         )}
       </div>
@@ -2031,12 +2050,12 @@ function LinkedinMockup({ post, index }: { post: PlannedPost; index: number }) {
           </span>
           <span>{142 + index * 19}</span>
         </div>
-        <div className="text-[11px] text-slate-500">{18 + index * 2} commentaires · {7 + index} republications</div>
+        <div className="text-[11px] text-slate-500">{t("{comments} commentaires · {shares} republications", { comments: 18 + index * 2, shares: 7 + index })}</div>
       </div>
       <div className="grid grid-cols-3 border-t text-xs text-slate-600 font-medium">
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><ThumbsUp className="w-3.5 h-3.5" /> J'aime</button>
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><MessageCircle className="w-3.5 h-3.5" /> Commenter</button>
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><Share2 className="w-3.5 h-3.5" /> Republier</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><ThumbsUp className="w-3.5 h-3.5" /> {t("J'aime")}</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><MessageCircle className="w-3.5 h-3.5" /> {t("Commenter")}</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><Share2 className="w-3.5 h-3.5" /> {t("Republier")}</button>
       </div>
     </div>
   );
@@ -2081,6 +2100,7 @@ function SuccessScreen({
   onNew: () => void;
   onDashboard: () => void;
 }) {
+  const t = useT();
   return (
     <div className="text-center py-16 space-y-8 relative">
       <Confetti />
@@ -2091,26 +2111,26 @@ function SuccessScreen({
         <div className="absolute inset-0 rounded-full border-4 border-green-300 animate-ping opacity-30" />
       </div>
       <div className="space-y-3">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">C'est parti !</h1>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("C'est parti !")}</h1>
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
-          J'ai programmé {campaign.plan.posts.length} messages. Ils partiront tout seuls aux dates prévues. Tu n'as plus rien à faire 😊
+          {t("J'ai programmé {count} messages. Ils partiront tout seuls aux dates prévues. Tu n'as plus rien à faire 😊", { count: campaign.plan.posts.length })}
         </p>
         {campaign.notificationEmail && emailStatus?.sent && (
-          <p className="text-sm text-green-700">📧 Récap envoyé à {campaign.notificationEmail} (pense à vérifier tes spams).</p>
+          <p className="text-sm text-green-700">{t("📧 Récap envoyé à {email} (pense à vérifier tes spams).", { email: campaign.notificationEmail })}</p>
         )}
         {campaign.notificationEmail && emailStatus && !emailStatus.sent && (
           <div className="max-w-md mx-auto bg-amber-50 border border-amber-200 rounded-lg p-3 text-left text-sm text-amber-900">
-            <p className="font-semibold">📧 L'email récap n'est pas parti.</p>
+            <p className="font-semibold">{t("📧 L'email récap n'est pas parti.")}</p>
             <p className="text-xs mt-1">
-              Ta campagne, elle, est bien lancée ! Côté email, ça vient probablement de l'adresse expéditeur configurée. Détail technique : {emailStatus.error?.slice(0, 200) || "raison inconnue"}.
+              {t("Ta campagne, elle, est bien lancée ! Côté email, ça vient probablement de l'adresse expéditeur configurée. Détail technique : {detail}.", { detail: emailStatus.error?.slice(0, 200) || t("raison inconnue") })}
             </p>
           </div>
         )}
       </div>
       <div className="flex justify-center gap-3 pt-2 flex-wrap">
-        <Button variant="outline" onClick={onDashboard} className="h-11">Voir mes campagnes</Button>
+        <Button variant="outline" onClick={onDashboard} className="h-11">{t("Voir mes campagnes")}</Button>
         <Button onClick={onNew} className="h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700">
-          <Wand2 className="w-4 h-4 mr-2" /> En lancer une autre
+          <Wand2 className="w-4 h-4 mr-2" /> {t("En lancer une autre")}
         </Button>
       </div>
     </div>
@@ -2128,23 +2148,24 @@ function Dashboard({
   onDelete: (id: number) => void;
   onNew: () => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Mes campagnes 📋</h1>
-          <p className="text-muted-foreground">{campaigns.length === 0 ? "Pas encore de campagne" : `${campaigns.length} campagne${campaigns.length > 1 ? "s" : ""} en tout`}</p>
+          <h1 className="text-3xl font-bold">{t("Mes campagnes 📋")}</h1>
+          <p className="text-muted-foreground">{campaigns.length === 0 ? t("Pas encore de campagne") : t("{count} campagne(s) en tout", { count: campaigns.length })}</p>
         </div>
         <Button onClick={onNew} className="h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700">
-          <Wand2 className="w-4 h-4 mr-2" /> En lancer une nouvelle
+          <Wand2 className="w-4 h-4 mr-2" /> {t("En lancer une nouvelle")}
         </Button>
       </div>
 
       {campaigns.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border">
           <div className="text-5xl mb-3">🌱</div>
-          <p className="text-muted-foreground mb-4">Aucune campagne pour l'instant. On commence ?</p>
-          <Button onClick={onNew}>Créer ma première campagne</Button>
+          <p className="text-muted-foreground mb-4">{t("Aucune campagne pour l'instant. On commence ?")}</p>
+          <Button onClick={onNew}>{t("Créer ma première campagne")}</Button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -2154,14 +2175,14 @@ function Dashboard({
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <h3 className="font-semibold truncate">{c.name}</h3>
                   <Badge variant={c.status === "launched" ? "default" : "secondary"} className={c.status === "launched" ? "bg-green-600" : ""}>
-                    {c.status === "launched" ? "✅ Lancée" : c.status === "launching" ? "⏳ En cours" : "📝 Brouillon"}
+                    {c.status === "launched" ? t("✅ Lancée") : c.status === "launching" ? t("⏳ En cours") : t("📝 Brouillon")}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground truncate">{c.plan.posts.length} messages · créée le {new Date(c.createdAt).toLocaleDateString("fr-FR")}</p>
+                <p className="text-sm text-muted-foreground truncate">{t("{count} messages · créée le {date}", { count: c.plan.posts.length, date: new Date(c.createdAt).toLocaleDateString("fr-FR") })}</p>
               </div>
               <div className="flex gap-2 shrink-0">
                 <Button variant="outline" size="sm" onClick={() => onView(c)}>
-                  <Eye className="w-4 h-4 mr-1" /> Voir
+                  <Eye className="w-4 h-4 mr-1" /> {t("Voir")}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => onDelete(c.id)} className="text-destructive hover:text-destructive">
                   <Trash2 className="w-4 h-4" />
@@ -2190,6 +2211,7 @@ function EmailPreviewScreen({
   onSent: (result: { sent: number; failed: number; total: number }) => void;
   onBack: () => void;
 }) {
+  const t = useT();
   const [contacts, setContacts] = useState<EmailContactRow[]>([]);
   const [loadingContacts, setLoadingContacts] = useState(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -2232,29 +2254,29 @@ function EmailPreviewScreen({
         const updated: EmailCampaignRow = await r.json();
         setCampaign(updated);
         setEditing(false);
-        toast.success("Modifications enregistrées");
+        toast.success(t("Modifications enregistrées"));
       } else {
-        toast.error("Impossible d'enregistrer");
+        toast.error(t("Impossible d'enregistrer"));
       }
     } catch {
-      toast.error("La connexion a coupé");
+      toast.error(t("La connexion a coupé"));
     }
   }
 
   async function send() {
     const subscribedContacts = contacts.filter((c) => c.subscribed);
     if (subscribedContacts.length === 0) {
-      toast.error("Tu n'as pas encore de contacts. Ajoute-les depuis l'onglet Emails.");
+      toast.error(t("Tu n'as pas encore de contacts. Ajoute-les depuis l'onglet Emails."));
       return;
     }
     const willSend = allSubscribed
       ? subscribedContacts.length
       : selected.size;
     if (willSend === 0) {
-      toast.error("Sélectionne au moins un destinataire");
+      toast.error(t("Sélectionne au moins un destinataire"));
       return;
     }
-    if (!confirm(`Envoyer cet email à ${willSend} destinataire(s) ?`)) return;
+    if (!confirm(t("Envoyer cet email à {n} destinataire(s) ?", { n: willSend }))) return;
     setSending(true);
     try {
       const r = await fetch(API(`/email/campaigns/${campaign.id}/send`), {
@@ -2268,13 +2290,13 @@ function EmailPreviewScreen({
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({ error: "Oups" }));
-        toast.error(friendlyError(err.error));
+        toast.error(t(friendlyError(err.error)));
         return;
       }
       const data: { sent: number; failed: number; total: number } = await r.json();
       onSent(data);
     } catch {
-      toast.error("La connexion a coupé. On réessaie ?");
+      toast.error(t("La connexion a coupé. On réessaie ?"));
     } finally {
       setSending(false);
     }
@@ -2288,21 +2310,21 @@ function EmailPreviewScreen({
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg">
           <Mail className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-3xl font-bold">Ton email est prêt ✨</h1>
-        <p className="text-muted-foreground">Relis, ajuste, choisis tes destinataires, puis on envoie.</p>
+        <h1 className="text-3xl font-bold">{t("Ton email est prêt ✨")}</h1>
+        <p className="text-muted-foreground">{t("Relis, ajuste, choisis tes destinataires, puis on envoie.")}</p>
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm uppercase text-gray-500">Aperçu</h3>
+          <h3 className="font-semibold text-sm uppercase text-gray-500">{t("Aperçu")}</h3>
           <Button variant={editing ? "secondary" : "ghost"} size="sm" onClick={() => setEditing((v) => !v)}>
-            {editing ? "Annuler" : "Modifier"}
+            {editing ? t("Annuler") : t("Modifier")}
           </Button>
         </div>
         {editing ? (
           <div className="space-y-3">
             <div>
-              <Label className="text-xs">Sujet</Label>
+              <Label className="text-xs">{t("Sujet")}</Label>
               <input
                 className="w-full mt-1 px-3 py-2 border rounded-md"
                 value={subject}
@@ -2310,24 +2332,24 @@ function EmailPreviewScreen({
               />
             </div>
             <div>
-              <Label className="text-xs">Contenu (texte brut)</Label>
+              <Label className="text-xs">{t("Contenu (texte brut)")}</Label>
               <Textarea
                 className="mt-1 min-h-60"
                 value={bodyText}
                 onChange={(e) => setBodyText(e.target.value)}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Note : on garde la mise en page HTML d'origine. Seul le sujet et la version texte sont édités ici.
+                {t("Note : on garde la mise en page HTML d'origine. Seul le sujet et la version texte sont édités ici.")}
               </p>
             </div>
             <div className="flex justify-end">
-              <Button onClick={saveEdits}>Enregistrer</Button>
+              <Button onClick={saveEdits}>{t("Enregistrer")}</Button>
             </div>
           </div>
         ) : (
           <>
             <div>
-              <p className="text-xs text-gray-500 uppercase">Sujet</p>
+              <p className="text-xs text-gray-500 uppercase">{t("Sujet")}</p>
               <p className="font-semibold text-lg">{campaign.subject}</p>
             </div>
             <div className="border rounded-lg p-4 bg-gray-50 prose prose-sm max-w-none"
@@ -2339,16 +2361,16 @@ function EmailPreviewScreen({
 
       <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm uppercase text-gray-500">Destinataires</h3>
+          <h3 className="font-semibold text-sm uppercase text-gray-500">{t("Destinataires")}</h3>
           <Link href="/app/emails" className="text-xs text-violet-600 hover:underline">
-            Gérer mes contacts
+            {t("Gérer mes contacts")}
           </Link>
         </div>
         {loadingContacts ? (
           <div className="py-6 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></div>
         ) : contacts.length === 0 ? (
           <div className="text-center py-6 text-sm text-gray-500">
-            Tu n'as pas encore de contacts. <Link href="/app/emails" className="text-violet-600 font-semibold hover:underline">Ajoute-les</Link> avant d'envoyer.
+            {t("Tu n'as pas encore de contacts.")} <Link href="/app/emails" className="text-violet-600 font-semibold hover:underline">{t("Ajoute-les")}</Link> {t("avant d'envoyer.")}
           </div>
         ) : (
           <>
@@ -2363,7 +2385,7 @@ function EmailPreviewScreen({
                 className="w-4 h-4"
               />
               <span className="text-sm font-medium">
-                Envoyer à tous mes abonnés ({subscribedCount})
+                {t("Envoyer à tous mes abonnés ({count})", { count: subscribedCount })}
               </span>
             </label>
             {!allSubscribed && (
@@ -2389,16 +2411,16 @@ function EmailPreviewScreen({
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <Button variant="ghost" onClick={onBack}>← Retour au brief</Button>
+        <Button variant="ghost" onClick={onBack}>{t("← Retour au brief")}</Button>
         <Button
           onClick={send}
           disabled={sending || contacts.length === 0}
           className="h-12 px-8 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700"
         >
           {sending ? (
-            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Envoi en cours…</>
+            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("Envoi en cours…")}</>
           ) : (
-            <><Send className="w-4 h-4 mr-2" /> Envoyer maintenant</>
+            <><Send className="w-4 h-4 mr-2" /> {t("Envoyer maintenant")}</>
           )}
         </Button>
       </div>
@@ -2415,16 +2437,17 @@ function EmailSuccessScreen({
   result: { sent: number; failed: number; total: number };
   onNew: () => void;
 }) {
+  const t = useT();
   return (
     <div className="text-center space-y-6 py-10">
       <div className="w-28 h-28 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-2xl shadow-green-500/40 mx-auto">
         <CheckCircle2 className="w-14 h-14 text-white" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Email envoyé !</h1>
+        <h1 className="text-3xl font-bold">{t("Email envoyé !")}</h1>
         <p className="text-muted-foreground">
-          {result.sent} email(s) partis sur {result.total}.
-          {result.failed > 0 && ` ${result.failed} échec(s).`}
+          {t("{sent} email(s) partis sur {total}.", { sent: result.sent, total: result.total })}
+          {result.failed > 0 && ` ${t("{failed} échec(s).", { failed: result.failed })}`}
         </p>
         <p className="text-sm text-gray-500">
           « {campaign.subject} »
@@ -2432,14 +2455,14 @@ function EmailSuccessScreen({
       </div>
       <div className="flex justify-center gap-3 pt-2 flex-wrap">
         <Link href="/app/emails">
-          <Button variant="outline" className="h-11">Voir les stats</Button>
+          <Button variant="outline" className="h-11">{t("Voir les stats")}</Button>
         </Link>
         <Button onClick={onNew} className="h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700">
-          <Wand2 className="w-4 h-4 mr-2" /> En lancer une autre
+          <Wand2 className="w-4 h-4 mr-2" /> {t("En lancer une autre")}
         </Button>
       </div>
       <p className="text-xs text-gray-500 max-w-md mx-auto">
-        Les ouvertures et clics apparaîtront dans tes stats au fur et à mesure (si le webhook Resend est configuré).
+        {t("Les ouvertures et clics apparaîtront dans tes stats au fur et à mesure (si le webhook Resend est configuré).")}
       </p>
     </div>
   );

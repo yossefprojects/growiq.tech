@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
 import { ToolboxModal } from "./toolbox-modal";
 import { LanguageSwitcher } from "./language-switcher";
+import { useT } from "@/lib/i18n";
 import { BrandLogo } from "./brand-logo";
 import { AdminIconButton } from "./admin-button";
 
@@ -14,8 +15,9 @@ const sidebarBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function AccountLink() {
   const { user } = useUser();
+  const t = useT();
   const initial = (user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0] ?? "?").toUpperCase();
-  const label = user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "Mon compte";
+  const label = user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? t("Mon compte");
   return (
     <Link
       href="/app/account"
@@ -30,7 +32,7 @@ function AccountLink() {
         </div>
       )}
       <div className="flex flex-col min-w-0">
-        <span className="text-xs font-semibold text-foreground truncate">Mon compte</span>
+        <span className="text-xs font-semibold text-foreground truncate">{t("Mon compte")}</span>
         <span className="text-[10px] text-muted-foreground truncate">{label}</span>
       </div>
       <UserIcon className="w-4 h-4 ml-auto shrink-0" />
@@ -46,6 +48,7 @@ type SidebarMeState =
 
 function AdminLink() {
   const { getToken } = useAuth();
+  const t = useT();
   const { data } = useQuery<SidebarMeState>({
     queryKey: ["me"],
     queryFn: async () => {
@@ -68,7 +71,7 @@ function AdminLink() {
       data-testid="link-admin"
     >
       <Shield className="w-4 h-4" />
-      <span>Admin CRM</span>
+      <span>{t("Admin CRM")}</span>
     </Link>
   );
 }
@@ -111,6 +114,7 @@ export function Sidebar({
   isLoading,
 }: SidebarProps) {
   const [toolboxOpen, setToolboxOpen] = useState(false);
+  const t = useT();
   return (
     <div className="w-64 border-r bg-card flex flex-col h-full flex-shrink-0">
       <div className="px-4 py-4 border-b bg-gradient-to-br from-[#ede9fe] to-[#d1fae5]/60 flex items-center justify-between gap-2">
@@ -126,7 +130,7 @@ export function Sidebar({
           data-testid="button-new-chat"
         >
           <Plus className="w-4 h-4" />
-          Nouveau chat
+          {t("Nouveau chat")}
         </button>
         <button
           onClick={onLaunchCampaign}
@@ -134,7 +138,7 @@ export function Sidebar({
           data-testid="button-launch-campaign"
         >
           <Rocket className="w-4 h-4" />
-          Lancer une campagne
+          {t("Lancer une campagne")}
         </button>
         <Link
           href="/app/agency"
@@ -142,7 +146,7 @@ export function Sidebar({
           data-testid="link-agency"
         >
           <Sparkles className="w-4 h-4" />
-          Agence automatique
+          {t("Agence automatique")}
         </Link>
         <button
           onClick={() => setToolboxOpen(true)}
@@ -150,7 +154,7 @@ export function Sidebar({
           data-testid="button-toolbox"
         >
           <Wrench className="w-3.5 h-3.5" />
-          Boîte à outils
+          {t("Boîte à outils")}
         </button>
         {onShowDemo && (
           <button
@@ -159,7 +163,7 @@ export function Sidebar({
             data-testid="button-show-demo"
           >
             <PlayCircle className="w-3.5 h-3.5" />
-            Voir la démo
+            {t("Voir la démo")}
           </button>
         )}
       </div>
@@ -175,7 +179,7 @@ export function Sidebar({
             {campaigns.length > 0 && (
               <div className="p-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
-                  Campagnes
+                  {t("Campagnes")}
                 </p>
                 <div className="flex flex-col gap-1">
                   {campaigns.map((campaign) => {
@@ -216,7 +220,7 @@ export function Sidebar({
               <div className="p-3">
                 {campaigns.length > 0 && (
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
-                    Conversations
+                    {t("Conversations")}
                   </p>
                 )}
                 <div className="flex flex-col gap-1">
@@ -252,7 +256,7 @@ export function Sidebar({
               <div className="p-6 text-center">
                 <Rocket className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  Lancez votre première campagne ou démarrez un chat.
+                  {t("Lancez votre première campagne ou démarrez un chat.")}
                 </p>
               </div>
             )}
@@ -275,7 +279,7 @@ export function Sidebar({
           data-testid="link-integrations"
         >
           <Plug className="w-4 h-4" />
-          <span>Mes outils</span>
+          <span>{t("Mes outils")}</span>
         </Link>
         <AdminLink />
 
@@ -289,7 +293,7 @@ export function Sidebar({
             data-testid="button-signout"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Se déconnecter</span>
+            <span>{t("Se déconnecter")}</span>
           </button>
         </SignOutButton>
       </div>

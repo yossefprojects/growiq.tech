@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { BrandLogo } from "@/components/brand-logo";
+import { useT } from "@/lib/i18n";
 import {
   Sparkles,
   Rocket,
@@ -87,6 +88,7 @@ const STEPS = [
 ];
 
 export default function HomePage() {
+  const t = useT();
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-secondary/20 text-foreground">
       <header className="sticky top-0 z-30 backdrop-blur-md bg-background/70 border-b border-border/60">
@@ -99,7 +101,7 @@ export default function HomePage() {
             className="flex items-center gap-1.5 bg-foreground text-background hover:opacity-90 rounded-md px-4 py-2 text-sm font-semibold transition-opacity"
             data-testid="header-cta"
           >
-            Ouvrir l'app
+            {t("Ouvrir l'app")}
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -119,7 +121,7 @@ export default function HomePage() {
             className="inline-flex items-center gap-2 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 rounded-full px-4 py-1.5 text-xs font-semibold mb-6 border border-fuchsia-500/20"
           >
             <Zap className="w-3.5 h-3.5" />
-            Stratège marketing senior, disponible 24/7
+            {t("Stratège marketing senior, disponible 24/7")}
           </motion.div>
 
           <motion.h1
@@ -128,8 +130,8 @@ export default function HomePage() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-5xl md:text-6xl font-bold tracking-tight mb-6 leading-[1.1]"
           >
-            Votre <span className="bg-gradient-to-r from-fuchsia-500 to-purple-600 bg-clip-text text-transparent">agent marketing IA</span><br />
-            qui exécute, pas qui conseille.
+            {t("Votre")} <span className="bg-gradient-to-r from-fuchsia-500 to-purple-600 bg-clip-text text-transparent">{t("agent marketing IA")}</span><br />
+            {t("qui exécute, pas qui conseille.")}
           </motion.h1>
 
           <motion.p
@@ -138,7 +140,7 @@ export default function HomePage() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
           >
-            Lancez de vraies campagnes marketing en quelques minutes. Visuels IA, emails envoyés, posts programmés, leads capturés — tout depuis une conversation.
+            {t("Lancez de vraies campagnes marketing en quelques minutes. Visuels IA, emails envoyés, posts programmés, leads capturés — tout depuis une conversation.")}
           </motion.p>
 
           <motion.div
@@ -153,7 +155,7 @@ export default function HomePage() {
               data-testid="hero-cta-primary"
             >
               <Rocket className="w-5 h-5" />
-              Lancer ma première campagne
+              {t("Lancer ma première campagne")}
             </Link>
             <Link
               href="/app"
@@ -161,7 +163,7 @@ export default function HomePage() {
               data-testid="hero-cta-secondary"
             >
               <Bot className="w-5 h-5" />
-              Parler à l'agent
+              {t("Parler à l'agent")}
             </Link>
           </motion.div>
 
@@ -184,10 +186,10 @@ export default function HomePage() {
       <section className="max-w-6xl mx-auto px-6 py-20">
         <div className="text-center mb-14">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-            7 capacités pour exécuter vos campagnes
+            {t("7 capacités pour exécuter vos campagnes")}
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Pas juste des conseils. L'agent crée, publie, envoie et collecte — vraiment.
+            {t("Pas juste des conseils. L'agent crée, publie, envoie et collecte — vraiment.")}
           </p>
         </div>
 
@@ -208,8 +210,8 @@ export default function HomePage() {
                 >
                   <Icon className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-lg mb-2">{f.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{f.description}</p>
+                <h3 className="font-bold text-lg mb-2">{t(f.title)}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t(f.description)}</p>
               </motion.div>
             );
           })}
@@ -220,9 +222,9 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-              3 étapes, zéro friction
+              {t("3 étapes, zéro friction")}
             </h2>
-            <p className="text-muted-foreground">De l'idée à la campagne publiée en moins de 10 minutes.</p>
+            <p className="text-muted-foreground">{t("De l'idée à la campagne publiée en moins de 10 minutes.")}</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -238,8 +240,8 @@ export default function HomePage() {
                 <div className="text-6xl font-bold bg-gradient-to-br from-fuchsia-500/30 to-purple-600/10 bg-clip-text text-transparent mb-2">
                   {s.num}
                 </div>
-                <h3 className="font-bold text-xl mb-2">{s.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">{s.text}</p>
+                <h3 className="font-bold text-xl mb-2">{t(s.title)}</h3>
+                <p className="text-muted-foreground leading-relaxed">{t(s.text)}</p>
               </motion.div>
             ))}
           </div>
@@ -260,10 +262,10 @@ export default function HomePage() {
           <div className="relative">
             <Globe className="w-12 h-12 text-white/80 mx-auto mb-6" />
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Prêt à automatiser votre marketing ?
+              {t("Prêt à automatiser votre marketing ?")}
             </h2>
             <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
-              Démarrez gratuitement. Sans carte bancaire. Première campagne en moins de 5 minutes.
+              {t("Démarrez gratuitement. Sans carte bancaire. Première campagne en moins de 5 minutes.")}
             </p>
             <Link
               href="/app"
@@ -271,7 +273,7 @@ export default function HomePage() {
               data-testid="footer-cta"
             >
               <Rocket className="w-5 h-5" />
-              Commencer maintenant
+              {t("Commencer maintenant")}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -288,7 +290,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-4">
             <Link href="/app" className="hover:text-foreground transition-colors">
-              Accéder à l'app
+              {t("Accéder à l'app")}
             </Link>
           </div>
         </div>
