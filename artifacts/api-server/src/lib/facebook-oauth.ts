@@ -28,19 +28,18 @@ const FB_AUTH_URL = "https://www.facebook.com/v21.0/dialog/oauth";
 const GRAPH_BASE = "https://graph.facebook.com/v21.0";
 
 const DEFAULT_SCOPES = [
-  "public_profile",
-  "email",
   "pages_show_list",
-  "pages_manage_posts",
   "pages_read_engagement",
+  "pages_manage_posts",
   "instagram_basic",
   "instagram_content_publish",
-  "business_management",
-  // NOTE : les scopes Meta Ads (ads_management, ads_read) sont volontairement
-  // retirés du login par défaut. Tant que Meta n'a pas approuvé l'App Review,
-  // demander ces scopes avancés fait échouer TOUT le dialogue d'autorisation
+  // NOTE : on ne demande QUE les 5 scopes nécessaires à la publication.
+  // Les permissions avancées (ads_management, ads_read, business_management)
+  // exigent l'App Review + la vérification Business de Meta. Tant qu'elles ne
+  // sont pas approuvées, les demander fait échouer TOUT le dialogue d'autorisation
   // ("Invalid Scopes" / "Ce contenu n'est pas disponible"), même pour publier.
-  // À réintégrer dans un flow Meta Ads opt-in une fois l'approbation obtenue.
+  // public_profile est ajouté automatiquement par Facebook, inutile de le lister.
+  // À réintégrer dans un flow opt-in dédié une fois l'approbation obtenue.
 ].join(",");
 
 export type FacebookConfig = {
