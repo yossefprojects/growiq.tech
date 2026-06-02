@@ -48,3 +48,6 @@ channel = "stable-25_05"
 [userenv.shared]
 META_AD_ACCOUNT_ID = "act_1307952807483509"
 GROWIQ_ADMIN_EMAILS = "joseph.chaouat@gmail.com"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-d025614b-6722-4fac-b6f5-d79659f5039e"
