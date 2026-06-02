@@ -34,6 +34,7 @@ import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
 import { AdminIconButton } from "@/components/admin-button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { useEffect } from "react";
 
 type ActionCard = {
@@ -59,6 +60,7 @@ export default function DashboardPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
+  const { t, language } = useI18n();
 
   // Carte onboarding "Connecte tes outils" si rien de configuré.
   // Ne bloque pas l'UI : on l'affiche en bandeau au-dessus des actions.
@@ -97,12 +99,12 @@ export default function DashboardPage() {
       profile?.onboardingCompleted ?? false,
     );
     if (onboardingPending) {
-      const t = setTimeout(() => setShowOnboarding(true), 300);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setShowOnboarding(true), 300);
+      return () => clearTimeout(timer);
     }
     if (!shouldShowWelcomeTour()) return;
-    const t = setTimeout(() => setShowWelcome(true), 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShowWelcome(true), 400);
+    return () => clearTimeout(timer);
   }, [profileLoading, profile?.onboardingCompleted]);
 
   const { data: conversations = [], isLoading: convLoading } =
@@ -124,11 +126,11 @@ export default function DashboardPage() {
         {
           onSuccess: () =>
             queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() }),
-          onError: (err) => toastError(err, "Impossible de supprimer la conversation"),
+          onError: (err) => toastError(err, t("Impossible de supprimer la conversation")),
         },
       );
     },
-    [deleteConv, queryClient],
+    [deleteConv, queryClient, t],
   );
 
   const handleDeleteCampaign = useCallback(
@@ -140,57 +142,57 @@ export default function DashboardPage() {
             queryClient.invalidateQueries({ queryKey: getListOpenaiCampaignsQueryKey() });
             queryClient.invalidateQueries({ queryKey: getListOpenaiConversationsQueryKey() });
           },
-          onError: (err) => toastError(err, "Impossible de supprimer la campagne"),
+          onError: (err) => toastError(err, t("Impossible de supprimer la campagne")),
         },
       );
     },
-    [deleteCamp, queryClient],
+    [deleteCamp, queryClient, t],
   );
 
   const actions: ActionCard[] = [
     {
-      title: "Lancer une campagne",
-      description: "L'agent prépare tout : visuels, posts, emails. Tu valides, c'est publié.",
+      title: t("Lancer une campagne"),
+      description: t("L'agent prépare tout : visuels, posts, emails. Tu valides, c'est publié."),
       icon: Rocket,
       bg: "bg-gradient-to-br from-[#5b54d6] to-[#7c6cf0] text-white",
       iconBg: "bg-white/20",
       onClick: () => setLocation("/app/agency"),
       testId: "action-launch-campaign",
-      help: "L'agence automatique te pose 3 questions, choisit les réseaux et horaires, génère les visuels et le texte, puis publie sur Facebook et Instagram à ta validation.",
+      help: t("L'agence automatique te pose 3 questions, choisit les réseaux et horaires, génère les visuels et le texte, puis publie sur Facebook et Instagram à ta validation."),
     },
     {
-      title: "Programmer un post",
-      description: "Choisis le réseau, la date, l'heure. On s'occupe du reste.",
+      title: t("Programmer un post"),
+      description: t("Choisis le réseau, la date, l'heure. On s'occupe du reste."),
       icon: CalendarClock,
       bg: "bg-gradient-to-br from-[#3dbf8e] to-[#5dd4a6] text-white",
       iconBg: "bg-white/20",
       onClick: () => setToolboxOpen(true),
       testId: "action-schedule-post",
-      help: "Ouvre la boîte à outils pour programmer un post simple (texte + image) à une date et heure précises, sans passer par l'agence complète.",
+      help: t("Ouvre la boîte à outils pour programmer un post simple (texte + image) à une date et heure précises, sans passer par l'agence complète."),
     },
     {
-      title: "Parler à l'agent",
-      description: "Pose une question marketing, demande une idée, brainstorme.",
+      title: t("Parler à l'agent"),
+      description: t("Pose une question marketing, demande une idée, brainstorme."),
       icon: MessageCircle,
       bg: "bg-gradient-to-br from-[#1e1b4b] to-[#3a3470] text-white",
       iconBg: "bg-white/20",
       onClick: () => setLocation("/app/chat"),
       testId: "action-open-chat",
-      help: "Une conversation libre avec un stratège marketing senior. Idéal pour réfléchir, poser des questions précises ou faire valider une idée.",
+      help: t("Une conversation libre avec un stratège marketing senior. Idéal pour réfléchir, poser des questions précises ou faire valider une idée."),
     },
     {
-      title: "Emails & contacts",
-      description: "Gère ta base d'abonnés et retrouve les stats de tes campagnes emailing.",
+      title: t("Emails & contacts"),
+      description: t("Gère ta base d'abonnés et retrouve les stats de tes campagnes emailing."),
       icon: Mail,
       bg: "bg-gradient-to-br from-[#fef3c7] to-[#fde68a] text-[#1e1b4b]",
       iconBg: "bg-[#d97706]/15 text-[#d97706]",
       onClick: () => setLocation("/app/emails"),
       testId: "action-emails",
-      help: "Ajoute ou importe tes contacts, et consulte ouvertures et clics des campagnes que tu as envoyées depuis l'agence.",
+      help: t("Ajoute ou importe tes contacts, et consulte ouvertures et clics des campagnes que tu as envoyées depuis l'agence."),
     },
     {
-      title: "Mes campagnes",
-      description: "Retrouve toutes tes campagnes et leurs résultats.",
+      title: t("Mes campagnes"),
+      description: t("Retrouve toutes tes campagnes et leurs résultats."),
       icon: ListChecks,
       bg: "bg-gradient-to-br from-[#ede9fe] to-[#dbeafe] text-[#1e1b4b]",
       iconBg: "bg-[#5b54d6]/15 text-[#5b54d6]",
@@ -199,7 +201,7 @@ export default function DashboardPage() {
         el?.scrollIntoView({ behavior: "smooth", block: "start" });
       },
       testId: "action-my-campaigns",
-      help: "Toutes tes campagnes générées par l'agence, avec leur statut (en cours, programmée, publiée) et la possibilité de les rouvrir.",
+      help: t("Toutes tes campagnes générées par l'agence, avec leur statut (en cours, programmée, publiée) et la possibilité de les rouvrir."),
     },
   ];
 
@@ -237,14 +239,14 @@ export default function DashboardPage() {
               <SheetTrigger asChild>
                 <button
                   className="p-2 -ml-2 rounded-md hover:bg-muted transition-colors"
-                  aria-label="Ouvrir le menu"
+                  aria-label={t("Ouvrir le menu")}
                   data-testid="mobile-menu-trigger"
                 >
                   <Menu className="w-5 h-5" />
                 </button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-72 sm:w-80">
-                <SheetTitle className="sr-only">Menu</SheetTitle>
+                <SheetTitle className="sr-only">{t("Menu")}</SheetTitle>
                 <Sidebar {...sidebarProps} />
               </SheetContent>
             </Sheet>
@@ -262,13 +264,13 @@ export default function DashboardPage() {
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#5b54d6]/10 text-[#5b54d6] text-xs font-semibold mb-3">
                 <Sparkles className="w-3.5 h-3.5" />
-                Stratège marketing senior, disponible 24/7
+                {t("Stratège marketing senior, disponible 24/7")}
               </div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground">
-                Bonjour ! Que veux-tu faire aujourd'hui ?
+                {t("Bonjour ! Que veux-tu faire aujourd'hui ?")}
               </h1>
               <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-                Choisis une action ci-dessous, ou décris simplement ton besoin dans le chat.
+                {t("Choisis une action ci-dessous, ou décris simplement ton besoin dans le chat.")}
               </p>
             </div>
             <AdminIconButton variant="solid" className="mt-1" />
@@ -287,11 +289,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-lg sm:text-xl mb-1">
-                    Commence par connecter tes réseaux
+                    {t("Commence par connecter tes réseaux")}
                   </div>
                   <p className="text-sm text-[#1e1b4b]/80">
-                    L'agent a besoin d'un accès à tes comptes Facebook, LinkedIn
-                    ou Resend pour publier en ton nom. Ça prend 1 minute.
+                    {t("L'agent a besoin d'un accès à tes comptes Facebook, LinkedIn ou Resend pour publier en ton nom. Ça prend 1 minute.")}
                   </p>
                 </div>
                 <ArrowRight className="w-5 h-5 mt-1 shrink-0 group-hover:translate-x-1 transition-transform" />
@@ -331,9 +332,9 @@ export default function DashboardPage() {
           {/* Quick stats */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-10">
             {[
-              { label: "Conversations", value: conversations.length },
-              { label: "Campagnes", value: campaigns.length },
-              { label: "Posts programmés", value: "—" },
+              { label: t("Conversations"), value: conversations.length },
+              { label: t("Campagnes"), value: campaigns.length },
+              { label: t("Posts programmés"), value: "—" },
             ].map((s) => (
               <div
                 key={s.label}
@@ -352,17 +353,17 @@ export default function DashboardPage() {
           {/* Recent campaigns */}
           <section id="recent-campaigns" className="mb-10 scroll-mt-20">
             <div className="flex items-baseline justify-between mb-3">
-              <h2 className="text-lg sm:text-xl font-bold tracking-tight">Tes dernières campagnes</h2>
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight">{t("Tes dernières campagnes")}</h2>
               {campaigns.length > 5 && (
-                <span className="text-xs text-muted-foreground">{campaigns.length} au total</span>
+                <span className="text-xs text-muted-foreground">{t("{count} au total", { count: campaigns.length })}</span>
               )}
             </div>
             {campLoading ? (
-              <div className="text-sm text-muted-foreground py-6 text-center">Chargement…</div>
+              <div className="text-sm text-muted-foreground py-6 text-center">{t("Chargement…")}</div>
             ) : campaigns.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border/80 bg-muted/30 py-8 px-4 text-center">
                 <p className="text-sm text-muted-foreground mb-3">
-                  Tu n'as pas encore de campagne. Lance-toi !
+                  {t("Tu n'as pas encore de campagne. Lance-toi !")}
                 </p>
                 <button
                   onClick={() => setLocation("/app/agency")}
@@ -370,7 +371,7 @@ export default function DashboardPage() {
                   data-testid="empty-launch-campaign"
                 >
                   <Rocket className="w-4 h-4" />
-                  Créer ma première campagne
+                  {t("Créer ma première campagne")}
                 </button>
               </div>
             ) : (
@@ -389,7 +390,7 @@ export default function DashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm truncate">{c.title}</div>
                         <div className="text-xs text-muted-foreground">
-                          {new Date(c.createdAt).toLocaleDateString("fr-FR", {
+                          {new Date(c.createdAt).toLocaleDateString(language === "en" ? "en-US" : "fr-FR", {
                             day: "numeric",
                             month: "long",
                             year: "numeric",
@@ -408,7 +409,7 @@ export default function DashboardPage() {
           {conversations.length > 0 && (
             <section className="mb-10">
               <h2 className="text-lg sm:text-xl font-bold tracking-tight mb-3">
-                Conversations récentes
+                {t("Conversations récentes")}
               </h2>
               <div className="space-y-1.5">
                 {conversations.slice(0, 4).map((conv) => (
