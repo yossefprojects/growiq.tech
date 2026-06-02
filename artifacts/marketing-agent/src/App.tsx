@@ -6,6 +6,7 @@ import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { I18nProvider } from "@/lib/i18n";
 import NotFound from "@/pages/not-found";
 import ChatPage from "@/pages/chat";
 import LandingPage from "@/pages/landing";
@@ -279,11 +280,13 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
-        <TooltipProvider>
-          <CanonicalTag />
-          <Router />
-          <SonnerToaster richColors closeButton position="top-right" />
-        </TooltipProvider>
+        <I18nProvider>
+          <TooltipProvider>
+            <CanonicalTag />
+            <Router />
+            <SonnerToaster richColors closeButton position="top-right" />
+          </TooltipProvider>
+        </I18nProvider>
       </QueryClientProvider>
     </ClerkProvider>
   );

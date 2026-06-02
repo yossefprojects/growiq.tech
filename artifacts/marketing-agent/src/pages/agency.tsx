@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { sanitizeEmailHtml } from "@/lib/sanitize-html";
 import { Button } from "@/components/ui/button";
 import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { useConnectedChannels } from "@/hooks/use-connected-channels";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -546,7 +547,8 @@ export default function AgencyPage() {
               </div>
             </div>
           </Link>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <LanguageSwitcher />
             {step !== "dashboard" && (
               <Button variant="ghost" size="sm" onClick={() => setStep("dashboard")} data-testid="link-dashboard">
                 Mes campagnes ({campaigns.length})

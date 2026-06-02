@@ -7,6 +7,8 @@ export const localUsers = pgTable(
     email: text("email"),
     isAdmin: boolean("is_admin").notNull().default(false),
     backfillClaimed: boolean("backfill_claimed").notNull().default(false),
+    // Langue d'interface choisie par l'utilisateur ("fr" par défaut, "en" pour l'anglais).
+    language: text("language").notNull().default("fr"),
     firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).defaultNow().notNull(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
   },

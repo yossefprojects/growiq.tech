@@ -13,6 +13,7 @@
  */
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@clerk/react";
 import { Link, useSearch } from "wouter";
 import {
@@ -1366,14 +1367,17 @@ export default function IntegrationsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-secondary/20">
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
-        <Link
-          href="/app"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6"
-          data-testid="link-back-dashboard"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Retour au tableau de bord
-        </Link>
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <Link
+            href="/app"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            data-testid="link-back-dashboard"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Retour au tableau de bord
+          </Link>
+          <LanguageSwitcher />
+        </div>
 
         <div className="flex items-start justify-between gap-3 mb-2">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground">

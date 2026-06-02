@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@clerk/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -120,7 +121,7 @@ export default function EmailsPage() {
             Retour
           </Link>
           <h1 className="text-lg font-bold text-[#1e1b4b]">Emails</h1>
-          <div className="w-16" />
+          <LanguageSwitcher />
         </div>
       </header>
 

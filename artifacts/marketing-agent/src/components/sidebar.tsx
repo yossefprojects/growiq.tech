@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
 import { ToolboxModal } from "./toolbox-modal";
+import { LanguageSwitcher } from "./language-switcher";
 import { BrandLogo } from "./brand-logo";
 import { AdminIconButton } from "./admin-button";
 
@@ -277,7 +278,9 @@ export function Sidebar({
           <span>Mes outils</span>
         </Link>
         <AdminLink />
-        
+
+        <LanguageSwitcher className="px-2 py-1.5" />
+
         <AccountLink />
         <SignOutButton redirectUrl="/">
           <button
