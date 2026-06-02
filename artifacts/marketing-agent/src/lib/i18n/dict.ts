@@ -260,7 +260,7 @@
   "Ouvrir mon profil →": "Open my profile →",
   "📧 Ton email (facultatif)": "📧 Your email (optional)",
   "pour qu'on te confirme par email": "so we can confirm by email",
-  "TODO: case à cocher": "TODO: checkbox",
+  "J'ai vérifié les textes et les dates — je confirme le lancement": "I've checked the wording and the dates — I confirm the launch",
   "← Refaire les réponses": "← Redo my answers",
   "🚀 Lancer": "🚀 Launch",
   "✅ Une fois lancé, je publie tout seul aux horaires prévus. Tu n'as plus rien à faire.": "✅ Once launched, I post everything by myself at the planned times. You've got nothing more to do.",

@@ -1662,7 +1662,7 @@ function PreviewScreen({
   if (planNeedsInstagram && !channels.instagram) missingChannels.push("Instagram");
   if (planNeedsLinkedin && !channels.linkedin) missingChannels.push("LinkedIn");
   const canLaunch = !channels.loading && missingChannels.length === 0;
-  // TODO: case à cocher — libellé et comportement à définir plus tard.
+  // Confirmation explicite obligatoire avant le lancement (anti-lancement accidentel).
   const [todoChecked, setTodoChecked] = useState(false);
 
   return (
@@ -1797,7 +1797,7 @@ function PreviewScreen({
               data-testid="checkbox-todo"
             />
             <Label htmlFor="todo-checkbox" className="text-sm text-slate-600 cursor-pointer">
-              {t("TODO: case à cocher")}
+              {t("J'ai vérifié les textes et les dates — je confirme le lancement")}
             </Label>
           </div>
           <div className="flex gap-3">
@@ -1806,7 +1806,7 @@ function PreviewScreen({
             </Button>
             <Button
               onClick={onLaunch}
-              disabled={loading || !canLaunch}
+              disabled={loading || !canLaunch || !todoChecked}
               data-testid="button-launch"
               className="flex-[2] h-14 text-lg font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/30 disabled:from-slate-400 disabled:to-slate-500 disabled:shadow-none"
             >
