@@ -30,11 +30,24 @@ import {
   TestTube2,
   Trash2,
   ExternalLink,
+  HelpCircle,
+  MessageCircle,
+  Circle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toastError, toastSuccess } from "@/lib/toast-helpers";
+
+// Adresse de contact de l'équipe GrowIQ (modifiable ici en un seul endroit).
+const GROWIQ_SUPPORT_EMAIL = "support@growiq.tech";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -192,6 +205,194 @@ function Card({
 
 // ── Sections ─────────────────────────────────────────────────────────────
 
+// Traduit les erreurs techniques de Meta en messages simples et rassurants —
+// aucun code brut (#200, pages_manage_posts, etc.) ne doit atteindre l'écran.
+function friendlyMetaError(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const r = raw.toLowerCase();
+  if (
+    /app review|pages_manage_posts|instagram_content_publish|#200|not been approved|autoris|permission/.test(
+      r,
+    )
+  ) {
+    return "Tu n'as pas encore accès à cette fonctionnalité — contacte GrowIQ.";
+  }
+  if (/expire|session has expired|#190|#102|#463|token/.test(r)) {
+    return "Ta connexion a expiré. Reconnecte-toi pour continuer.";
+  }
+  if (/no_pages|aucune page|page/.test(r)) {
+    return "On n'a pas trouvé de page Facebook professionnelle sur ton compte.";
+  }
+  return "La connexion n'a pas pu aboutir. Réessaie, ou contacte GrowIQ si ça persiste.";
+}
+
+// Mappe un statut/erreur OAuth Facebook (query string, postMessage ou texte
+// serveur) vers un message FR clair — jamais de code technique brut à l'écran.
+function friendlyFacebookStatus(raw: string): string {
+  const r = raw.toLowerCase();
+  if (/cancel|annul|access_denied|denied/.test(r)) {
+    return "Connexion annulée. Tu peux réessayer quand tu veux.";
+  }
+  return (
+    friendlyMetaError(raw) ??
+    "La connexion Facebook n'a pas abouti. Réessaie, ou contacte GrowIQ."
+  );
+}
+
+type StepState = "done" | "current" | "todo";
+
+function StepRow({
+  n,
+  state,
+  title,
+  desc,
+}: {
+  n: number;
+  state: StepState;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="shrink-0 mt-0.5">
+        {state === "done" ? (
+          <CheckCircle2 className="w-5 h-5 text-[#1a7a55]" />
+        ) : state === "current" ? (
+          <div className="w-5 h-5 rounded-full bg-[#1877F2] text-white text-[11px] font-bold flex items-center justify-center">
+            {n}
+          </div>
+        ) : (
+          <Circle className="w-5 h-5 text-gray-300" />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p
+          className={`text-sm font-semibold ${state === "todo" ? "text-muted-foreground" : "text-foreground"}`}
+        >
+          {title}
+        </p>
+        <p className="text-xs text-muted-foreground">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+// Assistant guidé en 3 étapes — l'état de chaque étape reflète la connexion réelle.
+function MetaStepper({ fb, ig }: { fb: FacebookStatus; ig: InstagramStatus }) {
+  const step1: StepState = fb.connected ? "done" : "current";
+  const pageOk = fb.connected && !!fb.label;
+  const step2: StepState = pageOk ? "done" : fb.connected ? "current" : "todo";
+  const step3: StepState = ig.connected ? "done" : fb.connected ? "current" : "todo";
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3" data-testid="meta-stepper">
+      <StepRow
+        n={1}
+        state={step1}
+        title="Connecte Facebook"
+        desc="Autorise GrowIQ à publier sur ta page."
+      />
+      <StepRow
+        n={2}
+        state={step2}
+        title="Vérifie ta page"
+        desc={pageOk ? `Page détectée : ${fb.label}` : "On récupère ta page Facebook professionnelle."}
+      />
+      <StepRow
+        n={3}
+        state={step3}
+        title="Instagram détecté"
+        desc={
+          ig.connected && ig.username
+            ? `Compte lié : ${ig.username}`
+            : "Le compte Instagram Business lié à ta page."
+        }
+      />
+    </div>
+  );
+}
+
+// Checklist visuelle des prérequis, montrée avant la 1ère connexion.
+function MetaChecklist() {
+  const items = [
+    "Une page Facebook professionnelle",
+    "Un compte Instagram Business (ou Créateur)",
+    "Ton Instagram lié à ta page Facebook",
+  ];
+  return (
+    <div className="rounded-xl bg-blue-50 border border-blue-200 p-4" data-testid="meta-checklist">
+      <p className="text-sm font-semibold text-blue-900 mb-2">
+        Avant de commencer, assure-toi d'avoir :
+      </p>
+      <ul className="space-y-1.5">
+        {items.map((t) => (
+          <li key={t} className="flex items-center gap-2 text-sm text-blue-900">
+            <CheckCircle2 className="w-4 h-4 text-[#1a7a55] shrink-0" />
+            {t}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Boîte de dialogue "Besoin d'aide ?" — chat in-app ou email à l'équipe GrowIQ.
+function HelpDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const mailHref = `mailto:${GROWIQ_SUPPORT_EMAIL}?subject=${encodeURIComponent(
+    "Besoin d'aide — connexion Facebook / Instagram",
+  )}&body=${encodeURIComponent(
+    "Bonjour l'équipe GrowIQ,\n\nJ'ai besoin d'aide pour connecter mon compte Facebook / Instagram.\n\nVoici ma situation :\n\n",
+  )}`;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Besoin d'aide ?</DialogTitle>
+          <DialogDescription>
+            On est là pour t'aider à connecter Facebook et Instagram. Choisis
+            comment nous joindre.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => {
+              window.location.href = mailHref;
+            }}
+            data-testid="button-help-email"
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Écrire à l'équipe GrowIQ
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => {
+              onOpenChange(false);
+              window.location.href = `${basePath}/app`;
+            }}
+            data-testid="button-help-chat"
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Discuter avec l'assistant GrowIQ
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Tu peux aussi nous écrire directement à {GROWIQ_SUPPORT_EMAIL}.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function FacebookSection({
   fb,
   ig,
@@ -205,7 +406,9 @@ function FacebookSection({
   onDisconnect: () => void;
   connecting: boolean;
 }) {
+  const [helpOpen, setHelpOpen] = useState(false);
   const connected = fb.connected;
+  const friendlyError = friendlyMetaError(fb.lastErrorMessage);
   const badge = connected ? (
     <Badge variant="ok">Connecté</Badge>
   ) : fb.expired ? (
@@ -227,94 +430,113 @@ function FacebookSection({
       }
       badge={badge}
     >
-      {connected ? (
-        <div className="space-y-3">
-          <div className="rounded-lg bg-[#3dbf8e]/10 border border-[#3dbf8e]/30 p-3 text-sm text-[#1a7a55]">
-            Ton compte est connecté. Tu peux publier des posts depuis l'agence
-            automatique ou le chat.
-            {!ig.connected ? (
-              <div className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
-                Astuce : pour publier sur Instagram, lie un compte Instagram Business
-                à ta page Facebook depuis l'app Instagram (Paramètres → Compte
-                connecté), puis reconnecte ici.
-              </div>
-            ) : null}
+      <div className="space-y-4">
+        <MetaStepper fb={fb} ig={ig} />
+
+        {connected ? (
+          <div className="space-y-3">
+            <div className="rounded-lg bg-[#3dbf8e]/10 border border-[#3dbf8e]/30 p-3 text-sm text-[#1a7a55]">
+              Ton compte est connecté. Tu peux publier des posts depuis l'agence
+              automatique ou le chat.
+              {!ig.connected ? (
+                <div className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+                  Astuce : pour publier sur Instagram, lie un compte Instagram Business
+                  à ta page Facebook depuis l'app Instagram (Paramètres → Compte
+                  connecté), puis reconnecte ici.
+                </div>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onConnect}
+                disabled={connecting}
+                data-testid="button-facebook-reconnect"
+              >
+                {connecting ? (
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-1.5" />
+                )}
+                Reconnecter
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDisconnect}
+                className="text-red-600 hover:text-red-700"
+                data-testid="button-facebook-disconnect"
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Déconnecter
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+        ) : (
+          <div className="space-y-3">
+            {fb.expired ? (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                Ton accès Facebook a expiré (ça arrive tous les ~60 jours). Reconnecte-toi
+                pour continuer à publier.
+              </div>
+            ) : (
+              <>
+                <MetaChecklist />
+                <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+                  <span className="font-semibold">Accès anticipé.</span> La
+                  connexion Facebook est en cours de validation par Meta. En
+                  attendant, elle fonctionne pour les comptes invités par
+                  l'équipe GrowIQ. Contacte-nous si tu veux y accéder.
+                </div>
+              </>
+            )}
+            {friendlyError ? (
+              <p
+                className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2"
+                data-testid="text-facebook-error"
+              >
+                {friendlyError}
+              </p>
+            ) : null}
             <Button
-              variant="outline"
-              size="sm"
               onClick={onConnect}
               disabled={connecting}
-              data-testid="button-facebook-reconnect"
+              className="bg-[#1877F2] hover:bg-[#1465D6] text-white"
+              data-testid="button-facebook-connect"
             >
               {connecting ? (
-                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                <RefreshCw className="w-4 h-4 mr-1.5" />
+                <Facebook className="w-4 h-4 mr-2" />
               )}
-              Reconnecter
+              Connecter Facebook
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDisconnect}
-              className="text-red-600 hover:text-red-700"
-              data-testid="button-facebook-disconnect"
+            <Link
+              href="/app/integrations/facebook"
+              className="block text-xs text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
+              data-testid="link-facebook-manual"
             >
-              <Trash2 className="w-4 h-4 mr-1.5" />
-              Déconnecter
-            </Button>
+              Ou connecter manuellement avec un token
+            </Link>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {fb.expired ? (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
-              Ton accès Facebook a expiré (ça arrive tous les ~60 jours). Reconnecte-toi
-              pour continuer à publier.
-            </div>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Connecte ton compte Facebook pour publier sur ta page et ton compte
-                Instagram Business associé.
-              </p>
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
-                <span className="font-semibold">Accès anticipé.</span> La
-                connexion Facebook est en cours de validation par Meta. En
-                attendant, elle fonctionne pour les comptes invités par
-                l'équipe GrowIQ. Contacte-nous si tu veux y accéder.
-              </div>
-            </>
-          )}
-          {fb.lastErrorMessage ? (
-            <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
-              Dernière erreur : {fb.lastErrorMessage}
-            </p>
-          ) : null}
+        )}
+
+        <div className="pt-1 border-t border-border/40">
           <Button
-            onClick={onConnect}
-            disabled={connecting}
-            className="bg-[#1877F2] hover:bg-[#1465D6] text-white"
-            data-testid="button-facebook-connect"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setHelpOpen(true)}
+            data-testid="button-facebook-help"
           >
-            {connecting ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Facebook className="w-4 h-4 mr-2" />
-            )}
-            Connecter Facebook
+            <HelpCircle className="w-4 h-4 mr-1.5" />
+            Besoin d'aide ?
           </Button>
-          <Link
-            href="/app/integrations/facebook"
-            className="block text-xs text-indigo-600 hover:text-indigo-700 underline underline-offset-2"
-            data-testid="link-facebook-manual"
-          >
-            Ou connecter manuellement avec un token
-          </Link>
         </div>
-      )}
+      </div>
+
+      <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </Card>
   );
 }
@@ -884,7 +1106,7 @@ export default function IntegrationsPage() {
 
     // Cas normal (pas de fenêtre / fenêtre bloquée) : on affiche le toast ici.
     if (fb === "ok") toastSuccess("Facebook connecté !");
-    else if (fb) toastError(fb);
+    else if (fb) toastError(friendlyFacebookStatus(fb));
     if (ln === "ok") toastSuccess("LinkedIn connecté !");
     else if (ln) toastError(ln);
     if (gg === "ok") toastSuccess("Google Ads connecté !");
@@ -912,7 +1134,11 @@ export default function IntegrationsPage() {
       if (d.status === "ok") {
         toastSuccess(`${label} connecté !`);
       } else if (d.status) {
-        toastError(d.status);
+        toastError(
+          d.platform === "facebook"
+            ? friendlyFacebookStatus(d.status)
+            : d.status,
+        );
       }
       void qc.invalidateQueries({ queryKey: ["integrations"] });
     };
@@ -970,7 +1196,11 @@ export default function IntegrationsPage() {
           linkedin: "LinkedIn",
           google: "Google",
         };
-        toastError(`Impossible de démarrer la connexion ${labels[platform]} : ${txt}`);
+        toastError(
+          platform === "facebook"
+            ? friendlyFacebookStatus(txt)
+            : `Impossible de démarrer la connexion ${labels[platform]} : ${txt}`,
+        );
         popup?.close();
         setLoading(false);
         return;

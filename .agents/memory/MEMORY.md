@@ -1,2 +1,3 @@
 - [Meta connection troubleshooting](meta-connection-troubleshooting.md) — #100 'nonexisting field (accounts)' = wrong token type; 'Application inactive' = app still in Dev mode; prefer one-click OAuth over manual token paste.
+- [OAuth error sanitization](oauth-error-sanitization.md) — OAuth result strings (query string, postMessage, backend text) can leak raw Meta codes to UI toasts; always map to friendly French first.
 - [Publish-gating per-user status](publish-gating-per-user-status.md) — publish/launch buttons must read per-user /api/integrations, not admin-gated /api/meta/status (returns false for non-admins).
