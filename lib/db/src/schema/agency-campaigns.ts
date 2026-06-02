@@ -15,7 +15,7 @@ export type AgencyDecision = {
 
 export type AgencyPlannedPost = {
   id: string;
-  channel: "facebook" | "instagram";
+  channel: "facebook" | "instagram" | "linkedin";
   scheduledFor: string;
   copy: string;
   imagePrompt: string;

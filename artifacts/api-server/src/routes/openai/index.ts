@@ -30,7 +30,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { sendEmail } from "../../lib/email";
 import { publishToMeta, isMetaConfigured, getMetaProfile, getTokenStatus } from "../../lib/meta";
 import { publishToMetaForUser, getMetaCredentialsForUser } from "../../lib/meta-user";
-import { publishLinkedinPost } from "../../lib/linkedin";
+import { publishLinkedinPost, getConnection as getLinkedinConnection } from "../../lib/linkedin";
 import { uploadPublicBuffer } from "../../lib/objectStorage";
 import { logger } from "../../lib/logger";
 import {
@@ -1864,9 +1864,9 @@ Tu produis UN SEUL objet JSON valide (sans markdown, sans texte autour) :
   "posts": [
     {
       "id": "p1",
-      "channel": "facebook" ou "instagram",
+      "channel": "facebook" ou "instagram" ou "linkedin",
       "scheduledFor": "ISO-8601 datetime dans les 7 prochains jours, JAMAIS dans le passé",
-      "copy": "texte du message (200-400 caractères, ton adapté au réseau, 1-2 emojis pertinents et 2-4 hashtags si Instagram)",
+      "copy": "texte du message (200-400 caractères, ton adapté au réseau, 1-2 emojis pertinents et 2-4 hashtags si Instagram ; sur LinkedIn ton plus professionnel et posé, peu ou pas d'emojis, vouvoiement, pas de hashtags excessifs)",
       "imagePrompt": "description ANGLAISE détaillée pour générer un visuel carré professionnel (photo réaliste, pas de texte sur l'image)"
     }
   ],
@@ -1877,8 +1877,8 @@ Tu produis UN SEUL objet JSON valide (sans markdown, sans texte autour) :
 }
 
 RÈGLES MÉTIER :
-- TOI tu choisis le ou les réseaux (Facebook et/ou Instagram) en fonction du produit et des gens à toucher. Explique ton choix dans "decisions".
-- TOI tu choisis les heures de publication (FB: 11h-14h, IG: 18h-21h, heure de Paris). Explique pourquoi dans "decisions".
+- TOI tu choisis le ou les réseaux (Facebook, Instagram et/ou LinkedIn) en fonction du produit et des gens à toucher. Explique ton choix dans "decisions". IMPORTANT : si la personne a explicitement demandé un ou des réseaux précis, tu DOIS les respecter (ne publie que sur ceux-là). LinkedIn est plutôt adapté au professionnel (B2B, recrutement, services, image de marque sérieuse).
+- TOI tu choisis les heures de publication (FB: 11h-14h, IG: 18h-21h, LinkedIn: en semaine du mardi au jeudi 8h-10h ou 12h-13h, heure de Paris ; évite le week-end pour LinkedIn). Explique pourquoi dans "decisions".
 - Génère exactement 5 messages étalés entre demain et J+7.
 - "decisions" doit contenir 3 à 5 entrées qui expliquent : (1) le choix du/des réseau(x), (2) le choix des horaires, (3) le ton choisi pour les messages, (4) la fréquence de publication, (5) éventuellement le style des visuels.
 - Réponds UNIQUEMENT avec le JSON.`;
@@ -1886,8 +1886,8 @@ RÈGLES MÉTIER :
 function buildAgencyUserPrompt(brief: AgencyBrief): string {
   const channelsLine =
     brief.channels.length > 0
-      ? `- Réseaux suggérés par la personne : ${brief.channels.join(", ")} (mais tu peux décider mieux)`
-      : `- Réseaux : à toi de choisir entre Facebook et/ou Instagram, en fonction du contexte.`;
+      ? `- Réseaux choisis par la personne : ${brief.channels.join(", ")} — publie UNIQUEMENT sur ces réseaux.`
+      : `- Réseaux : à toi de choisir entre Facebook, Instagram et/ou LinkedIn, en fonction du contexte.`;
   return `Brief :
 - Ce que la personne propose : ${brief.product}
 - Les gens qu'elle veut toucher : ${brief.audience}
@@ -1954,7 +1954,9 @@ function normalizePlan(raw: unknown): AgencyPlan {
     },
     posts: posts.slice(0, 6).map((p, idx): AgencyPlannedPost => {
       const po = (p ?? {}) as Record<string, unknown>;
-      const ch = po["channel"] === "instagram" ? "instagram" : "facebook";
+      const chRaw = po["channel"];
+      const ch: "facebook" | "instagram" | "linkedin" =
+        chRaw === "instagram" ? "instagram" : chRaw === "linkedin" ? "linkedin" : "facebook";
       return {
         id: cap(po["id"], 20) || `p${idx + 1}`,
         channel: ch,
@@ -1987,7 +1989,8 @@ router.post("/agency/generate", async (req, res): Promise<void> => {
 
   const channelsArr = Array.isArray(brief.channels) ? brief.channels : [];
   const allowedChannels = channelsArr.filter(
-    (c): c is "facebook" | "instagram" => c === "facebook" || c === "instagram"
+    (c): c is "facebook" | "instagram" | "linkedin" =>
+      c === "facebook" || c === "instagram" || c === "linkedin"
   );
   // Empty = agent decides (this is the new default for the simplified flow).
 
@@ -2112,6 +2115,12 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
     const hasUserIg = "creds" in r;
     if (!hasUserIg && !(isAdmin && isMetaConfigured("instagram"))) channelsMissing.push("Instagram");
   }
+  if (channelsUsed.has("linkedin")) {
+    // LinkedIn = OAuth par-utilisateur (pas de fallback admin). On vérifie que
+    // l'utilisateur a une connexion LinkedIn enregistrée avant de programmer.
+    const conn = await getLinkedinConnection(uid(req));
+    if (!conn) channelsMissing.push("LinkedIn");
+  }
   if (channelsMissing.length > 0) {
     res.status(400).json({
       error: `Aucun canal de diffusion connecté pour : ${channelsMissing.join(", ")}. Va dans 'Mes outils' et connecte ces comptes avant de lancer.`,
@@ -2187,10 +2196,12 @@ router.post("/agency/:id/launch", async (req, res): Promise<void> => {
   let emailStatus: { sent: boolean; error?: string; provider?: string } = { sent: false };
   if (notificationEmail) {
     try {
+      const channelLabel = (c: string) =>
+        c === "facebook" ? "Facebook" : c === "linkedin" ? "LinkedIn" : "Instagram";
       const lines = finalPlan.posts
         .map(
           (p) =>
-            `• ${new Date(p.scheduledFor).toLocaleString("fr-FR")} — ${p.channel === "facebook" ? "Facebook" : "Instagram"} : ${p.copy.slice(0, 120)}…`
+            `• ${new Date(p.scheduledFor).toLocaleString("fr-FR")} — ${channelLabel(p.channel)} : ${p.copy.slice(0, 120)}…`
         )
         .join("\n");
       const result = await sendEmail({

@@ -40,6 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Channels élargi pour le formulaire : le backend filtre lui-même et ne garde
 // que facebook/instagram aujourd'hui (cf. allowedChannels dans /agency/generate).
@@ -68,8 +69,8 @@ interface AgencyBrief {
   channels: Channel[];
 }
 
-// Les posts planifiés par l'IA sont uniquement FB/IG aujourd'hui (cf. backend).
-type PostChannel = "facebook" | "instagram";
+// Les posts planifiés par l'IA : FB / IG / LinkedIn (cf. backend).
+type PostChannel = "facebook" | "instagram" | "linkedin";
 
 interface PlannedPost {
   id: string;
@@ -151,7 +152,7 @@ const CAMPAIGN_TYPES = [
     color: "from-violet-500 to-purple-600",
     available: true,
     details: [
-      "Posts gratuits sur Facebook, Instagram (LinkedIn bientôt)",
+      "Posts gratuits sur Facebook, Instagram et LinkedIn",
       "Visuels générés automatiquement par l'IA",
       "5 messages programmés sur 7 jours",
       "Tu valides avant publication, rien n'est envoyé sans ton accord",
@@ -312,12 +313,11 @@ const OBJECTIVES_EMAIL = [
   },
 ];
 
-// Réseaux disponibles pour le path "social". LinkedIn est listé mais désactivé
-// (l'agence ne génère que FB/IG aujourd'hui — LinkedIn passe par le chat).
+// Réseaux disponibles pour le path "social" (publications gratuites).
 const SOCIAL_NETWORKS = [
   { value: "facebook" as Channel, label: "Facebook", icon: Facebook, color: "text-[#1877f2]", bg: "bg-[#1877f2]/10", available: true },
   { value: "instagram" as Channel, label: "Instagram", icon: Instagram, color: "text-pink-600", bg: "bg-pink-100", available: true },
-  { value: "linkedin" as Channel, label: "LinkedIn", icon: Linkedin, color: "text-[#0a66c2]", bg: "bg-[#0a66c2]/10", available: false },
+  { value: "linkedin" as Channel, label: "LinkedIn", icon: Linkedin, color: "text-[#0a66c2]", bg: "bg-[#0a66c2]/10", available: true },
 ];
 
 // Réseaux disponibles pour le path "ads".
@@ -1642,10 +1642,14 @@ function PreviewScreen({
   // on the admin's pages).
   const planNeedsFacebook = channelsUsed.includes("facebook");
   const planNeedsInstagram = channelsUsed.includes("instagram");
+  const planNeedsLinkedin = channelsUsed.includes("linkedin");
   const missingChannels: string[] = [];
   if (planNeedsFacebook && !channels.facebook) missingChannels.push("Facebook");
   if (planNeedsInstagram && !channels.instagram) missingChannels.push("Instagram");
+  if (planNeedsLinkedin && !channels.linkedin) missingChannels.push("LinkedIn");
   const canLaunch = !channels.loading && missingChannels.length === 0;
+  // TODO: case à cocher — libellé et comportement à définir plus tard.
+  const [todoChecked, setTodoChecked] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -1693,7 +1697,7 @@ function PreviewScreen({
         <FriendlyCard
           emoji="📅"
           title="Quand on publie"
-          body={`${plan.posts.length} messages sur 7 jours\nsur ${channelsUsed.map((c) => c === "facebook" ? "Facebook" : "Instagram").join(" et ")}`}
+          body={`${plan.posts.length} messages sur 7 jours\nsur ${channelsUsed.map((c) => c === "facebook" ? "Facebook" : c === "linkedin" ? "LinkedIn" : "Instagram").join(" et ")}`}
         />
       </div>
 
@@ -1768,6 +1772,17 @@ function PreviewScreen({
               className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm"
             />
           </div>
+          <div className="flex items-center gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
+            <Checkbox
+              id="todo-checkbox"
+              checked={todoChecked}
+              onCheckedChange={(v) => setTodoChecked(v === true)}
+              data-testid="checkbox-todo"
+            />
+            <Label htmlFor="todo-checkbox" className="text-sm text-slate-600 cursor-pointer">
+              TODO: case à cocher
+            </Label>
+          </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={onBack} disabled={loading} className="flex-1 h-12">
               ← Refaire les réponses
@@ -1839,6 +1854,8 @@ function PostCard({
     <div className="bg-slate-50 rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-md transition">
       {post.channel === "instagram" ? (
         <InstagramMockup post={post} index={index} />
+      ) : post.channel === "linkedin" ? (
+        <LinkedinMockup post={post} index={index} />
       ) : (
         <FacebookMockup post={post} index={index} />
       )}
@@ -1972,6 +1989,52 @@ function FacebookMockup({ post, index }: { post: PlannedPost; index: number }) {
         <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><ThumbsUp className="w-3.5 h-3.5" /> J'aime</button>
         <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><MessageCircle className="w-3.5 h-3.5" /> Commenter</button>
         <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><Share2 className="w-3.5 h-3.5" /> Partager</button>
+      </div>
+    </div>
+  );
+}
+
+function LinkedinMockup({ post, index }: { post: PlannedPost; index: number }) {
+  return (
+    <div className="bg-white">
+      <div className="flex items-center justify-between px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0a66c2] to-[#004182] flex items-center justify-center text-white text-sm font-bold">
+            T
+          </div>
+          <div className="leading-tight">
+            <div className="text-sm font-semibold text-slate-900">Ta marque</div>
+            <div className="text-[11px] text-slate-500">Entreprise · Sponsorisé</div>
+          </div>
+        </div>
+        <Linkedin className="w-5 h-5 text-[#0a66c2]" />
+      </div>
+      <div className="px-3 pb-2.5 text-sm text-slate-800 whitespace-pre-wrap break-words">
+        {post.copy}
+      </div>
+      <div className="aspect-[4/3] bg-slate-100 relative">
+        {post.imageUrl ? (
+          <img src={post.imageUrl} alt={`Post ${index}`} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
+            <Linkedin className="w-8 h-8" />
+            Image en cours…
+          </div>
+        )}
+      </div>
+      <div className="px-3 py-1.5 flex items-center justify-between text-xs text-slate-600 border-t">
+        <div className="flex items-center gap-1">
+          <span className="w-4 h-4 rounded-full bg-[#0a66c2] inline-flex items-center justify-center">
+            <ThumbsUp className="w-2.5 h-2.5 text-white" />
+          </span>
+          <span>{142 + index * 19}</span>
+        </div>
+        <div className="text-[11px] text-slate-500">{18 + index * 2} commentaires · {7 + index} republications</div>
+      </div>
+      <div className="grid grid-cols-3 border-t text-xs text-slate-600 font-medium">
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><ThumbsUp className="w-3.5 h-3.5" /> J'aime</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><MessageCircle className="w-3.5 h-3.5" /> Commenter</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><Share2 className="w-3.5 h-3.5" /> Republier</button>
       </div>
     </div>
   );
