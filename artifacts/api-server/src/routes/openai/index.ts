@@ -1254,6 +1254,25 @@ router.post("/meta/publish", async (req, res): Promise<void> => {
     };
   }
   if (!result.success) {
+    // Accès anticipé : Meta refuse la publication tant que pages_manage_posts
+    // (ou instagram_content_publish) n'est pas approuvé par l'App Review →
+    // erreur #200 "...are not available... approved by App Review". On renvoie
+    // un message FR clair (403) plutôt qu'un 502 Bad Gateway avec le texte brut.
+    const raw = result.error ?? "";
+    // Strictement la signature de l'erreur #200 "permission non approuvée" :
+    // "...pages_manage_posts are not available... approved by App Review".
+    // On évite le terme générique "not available" seul (pannes/ressources
+    // transitoires) pour ne pas classer une erreur réseau comme accès anticipé.
+    const earlyAccess =
+      /approved by app review|pages_manage_posts|instagram_content_publish/i.test(raw);
+    if (earlyAccess) {
+      res.status(403).json({
+        error:
+          "Publication Facebook en accès anticipé — contacte l'équipe GrowIQ pour activer ton compte.",
+        earlyAccess: true,
+      });
+      return;
+    }
     res.status(result.configMissing ? 412 : 502).json({ error: result.error });
     return;
   }

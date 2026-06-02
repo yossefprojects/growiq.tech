@@ -30,10 +30,14 @@ const GRAPH_BASE = "https://graph.facebook.com/v21.0";
 const DEFAULT_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
-  "pages_manage_posts",
   "instagram_basic",
   "instagram_content_publish",
-  // NOTE : on ne demande QUE les 5 scopes nécessaires à la publication.
+  // ACCÈS ANTICIPÉ : pages_manage_posts est RETIRÉ tant que l'App Review Meta
+  // n'a pas approuvé la publication FB. Le demander ne casse pas le dialogue,
+  // mais le token obtenu ne peut pas publier sur la page (erreur #200) — d'où
+  // un message "accès anticipé" côté UI. La connexion (lecture page + profil)
+  // et la publication Instagram restent fonctionnelles.
+  //
   // Les permissions avancées (ads_management, ads_read, business_management)
   // exigent l'App Review + la vérification Business de Meta. Tant qu'elles ne
   // sont pas approuvées, les demander fait échouer TOUT le dialogue d'autorisation
