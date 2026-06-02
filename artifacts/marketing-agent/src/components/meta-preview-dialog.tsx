@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { Loader2, Send, X, ThumbsUp, MessageCircle, Share2, Heart, Bookmark, AlertCircle } from "lucide-react";
+import { useAuth } from "@clerk/react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useConnectedChannels } from "@/hooks/use-connected-channels";
+
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export interface MetaPreviewPost {
   id: number;
@@ -28,6 +31,7 @@ export function MetaPreviewDialog({ open, post, onClose, onConfirm }: MetaPrevie
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const { getToken } = useAuth();
   const channels = useConnectedChannels(open);
   const channelConnected = post
     ? post.platform === "facebook"
@@ -43,21 +47,35 @@ export function MetaPreviewDialog({ open, post, onClose, onConfirm }: MetaPrevie
     }
     let cancelled = false;
     setLoadingProfile(true);
-    fetch(`/api/meta/profile?platform=${post.platform}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled) setProfile(data);
-      })
-      .catch(() => {
+    (async () => {
+      try {
+        const token = await getToken();
+        const r = await fetch(`${basePath}/api/facebook/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = r.ok ? ((await r.json()) as Record<string, unknown>) : null;
+        if (cancelled) return;
+        if (!data) {
+          setProfile(null);
+          return;
+        }
+        const name =
+          post.platform === "instagram"
+            ? (data["instagramUsername"] as string | null)
+              ? `@${data["instagramUsername"] as string}`
+              : null
+            : ((data["pageName"] as string | null) ?? (data["displayName"] as string | null));
+        setProfile(name ? { name, pictureUrl: "" } : null);
+      } catch {
         if (!cancelled) setProfile(null);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoadingProfile(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [open, post]);
+  }, [open, post, getToken]);
 
   if (!post) return null;
 

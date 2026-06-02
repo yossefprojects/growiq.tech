@@ -1,1 +1,2 @@
 - [Meta connection troubleshooting](meta-connection-troubleshooting.md) — #100 'nonexisting field (accounts)' = wrong token type; 'Application inactive' = app still in Dev mode; prefer one-click OAuth over manual token paste.
+- [Publish-gating per-user status](publish-gating-per-user-status.md) — publish/launch buttons must read per-user /api/integrations, not admin-gated /api/meta/status (returns false for non-admins).
