@@ -1913,9 +1913,9 @@ function InstagramMockup({ post, index }: { post: PlannedPost; index: number }) 
           <Bookmark className="w-5 h-5 text-slate-800" />
         </div>
         <div className="text-xs font-semibold">{124 + index * 17} mentions J'aime</div>
-        <div className="text-xs text-slate-700 line-clamp-2">
+        <div className="text-xs text-slate-700 whitespace-pre-wrap break-words">
           <span className="font-semibold">ta_marque</span>{" "}
-          <span>{post.copy.split("\n")[0]}</span>
+          <span>{post.copy}</span>
         </div>
         <div className="text-[10px] text-slate-400 uppercase">Il y a quelques instants</div>
       </div>
@@ -1940,7 +1940,7 @@ function FacebookMockup({ post, index }: { post: PlannedPost; index: number }) {
         </div>
         <MoreHorizontal className="w-5 h-5 text-slate-600" />
       </div>
-      <div className="px-3 pb-2.5 text-sm text-slate-800 whitespace-pre-wrap line-clamp-3">
+      <div className="px-3 pb-2.5 text-sm text-slate-800 whitespace-pre-wrap break-words">
         {post.copy}
       </div>
       <div className="aspect-[4/3] bg-slate-100 relative">
