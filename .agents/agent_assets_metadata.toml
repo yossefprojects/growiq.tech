@@ -6,3 +6,9 @@ id = "L6M5WFn2CIPdXImM2vZyo"
 uri = "file://docs/dossier-app-review-meta.md"
 type = "text"
 title = "Dossier App Review Meta — GrowIQ (clé en main)"
+
+[[outputs]]
+id = "UPwMfr3azhqJjFoiaGrew"
+uri = "file://growiq-code.tar.gz"
+type = "unspecified"
+title = "GrowIQ — code source complet"
