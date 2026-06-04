@@ -24,6 +24,8 @@ import EmailsPage from "@/pages/emails";
 import AdminPage from "@/pages/admin";
 import AccountPage from "@/pages/account";
 import DashboardPage from "@/pages/dashboard";
+import GoogleAdsApiPage from "@/pages/google-ads-api";
+import PrivacyPage from "@/pages/privacy";
 import { SignInPage, SignUpPage } from "@/pages/auth-pages";
 import { Loader2 } from "lucide-react";
 
@@ -260,6 +262,8 @@ function Router() {
       <Route path="/app/account">{() => <RequireAuth><AccountPage /></RequireAuth>}</Route>
       <Route path="/app/conversations/:id">{() => <RequireAuth><ChatPage /></RequireAuth>}</Route>
       <Route path="/landing/:slug" component={LandingPage} />
+      <Route path="/google-ads-api" component={GoogleAdsApiPage} />
+      <Route path="/privacy" component={PrivacyPage} />
       <Route component={NotFound} />
     </Switch>
   );
