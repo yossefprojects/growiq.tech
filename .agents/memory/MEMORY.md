@@ -1,4 +1,5 @@
 - [Meta connection troubleshooting](meta-connection-troubleshooting.md) — #100 'nonexisting field (accounts)' = wrong token type; 'Application inactive' = app still in Dev mode; prefer one-click OAuth over manual token paste.
+- [Dark theme conversion sweep](dark-theme-conversion.md) — forcing global dark: a first pass misses conditional alert panels, status-badge pills, and inline-style hex fallbacks; tint semantically (bg-hue-500/10), verify authed states.
 - [OAuth error sanitization](oauth-error-sanitization.md) — OAuth result strings (query string, postMessage, backend text) can leak raw Meta codes to UI toasts; always map to friendly French first.
 - [Publish-gating per-user status](publish-gating-per-user-status.md) — publish/launch buttons must read per-user /api/integrations, not admin-gated /api/meta/status (returns false for non-admins).
 - [Landing claims policy](landing-claims-policy.md) — public landing must avoid invented numbers (compliance); pricing 0/29/79€ shown by user choice despite no billing.

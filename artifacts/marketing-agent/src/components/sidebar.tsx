@@ -117,7 +117,7 @@ export function Sidebar({
   const t = useT();
   return (
     <div className="w-64 border-r bg-card flex flex-col h-full flex-shrink-0">
-      <div className="px-4 py-4 border-b bg-gradient-to-br from-[#ede9fe] to-[#d1fae5]/60 flex items-center justify-between gap-2">
+      <div className="px-4 py-4 border-b bg-gradient-to-br from-primary/15 to-fuchsia-500/10 flex items-center justify-between gap-2">
         <Link href="/" className="group transition-transform group-hover:scale-105" data-testid="link-home-sidebar">
           <BrandLogo iconSize={36} wordmarkClassName="text-xl" />
         </Link>
@@ -289,7 +289,7 @@ export function Sidebar({
         <SignOutButton redirectUrl="/">
           <button
             type="button"
-            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-md px-2 py-1.5 transition-colors w-full"
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md px-2 py-1.5 transition-colors w-full"
             data-testid="button-signout"
           >
             <LogOut className="w-3.5 h-3.5" />

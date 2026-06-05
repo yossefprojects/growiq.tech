@@ -53,13 +53,13 @@ function Stepper({ steps, currentIndex }: { steps: Step[]; currentIndex: number 
                   done
                     ? "bg-emerald-500 text-white"
                     : active
-                      ? "bg-indigo-600 text-white ring-4 ring-indigo-100"
-                      : "bg-gray-200 text-gray-500",
+                      ? "bg-indigo-600 text-white ring-4 ring-indigo-500/30"
+                      : "bg-muted text-muted-foreground",
                 ].join(" ")}
               >
                 {done ? <CheckCircle2 className="w-5 h-5" /> : i + 1}
               </div>
-              <div className="mt-2 text-[11px] sm:text-xs text-gray-600 leading-tight truncate max-w-[120px]">
+              <div className="mt-2 text-[11px] sm:text-xs text-muted-foreground leading-tight truncate max-w-[120px]">
                 {s.title}
               </div>
             </div>
@@ -67,7 +67,7 @@ function Stepper({ steps, currentIndex }: { steps: Step[]; currentIndex: number 
               <div
                 className={[
                   "h-0.5 flex-1 mx-1 transition-colors",
-                  done ? "bg-emerald-500" : "bg-gray-200",
+                  done ? "bg-emerald-500" : "bg-muted",
                 ].join(" ")}
               />
             ) : null}
@@ -88,18 +88,18 @@ function PageShell({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <Link
           href="/app/integrations"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-6"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6"
           data-testid="link-back-integrations"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour à Mes outils
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{title}</h1>
-        <p className="text-gray-600 mt-1 mb-8">{subtitle}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{title}</h1>
+        <p className="text-muted-foreground mt-1 mb-8">{subtitle}</p>
         {children}
       </div>
     </div>
@@ -108,12 +108,12 @@ function PageShell({
 
 function SuccessScreen({ message, ctaHref = "/app/integrations" }: { message: string; ctaHref?: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-emerald-200 p-8 text-center shadow-sm animate-in fade-in zoom-in-95 duration-300">
-      <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-4">
-        <CheckCircle2 className="w-9 h-9 text-emerald-600" />
+    <div className="bg-card rounded-2xl border border-emerald-500/30 p-8 text-center shadow-sm animate-in fade-in zoom-in-95 duration-300">
+      <div className="w-16 h-16 mx-auto bg-emerald-500/15 rounded-full flex items-center justify-center mb-4">
+        <CheckCircle2 className="w-9 h-9 text-emerald-400" />
       </div>
-      <h2 className="text-xl font-bold text-gray-900">Connexion réussie</h2>
-      <p className="text-gray-600 mt-2 mb-6">{message}</p>
+      <h2 className="text-xl font-bold text-foreground">Connexion réussie</h2>
+      <p className="text-muted-foreground mt-2 mb-6">{message}</p>
       <Link href={ctaHref}>
         <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" data-testid="button-back-to-tools">
           Retour à Mes outils
@@ -201,7 +201,7 @@ function ConnectPage(cfg: ConnectPageConfig) {
     <PageShell title={cfg.title} subtitle={cfg.subtitle}>
       <Stepper steps={allSteps} currentIndex={currentStep} />
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-6 sm:p-8 space-y-6">
         {/* Steps with instructions (all visible, current one highlighted) */}
         {cfg.steps.map((s, i) => (
           <div
@@ -209,10 +209,10 @@ function ConnectPage(cfg: ConnectPageConfig) {
             className={[
               "rounded-xl p-4 border transition-all",
               i === currentStep
-                ? "border-indigo-300 bg-indigo-50/50"
+                ? "border-primary bg-primary/15"
                 : i < currentStep
-                  ? "border-emerald-200 bg-emerald-50/30"
-                  : "border-gray-200 bg-gray-50/50",
+                  ? "border-emerald-500/30 bg-emerald-500/10"
+                  : "border-border bg-muted",
             ].join(" ")}
           >
             <div className="flex items-start gap-3">
@@ -223,14 +223,14 @@ function ConnectPage(cfg: ConnectPageConfig) {
                     ? "bg-emerald-500 text-white"
                     : i === currentStep
                       ? "bg-indigo-600 text-white"
-                      : "bg-gray-300 text-gray-600",
+                      : "bg-muted text-muted-foreground",
                 ].join(" ")}
               >
                 {i < currentStep ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 text-sm">{s.title}</h3>
-                <div className="text-sm text-gray-600 mt-1">{s.description}</div>
+                <h3 className="font-semibold text-foreground text-sm">{s.title}</h3>
+                <div className="text-sm text-muted-foreground mt-1">{s.description}</div>
                 {s.externalUrl ? (
                   <a
                     href={s.externalUrl}
@@ -270,8 +270,8 @@ function ConnectPage(cfg: ConnectPageConfig) {
           className={[
             "rounded-xl p-4 border-2 transition-all",
             currentStep >= cfg.steps.length
-              ? "border-indigo-400 bg-indigo-50/50"
-              : "border-dashed border-gray-300 bg-gray-50/30",
+              ? "border-primary bg-primary/15"
+              : "border-dashed border-border bg-muted",
           ].join(" ")}
         >
           <div className="flex items-start gap-3">
@@ -280,14 +280,14 @@ function ConnectPage(cfg: ConnectPageConfig) {
                 "w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5",
                 currentStep >= cfg.steps.length
                   ? "bg-indigo-600 text-white"
-                  : "bg-gray-300 text-gray-600",
+                  : "bg-muted text-muted-foreground",
               ].join(" ")}
             >
               {allSteps.length}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 text-sm">{cfg.finalStepTitle}</h3>
-              <p className="text-sm text-gray-600 mt-1 mb-3">{cfg.finalLabel}</p>
+              <h3 className="font-semibold text-foreground text-sm">{cfg.finalStepTitle}</h3>
+              <p className="text-sm text-muted-foreground mt-1 mb-3">{cfg.finalLabel}</p>
               <div className="space-y-3">
                 <Label htmlFor="manual-value" className="sr-only">
                   Valeur
@@ -308,7 +308,7 @@ function ConnectPage(cfg: ConnectPageConfig) {
                   spellCheck={false}
                 />
                 {result && !result.ok ? (
-                  <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-300">
                     {result.error}
                   </div>
                 ) : null}
@@ -359,13 +359,13 @@ export function FacebookConnectPage() {
           description: (
             <>
               En haut à droite de l'outil, sélectionne ton app GrowIQ. Puis dans « Add a Permission », coche
-              au minimum : <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">pages_show_list</span>,
+              au minimum : <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">pages_show_list</span>,
               {" "}
-              <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">pages_manage_posts</span>,
+              <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">pages_manage_posts</span>,
               {" "}
-              <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">instagram_basic</span>,
+              <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">instagram_basic</span>,
               {" "}
-              <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">instagram_content_publish</span>.
+              <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">instagram_content_publish</span>.
             </>
           ),
         },
@@ -376,7 +376,7 @@ export function FacebookConnectPage() {
               Dans le menu déroulant en haut à droite, choisis bien{" "}
               <span className="font-semibold">« User Token » (token utilisateur)</span> — surtout PAS un token de Page,
               sinon la connexion échouera. Clique ensuite sur{" "}
-              <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">Generate Access Token</span>,
+              <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">Generate Access Token</span>,
               connecte-toi avec ton Facebook et autorise l'accès à ta page.
             </>
           ),
@@ -418,13 +418,13 @@ export function LinkedinConnectPage() {
           description: (
             <>
               Clique sur ton app GrowIQ dans la liste, puis va dans l'onglet <span className="font-semibold">Auth</span>.
-              Vérifie que les permissions <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">openid</span>,
+              Vérifie que les permissions <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">openid</span>,
               {" "}
-              <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">profile</span>,
+              <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">profile</span>,
               {" "}
-              <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">email</span> et
+              <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">email</span> et
               {" "}
-              <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">w_member_social</span> sont activées.
+              <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">w_member_social</span> sont activées.
             </>
           ),
         },
@@ -473,7 +473,7 @@ export function MetaAdsConnectPage() {
             <>
               Sélectionne ton compte publicitaire dans la liste. L'ID s'affiche en haut, au format
               {" "}
-              <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">act_xxxxxxxxxx</span>.
+              <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">act_xxxxxxxxxx</span>.
               Copie-le entièrement, avec le préfixe « act_ ».
             </>
           ),
@@ -515,7 +515,7 @@ export function GoogleAdsConnectPage() {
           description: (
             <>
               Une fois dans Google Ads, ton Customer ID s'affiche tout en haut à droite, à côté de ton email.
-              Format : <span className="font-mono text-xs bg-white border rounded px-1.5 py-0.5">xxx-xxx-xxxx</span>{" "}
+              Format : <span className="font-mono text-xs bg-muted border border-border rounded px-1.5 py-0.5">xxx-xxx-xxxx</span>{" "}
               (10 chiffres séparés par des tirets).
             </>
           ),

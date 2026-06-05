@@ -396,17 +396,17 @@ function KV({ k, v }: { k: string; v: React.ReactNode }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    draft: "bg-gray-100 text-gray-700",
-    pending: "bg-amber-100 text-amber-800",
-    scheduled: "bg-blue-100 text-blue-800",
+    draft: "bg-muted text-muted-foreground",
+    pending: "bg-amber-500/100/15 text-amber-300",
+    scheduled: "bg-blue-500/100/15 text-blue-300",
     sent: "bg-[#3dbf8e]/15 text-[#1a7a55]",
     launched: "bg-[#3dbf8e]/15 text-[#1a7a55]",
     active: "bg-[#3dbf8e]/15 text-[#1a7a55]",
-    paused: "bg-amber-100 text-amber-800",
-    failed: "bg-red-100 text-red-700",
-    error: "bg-red-100 text-red-700",
+    paused: "bg-amber-500/100/15 text-amber-300",
+    failed: "bg-red-500/100/15 text-red-300",
+    error: "bg-red-500/100/15 text-red-300",
   };
-  const cls = map[status] ?? "bg-gray-100 text-gray-700";
+  const cls = map[status] ?? "bg-muted text-muted-foreground";
   return <span className={cn("text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold shrink-0", cls)}>{status}</span>;
 }
 
@@ -446,7 +446,7 @@ export default function AdminPage() {
         {isLoading ? (
           <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-[#5b54d6]" /></div>
         ) : error || !data ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
             Échec du chargement.
           </div>
         ) : (
@@ -466,7 +466,7 @@ export default function AdminPage() {
             </div>
 
             {(data.totals.orphanRows > 0 || data.totals.orphanProfiles > 0) && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-6 text-xs text-amber-900">
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 mb-6 text-xs text-amber-200">
                 <span className="font-semibold">Données orphelines détectées :</span>{" "}
                 {data.totals.orphanRows} ligne(s) sans utilisateur rattaché
                 {data.totals.orphanProfiles > 0 && `, dont ${data.totals.orphanProfiles} profil(s) business`}.

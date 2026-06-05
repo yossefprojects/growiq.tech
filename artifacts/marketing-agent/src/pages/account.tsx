@@ -427,7 +427,7 @@ function PlatformRow({
                 onClick={onDisconnect}
                 disabled={busy}
                 data-testid={`button-${testId}-disconnect`}
-                className="text-xs font-medium text-red-600 hover:text-red-700 hover:underline disabled:opacity-50"
+                className="text-xs font-medium text-red-600 hover:text-red-300 hover:underline disabled:opacity-50"
               >
                 {busy ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t("Déconnecter")}
               </button>
@@ -438,7 +438,7 @@ function PlatformRow({
             <span
               className={cn(
                 "inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full",
-                expired ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700",
+                expired ? "bg-amber-500/100/15 text-amber-300" : "bg-red-500/100/15 text-red-300",
               )}
             >
               <X className="w-3 h-3" /> {expired ? t("Jeton expiré") : t("Non connecté")}
@@ -689,15 +689,15 @@ function DangerZone() {
   });
 
   return (
-    <div className="rounded-2xl border border-red-200 bg-red-50/50 p-5 sm:p-6">
+    <div className="rounded-2xl border border-red-500/30 bg-red-500/100/10 p-5 sm:p-6">
       <div className="flex items-center gap-3 mb-2">
-        <AlertTriangle className="w-5 h-5 text-red-600" />
-        <h2 className="font-bold text-lg text-red-900">{t("Zone sensible")}</h2>
+        <AlertTriangle className="w-5 h-5 text-red-400" />
+        <h2 className="font-bold text-lg text-red-300">{t("Zone sensible")}</h2>
       </div>
-      <p className="text-sm text-red-900/80 mb-4">
+      <p className="text-sm text-red-300/80 mb-4">
         {t("Effacer toutes tes données (profil business, conversations, posts programmés, landing pages, leads, campagnes, données SEO). Ton compte de connexion reste actif.")} <strong>{t("Action irréversible.")}</strong>
       </p>
-      <div className="bg-white rounded-lg border border-red-200 p-4">
+      <div className="bg-card rounded-lg border border-red-500/30 p-4">
         <Label>{t("Pour confirmer, tape « SUPPRIMER »")}</Label>
         <input
           value={confirm}
@@ -738,16 +738,16 @@ function ClerkProfileDialog({ open, onClose }: { open: boolean; onClose: () => v
       aria-modal="true"
     >
       <div
-        className="relative w-full max-w-[880px] max-h-[92vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        className="relative w-full max-w-[880px] max-h-[92vh] bg-card rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm hover:bg-gray-50 transition"
+          className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-card border border-border flex items-center justify-center shadow-sm hover:bg-muted transition"
           aria-label={t("Fermer")}
           data-testid="button-close-clerk-profile"
         >
-          <X className="w-4 h-4 text-gray-700" />
+          <X className="w-4 h-4 text-muted-foreground" />
         </button>
         <div className="overflow-y-auto">
           <UserProfile
@@ -757,8 +757,8 @@ function ClerkProfileDialog({ open, onClose }: { open: boolean; onClose: () => v
                 rootBox: "w-full",
                 cardBox: "w-full shadow-none border-0 rounded-none",
                 card: "w-full shadow-none border-0 rounded-none",
-                navbar: "border-r border-gray-100 bg-white",
-                navbarButton: "text-gray-700 hover:bg-gray-50",
+                navbar: "border-r border-white/10 bg-[#0f0f1a]",
+                navbarButton: "text-foreground hover:bg-white/5",
                 navbarButtonActive: "text-[#5b54d6] bg-[#5b54d6]/8",
                 pageScrollBox: "px-6 py-6",
                 profileSectionPrimaryButton: "text-[#5b54d6] hover:text-[#4842b5]",
@@ -766,8 +766,8 @@ function ClerkProfileDialog({ open, onClose }: { open: boolean; onClose: () => v
               },
               variables: {
                 colorPrimary: "#5b54d6",
-                colorText: "#111827",
-                colorBackground: "#ffffff",
+                colorText: "#f4f4f6",
+                colorBackground: "#0f0f1a",
                 fontFamily: "inherit",
                 borderRadius: "0.75rem",
               },
@@ -921,7 +921,7 @@ export default function AccountPage() {
         {profile.isLoading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#5b54d6]" /></div>
         ) : !profile.data ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{t("Impossible de charger ton profil.")}</div>
+          <div className="rounded-xl border border-red-500/30 bg-red-500/100/10 p-4 text-sm text-red-300">{t("Impossible de charger ton profil.")}</div>
         ) : (
           <>
             <Section

@@ -184,7 +184,7 @@ export default function DashboardPage() {
       title: t("Emails & contacts"),
       description: t("Gère ta base d'abonnés et retrouve les stats de tes campagnes emailing."),
       icon: Mail,
-      bg: "bg-gradient-to-br from-[#fef3c7] to-[#fde68a] text-[#1e1b4b]",
+      bg: "bg-gradient-to-br from-amber-500/15 to-amber-400/10 text-foreground",
       iconBg: "bg-[#d97706]/15 text-[#d97706]",
       onClick: () => setLocation("/app/emails"),
       testId: "action-emails",
@@ -194,7 +194,7 @@ export default function DashboardPage() {
       title: t("Mes campagnes"),
       description: t("Retrouve toutes tes campagnes et leurs résultats."),
       icon: ListChecks,
-      bg: "bg-gradient-to-br from-[#ede9fe] to-[#dbeafe] text-[#1e1b4b]",
+      bg: "bg-gradient-to-br from-violet-500/15 to-blue-500/10 text-foreground",
       iconBg: "bg-[#5b54d6]/15 text-[#5b54d6]",
       onClick: () => {
         const el = document.getElementById("recent-campaigns");
@@ -281,17 +281,17 @@ export default function DashboardPage() {
             <button
               onClick={() => setLocation("/app/integrations")}
               data-testid="onboarding-connect-tools"
-              className="w-full mb-6 group relative overflow-hidden rounded-2xl p-5 sm:p-6 text-left bg-gradient-to-br from-[#fef3c7] via-[#fde68a] to-[#fbbf24] text-[#1e1b4b] shadow-sm hover:shadow-md transition-all"
+              className="w-full mb-6 group relative overflow-hidden rounded-2xl p-5 sm:p-6 text-left bg-gradient-to-br from-amber-500/15 to-amber-400/10 text-foreground shadow-sm hover:shadow-md transition-all"
             >
               <div className="flex items-start gap-4">
-                <div className="shrink-0 rounded-xl bg-white/40 p-3">
-                  <Plug className="w-6 h-6 text-[#1e1b4b]" />
+                <div className="shrink-0 rounded-xl bg-white/10 p-3">
+                  <Plug className="w-6 h-6 text-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-lg sm:text-xl mb-1">
                     {t("Commence par connecter tes réseaux")}
                   </div>
-                  <p className="text-sm text-[#1e1b4b]/80">
+                  <p className="text-sm text-muted-foreground">
                     {t("L'agent a besoin d'un accès à tes comptes Facebook, LinkedIn ou Resend pour publier en ton nom. Ça prend 1 minute.")}
                   </p>
                 </div>

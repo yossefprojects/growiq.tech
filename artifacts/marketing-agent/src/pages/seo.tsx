@@ -124,7 +124,7 @@ function useAuthedFetch() {
 
 function ScoreBadge({ score }: { score: number }) {
   const color =
-    score >= 80 ? "bg-[#3dbf8e]/15 text-[#1a7a55]" : score >= 60 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700";
+    score >= 80 ? "bg-[#3dbf8e]/15 text-[#1a7a55]" : score >= 60 ? "bg-amber-500/100/15 text-amber-300" : "bg-red-500/100/15 text-red-300";
   const label = score >= 80 ? "Bon" : score >= 60 ? "À améliorer" : "Faible";
   return (
     <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-bold", color)}>
@@ -135,9 +135,9 @@ function ScoreBadge({ score }: { score: number }) {
 
 function PriorityPill({ priority }: { priority: "high" | "medium" | "low" }) {
   const map = {
-    high: { bg: "bg-red-100 text-red-700", label: "Priorité haute" },
-    medium: { bg: "bg-amber-100 text-amber-800", label: "Priorité moyenne" },
-    low: { bg: "bg-gray-100 text-gray-700", label: "Bonus" },
+    high: { bg: "bg-red-500/100/15 text-red-300", label: "Priorité haute" },
+    medium: { bg: "bg-amber-500/100/15 text-amber-300", label: "Priorité moyenne" },
+    low: { bg: "bg-muted text-muted-foreground", label: "Bonus" },
   };
   const m = map[priority];
   return <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold", m.bg)}>{m.label}</span>;
@@ -269,7 +269,7 @@ function AuditCard({ audit, onDelete }: { audit: SeoAudit; onDelete: () => void 
             href={audit.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm font-semibold text-[#1e1b4b] hover:text-[#5b54d6] truncate max-w-full"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary truncate max-w-full"
           >
             <span className="truncate">{audit.url}</span>
             <ExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -327,7 +327,7 @@ function AuditCard({ audit, onDelete }: { audit: SeoAudit; onDelete: () => void 
 
 function Metric({ label, value, ok }: { label: string; value: string; ok: boolean }) {
   return (
-    <div className={cn("rounded-lg p-3 border", ok ? "border-[#3dbf8e]/40 bg-[#3dbf8e]/5" : "border-amber-300 bg-amber-50")}>
+    <div className={cn("rounded-lg p-3 border", ok ? "border-[#3dbf8e]/40 bg-[#3dbf8e]/5" : "border-amber-500/40 bg-amber-500/10")}>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="text-base font-bold">{value}</div>
     </div>
@@ -461,8 +461,8 @@ function KeywordSetCard({ set, onDelete }: { set: SeoKeywordSetRow; onDelete: ()
                   <span className={cn(
                     "px-2 py-0.5 rounded-full",
                     k.difficulty === "facile" ? "bg-[#3dbf8e]/15 text-[#1a7a55]" :
-                    k.difficulty === "moyenne" ? "bg-amber-100 text-amber-800" :
-                    "bg-red-100 text-red-700"
+                    k.difficulty === "moyenne" ? "bg-amber-500/100/15 text-amber-300" :
+                    "bg-red-500/100/15 text-red-300"
                   )}>{k.difficulty}</span>
                 </td>
                 <td className="px-3 py-2 text-xs">{k.estimatedVolume}</td>
@@ -752,8 +752,8 @@ function PlanCard({ plan, onDelete }: { plan: SeoContentPlanRow; onDelete: () =>
             <span className={cn(
               "text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0",
               it.expectedImpact === "fort" ? "bg-[#3dbf8e]/15 text-[#1a7a55]" :
-              it.expectedImpact === "moyen" ? "bg-amber-100 text-amber-800" :
-              "bg-gray-100 text-gray-700"
+              it.expectedImpact === "moyen" ? "bg-amber-500/100/15 text-amber-300" :
+              "bg-muted text-muted-foreground"
             )}>{it.expectedImpact}</span>
           </div>
         ))}

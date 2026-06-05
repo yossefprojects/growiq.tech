@@ -113,25 +113,25 @@ export default function EmailsPage() {
   const [tab, setTab] = useState<"contacts" | "campaigns">("contacts");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-blue-50">
-      <header className="border-b border-violet-100 bg-white/80 backdrop-blur sticky top-0 z-20">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card/80 backdrop-blur sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
           <Link href="/app" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-4 h-4" />
             Retour
           </Link>
-          <h1 className="text-lg font-bold text-[#1e1b4b]">Emails</h1>
+          <h1 className="text-lg font-bold text-foreground">Emails</h1>
           <LanguageSwitcher />
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-        <div className="flex gap-2 bg-white rounded-xl border p-1 w-fit shadow-sm">
+        <div className="flex gap-2 bg-card rounded-xl border p-1 w-fit shadow-sm">
           <button
             onClick={() => setTab("contacts")}
             className={cn(
               "px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2",
-              tab === "contacts" ? "bg-violet-600 text-white shadow" : "text-gray-600 hover:bg-gray-50",
+              tab === "contacts" ? "bg-violet-600 text-white shadow" : "text-muted-foreground hover:bg-muted",
             )}
           >
             <Users className="w-4 h-4" /> Contacts
@@ -140,7 +140,7 @@ export default function EmailsPage() {
             onClick={() => setTab("campaigns")}
             className={cn(
               "px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2",
-              tab === "campaigns" ? "bg-violet-600 text-white shadow" : "text-gray-600 hover:bg-gray-50",
+              tab === "campaigns" ? "bg-violet-600 text-white shadow" : "text-muted-foreground hover:bg-muted",
             )}
           >
             <Mail className="w-4 h-4" /> Campagnes
@@ -236,18 +236,18 @@ function ContactsTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-60">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Chercher un contact…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="pl-9 bg-white"
+            className="pl-9 bg-background"
           />
         </div>
         <Button onClick={() => setAdding((v) => !v)} variant={adding ? "secondary" : "default"}>
           <Plus className="w-4 h-4 mr-1" /> Ajouter
         </Button>
-        <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border rounded-md text-sm font-medium cursor-pointer hover:bg-gray-50">
+        <label className="inline-flex items-center gap-1.5 px-4 py-2 bg-card border rounded-md text-sm font-medium cursor-pointer hover:bg-muted">
           {importing ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
@@ -268,7 +268,7 @@ function ContactsTab() {
       </div>
 
       {adding && (
-        <div className="bg-white rounded-xl border p-4 space-y-3 shadow-sm">
+        <div className="bg-card rounded-xl border p-4 space-y-3 shadow-sm">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Email *</Label>
@@ -300,20 +300,20 @@ function ContactsTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="p-10 text-center text-gray-500">
+          <div className="p-10 text-center text-muted-foreground">
             <Loader2 className="w-5 h-5 animate-spin mx-auto" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-10 text-center text-gray-500 text-sm">
+          <div className="p-10 text-center text-muted-foreground text-sm">
             {contacts.length === 0
               ? "Aucun contact pour l'instant. Ajoutes-en un ou importe un CSV."
               : "Aucun résultat pour cette recherche."}
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+            <thead className="bg-muted text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="text-left px-4 py-3">Email</th>
                 <th className="text-left px-4 py-3">Prénom</th>
@@ -324,17 +324,17 @@ function ContactsTab() {
             </thead>
             <tbody>
               {filtered.map((c) => (
-                <tr key={c.id} className="border-t hover:bg-gray-50">
+                <tr key={c.id} className="border-t hover:bg-muted">
                   <td className="px-4 py-3 font-medium">{c.email}</td>
                   <td className="px-4 py-3">{c.firstName}</td>
                   <td className="px-4 py-3">{c.lastName}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{c.source}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{c.source}</td>
                   <td className="px-4 py-3 text-right">
                     <button
                       onClick={() => {
                         if (confirm(`Supprimer ${c.email} ?`)) deleteContact.mutate(c.id);
                       }}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-600 hover:text-red-300"
                       aria-label="Supprimer"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -347,7 +347,7 @@ function ContactsTab() {
         )}
       </div>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         {contacts.length} contact(s) au total. Les doublons sont ignorés à l'import.
       </p>
     </div>
@@ -380,7 +380,7 @@ function CampaignsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Crée tes campagnes depuis l'<Link href="/app/agency" className="text-violet-600 font-semibold hover:underline">Agence automatique</Link> → option « Campagne Emailing ».
         </p>
       </div>
@@ -388,7 +388,7 @@ function CampaignsTab() {
       {isLoading ? (
         <div className="p-10 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></div>
       ) : campaigns.length === 0 ? (
-        <div className="bg-white rounded-xl border p-10 text-center text-sm text-gray-500">
+        <div className="bg-card rounded-xl border p-10 text-center text-sm text-muted-foreground">
           Aucune campagne envoyée pour le moment.
         </div>
       ) : (
@@ -397,7 +397,7 @@ function CampaignsTab() {
             <button
               key={c.id}
               onClick={() => setSelected(c)}
-              className="bg-white rounded-xl border p-4 text-left hover:border-violet-300 hover:shadow transition"
+              className="bg-card rounded-xl border p-4 text-left hover:border-violet-300 hover:shadow transition"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -405,8 +405,8 @@ function CampaignsTab() {
                     <h3 className="font-semibold truncate">{c.name}</h3>
                     <StatusBadge status={c.status} />
                   </div>
-                  <p className="text-sm text-gray-600 truncate">{c.subject}</p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-sm text-muted-foreground truncate">{c.subject}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
                     {c.sentAt
                       ? `Envoyée le ${new Date(c.sentAt).toLocaleString("fr-FR")}`
                       : `Créée le ${new Date(c.createdAt).toLocaleString("fr-FR")}`}
@@ -421,7 +421,7 @@ function CampaignsTab() {
                       e.stopPropagation();
                       if (confirm(`Supprimer "${c.name}" ?`)) deleteCampaign.mutate(c.id);
                     }}
-                    className="text-red-600 hover:text-red-800 p-1 cursor-pointer"
+                    className="text-red-600 hover:text-red-300 p-1 cursor-pointer"
                     aria-label="Supprimer"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -443,18 +443,18 @@ function Stat({ icon, value, label }: { icon: React.ReactNode; value: number; la
         {icon}
         <span className="font-bold">{value}</span>
       </div>
-      <span className="text-[10px] uppercase text-gray-400">{label}</span>
+      <span className="text-[10px] uppercase text-muted-foreground">{label}</span>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: Campaign["status"] }) {
   const map: Record<Campaign["status"], { label: string; cls: string; icon: React.ReactNode }> = {
-    draft: { label: "Brouillon", cls: "bg-gray-100 text-gray-700", icon: null },
-    sending: { label: "Envoi…", cls: "bg-blue-100 text-blue-700", icon: <Loader2 className="w-3 h-3 animate-spin" /> },
-    sent: { label: "Envoyée", cls: "bg-green-100 text-green-700", icon: <CheckCircle2 className="w-3 h-3" /> },
-    partially_failed: { label: "Partiel", cls: "bg-amber-100 text-amber-800", icon: <AlertCircle className="w-3 h-3" /> },
-    failed: { label: "Échec", cls: "bg-red-100 text-red-700", icon: <XCircle className="w-3 h-3" /> },
+    draft: { label: "Brouillon", cls: "bg-muted text-muted-foreground", icon: null },
+    sending: { label: "Envoi…", cls: "bg-blue-500/100/15 text-blue-300", icon: <Loader2 className="w-3 h-3 animate-spin" /> },
+    sent: { label: "Envoyée", cls: "bg-green-500/100/15 text-green-300", icon: <CheckCircle2 className="w-3 h-3" /> },
+    partially_failed: { label: "Partiel", cls: "bg-amber-500/100/15 text-amber-300", icon: <AlertCircle className="w-3 h-3" /> },
+    failed: { label: "Échec", cls: "bg-red-500/100/15 text-red-300", icon: <XCircle className="w-3 h-3" /> },
   };
   const m = map[status];
   return (
@@ -476,14 +476,14 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
   const c = data ?? campaign;
   return (
     <div className="space-y-4">
-      <button onClick={onBack} className="text-sm text-gray-600 hover:text-violet-600 flex items-center gap-1">
+      <button onClick={onBack} className="text-sm text-muted-foreground hover:text-violet-600 flex items-center gap-1">
         <ArrowLeft className="w-4 h-4" /> Retour aux campagnes
       </button>
-      <div className="bg-white rounded-xl border p-6 space-y-4">
+      <div className="bg-card rounded-xl border p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold">{c.name}</h2>
-            <p className="text-gray-600 mt-1">{c.subject}</p>
+            <p className="text-muted-foreground mt-1">{c.subject}</p>
           </div>
           <StatusBadge status={c.status} />
         </div>
@@ -495,10 +495,10 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
           <BigStat label="Clics" value={c.clickCount} color="text-blue-600" />
         </div>
       </div>
-      <div className="bg-white rounded-xl border p-6 space-y-2">
-        <h3 className="font-semibold text-sm uppercase text-gray-500">Aperçu de l'email</h3>
+      <div className="bg-card rounded-xl border p-6 space-y-2">
+        <h3 className="font-semibold text-sm uppercase text-muted-foreground">Aperçu de l'email</h3>
         <div
-          className="prose prose-sm max-w-none border rounded-lg p-4 bg-gray-50"
+          className="prose prose-sm max-w-none border rounded-lg p-4 bg-muted"
           // Email HTML généré par notre propre IA — pas d'input utilisateur direct ici.
           dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(c.bodyHtml) }}
         />
@@ -507,11 +507,11 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
   );
 }
 
-function BigStat({ label, value, color = "text-gray-900" }: { label: string; value: number; color?: string }) {
+function BigStat({ label, value, color = "text-foreground" }: { label: string; value: number; color?: string }) {
   return (
     <div className="text-center">
       <div className={cn("text-3xl font-bold", color)}>{value}</div>
-      <div className="text-[10px] uppercase text-gray-500 tracking-wider">{label}</div>
+      <div className="text-[10px] uppercase text-muted-foreground tracking-wider">{label}</div>
     </div>
   );
 }

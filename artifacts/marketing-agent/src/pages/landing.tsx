@@ -67,23 +67,23 @@ export default function LandingPage() {
   }
 
   const primary = page.style.primaryColor || "#4f46e5";
-  const bg = page.style.bgColor || "#f8fafc";
+  const bg = page.style.bgColor || "#08080F";
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: bg }}>
-      <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl p-8 sm:p-10">
+      <div className="w-full max-w-xl bg-card rounded-2xl shadow-xl p-8 sm:p-10">
         {success ? (
           <div className="text-center py-8">
             <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4" style={{ background: `${primary}20`, color: primary }}>
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">C'est noté !</h2>
-            <p className="text-gray-600">{page.successMessage}</p>
+            <h2 className="text-2xl font-bold text-foreground mb-2">C'est noté !</h2>
+            <p className="text-muted-foreground">{page.successMessage}</p>
           </div>
         ) : (
           <>
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 leading-tight">{page.headline}</h1>
-            {page.subheadline && <p className="text-gray-600 text-lg mb-6">{page.subheadline}</p>}
+            <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3 leading-tight">{page.headline}</h1>
+            {page.subheadline && <p className="text-muted-foreground text-lg mb-6">{page.subheadline}</p>}
             <form onSubmit={handleSubmit} className="space-y-3">
               {page.fields.includes("name") && (
                 <input
@@ -92,7 +92,7 @@ export default function LandingPage() {
                   required
                   value={form.name || ""}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-1 text-gray-900"
+                  className="w-full px-4 py-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-offset-1 text-foreground"
                   style={{ "--tw-ring-color": primary } as React.CSSProperties}
                   data-testid="lp-input-name"
                 />
@@ -103,7 +103,7 @@ export default function LandingPage() {
                 required
                 value={form.email || ""}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 text-gray-900"
+                className="w-full px-4 py-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 text-foreground"
                 data-testid="lp-input-email"
               />
               {page.fields.includes("phone") && (
@@ -112,7 +112,7 @@ export default function LandingPage() {
                   placeholder="Téléphone (optionnel)"
                   value={form.phone || ""}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 text-gray-900"
+                  className="w-full px-4 py-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 text-foreground"
                   data-testid="lp-input-phone"
                 />
               )}
@@ -122,7 +122,7 @@ export default function LandingPage() {
                   rows={3}
                   value={form.message || ""}
                   onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 text-gray-900 resize-none"
+                  className="w-full px-4 py-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 text-foreground resize-none"
                   data-testid="lp-input-message"
                 />
               )}
@@ -136,7 +136,7 @@ export default function LandingPage() {
                 {submitting ? "Envoi…" : page.ctaLabel}
               </button>
             </form>
-            <p className="text-xs text-gray-400 text-center mt-6">
+            <p className="text-xs text-muted-foreground text-center mt-6">
               Vos informations restent confidentielles · {page.title}
             </p>
           </>

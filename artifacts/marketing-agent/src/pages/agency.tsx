@@ -325,7 +325,7 @@ const SOCIAL_NETWORKS = [
 // Réseaux disponibles pour le path "ads".
 const ADS_NETWORKS = [
   { value: "meta-ads" as Channel, label: "Meta Ads", desc: "Pub Facebook + Instagram", icon: Facebook, color: "text-[#1877f2]", bg: "bg-[#1877f2]/10" },
-  { value: "google-ads" as Channel, label: "Google Ads", desc: "Pub sur Recherche Google", icon: Globe, color: "text-emerald-600", bg: "bg-emerald-100" },
+  { value: "google-ads" as Channel, label: "Google Ads", desc: "Pub sur Recherche Google", icon: Globe, color: "text-emerald-400", bg: "bg-emerald-500/15" },
 ];
 
 type ObjectiveOption = (typeof OBJECTIVES_SOCIAL)[number];
@@ -533,8 +533,8 @@ export default function AgencyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-blue-50">
-      <header className="border-b border-violet-100 bg-white/80 backdrop-blur sticky top-0 z-20">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card/80 backdrop-blur sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
           <Link href="/app" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground shrink-0">
             <ArrowLeft className="w-4 h-4" />
@@ -728,7 +728,7 @@ function BriefForm({
           <span className="text-violet-700">{t("Étape {step} sur {total}", { step: step + 1, total: totalSteps })}</span>
           <span className="text-muted-foreground">{Math.round(progressPercent)}%</span>
         </div>
-        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-muted rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-violet-600 to-blue-600 rounded-full transition-all duration-700 ease-out shadow-sm"
             style={{ width: `${progressPercent}%` }}
@@ -744,7 +744,7 @@ function BriefForm({
       ) : (
         <div
           key={animKey}
-          className={`bg-white rounded-2xl border shadow-sm p-6 sm:p-8 space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 ${
+          className={`bg-card rounded-2xl border shadow-sm p-6 sm:p-8 space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 ${
             step === 0 ? "max-w-5xl mx-auto" : ""
           }`}
         >
@@ -904,12 +904,12 @@ function StepCampaignType({
               aria-pressed={active}
               className={`relative text-left p-5 rounded-2xl border-2 transition-all hover:scale-[1.02] flex flex-col ${
                 active
-                  ? "border-violet-600 bg-violet-50 shadow-lg scale-[1.02] ring-2 ring-violet-200"
-                  : "border-slate-200 hover:border-violet-300 bg-white"
+                  ? "border-primary bg-primary/15 shadow-lg scale-[1.02] ring-2 ring-primary/40"
+                  : "border-border hover:border-violet-300 bg-card"
               }`}
             >
               {!ct.available && (
-                <span className="absolute top-3 right-3 text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider">
+                <span className="absolute top-3 right-3 text-[10px] font-bold px-2 py-1 rounded-full bg-amber-500/100/15 text-amber-300 uppercase tracking-wider">
                   {t("Bientôt")}
                 </span>
               )}
@@ -921,14 +921,14 @@ function StepCampaignType({
                 <span className="text-xs font-semibold text-violet-600 uppercase">{t(ct.sub)}</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{t(ct.description)}</p>
-              <div className="mt-4 pt-3 border-t border-slate-200/70 space-y-1.5">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              <div className="mt-4 pt-3 border-t border-border/70 space-y-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {t("Ce que je vais faire pour toi :")}
                 </div>
                 <ul className="space-y-1">
                   {ct.details.map((d, i) => (
-                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-700 leading-snug">
-                      <CheckIcon className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-foreground leading-snug">
+                      <CheckIcon className="w-3 h-3 text-emerald-400 flex-shrink-0 mt-0.5" />
                       <span>{t(d)}</span>
                     </li>
                   ))}
@@ -998,7 +998,7 @@ function StepProduct({
               key={ex.label}
               type="button"
               onClick={() => setValue(t(ex.text))}
-              className="px-3 py-2 rounded-full border bg-white hover:bg-violet-50 hover:border-violet-300 text-sm transition-all hover:scale-105"
+              className="px-3 py-2 rounded-full border bg-card hover:bg-primary/10 hover:border-violet-300 text-sm transition-all hover:scale-105"
               data-testid={`example-product-${ex.label}`}
             >
               {ex.emoji} {t(ex.label)}
@@ -1071,7 +1071,7 @@ function StepAudience({
               key={ex.label}
               type="button"
               onClick={() => setValue(t(ex.text))}
-              className="px-3 py-2 rounded-full border bg-white hover:bg-violet-50 hover:border-violet-300 text-sm transition-all hover:scale-105"
+              className="px-3 py-2 rounded-full border bg-card hover:bg-primary/10 hover:border-violet-300 text-sm transition-all hover:scale-105"
               data-testid={`example-audience-${ex.label}`}
             >
               {ex.emoji} {t(ex.label)}
@@ -1153,14 +1153,14 @@ function StepSocialNetworks({
               aria-pressed={checked}
               className={`relative p-4 rounded-xl border-2 transition-all text-left ${
                 disabled
-                  ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
+                  ? "opacity-50 cursor-not-allowed border-border bg-muted"
                   : checked
-                    ? "border-violet-600 bg-violet-50 shadow-md scale-[1.02]"
-                    : "border-slate-200 hover:border-violet-300 hover:scale-[1.02] bg-white"
+                    ? "border-primary bg-primary/15 shadow-md scale-[1.02]"
+                    : "border-border hover:border-violet-300 hover:scale-[1.02] bg-card"
               }`}
             >
               {disabled && (
-                <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 uppercase">
+                <span className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/100/15 text-amber-300 uppercase">
                   {t("Bientôt")}
                 </span>
               )}
@@ -1278,8 +1278,8 @@ function StepAdsDetails({
                 aria-pressed={checked}
                 className={`relative p-4 rounded-xl border-2 transition-all text-left ${
                   checked
-                    ? "border-violet-600 bg-violet-50 shadow-md scale-[1.02]"
-                    : "border-slate-200 hover:border-violet-300 hover:scale-[1.02] bg-white"
+                    ? "border-primary bg-primary/15 shadow-md scale-[1.02]"
+                    : "border-border hover:border-violet-300 hover:scale-[1.02] bg-card"
                 }`}
               >
                 <div className={`w-10 h-10 rounded-lg ${n.bg} flex items-center justify-center mb-2`}>
@@ -1312,7 +1312,7 @@ function StepAdsDetails({
           placeholder="https://monsite.fr"
           value={siteUrl}
           onChange={(e) => setSiteUrl(e.target.value)}
-          className="w-full h-11 px-3 rounded-md border border-input bg-white text-base"
+          className="w-full h-11 px-3 rounded-md border border-input bg-background text-base"
         />
         {siteUrl.trim() && !urlValid && (
           <p className="text-xs text-amber-600">{t("⚠️ L'adresse doit commencer par http:// ou https://")}</p>
@@ -1334,8 +1334,8 @@ function StepAdsDetails({
               onClick={() => setBudget(b)}
               className={`px-3 py-1.5 rounded-full border text-sm transition-all ${
                 budget === b
-                  ? "border-violet-600 bg-violet-50 text-violet-700 font-semibold"
-                  : "border-slate-200 bg-white hover:border-violet-300"
+                  ? "border-primary bg-primary/15 text-foreground font-semibold"
+                  : "border-border bg-card hover:border-violet-300"
               }`}
               data-testid={`budget-preset-${b.replace(/\s/g, "-")}`}
             >
@@ -1350,7 +1350,7 @@ function StepAdsDetails({
           placeholder={t("Ou écris ton montant : ex. 250 € pour 2 semaines")}
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
-          className="w-full h-11 px-3 rounded-md border border-input bg-white text-base"
+          className="w-full h-11 px-3 rounded-md border border-input bg-background text-base"
         />
       </div>
 
@@ -1417,7 +1417,7 @@ function StepObjective({
               onClick={() => setValue(o.value)}
               aria-pressed={active}
               className={`text-left p-4 rounded-xl border-2 transition-all hover:scale-[1.02] flex flex-col ${
-                active ? "border-violet-600 bg-violet-50 shadow-md scale-[1.02]" : "border-slate-200 hover:border-violet-300 bg-white"
+                active ? "border-primary bg-primary/15 shadow-md scale-[1.02]" : "border-border hover:border-violet-300 bg-card"
               }`}
             >
               <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${o.color} flex items-center justify-center mb-2 shadow-sm`}>
@@ -1425,14 +1425,14 @@ function StepObjective({
               </div>
               <div className="font-semibold text-sm">{t(o.label)}</div>
               <div className="text-xs text-muted-foreground mt-1">{t(o.description)}</div>
-              <div className="mt-3 pt-3 border-t border-slate-200/70 space-y-1.5">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              <div className="mt-3 pt-3 border-t border-border/70 space-y-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {t("Ce que je vais faire pour toi :")}
                 </div>
                 <ul className="space-y-1">
                   {o.details.map((d, i) => (
-                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-slate-700 leading-snug">
-                      <CheckIcon className="w-3 h-3 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-foreground leading-snug">
+                      <CheckIcon className="w-3 h-3 text-emerald-400 flex-shrink-0 mt-0.5" />
                       <span>{t(d)}</span>
                     </li>
                   ))}
@@ -1500,14 +1500,14 @@ function ComingSoonScreen({
         </div>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2">
         <div className="flex items-start gap-2">
           <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-amber-900">
+            <p className="text-sm font-semibold text-amber-200">
               {t("Pourquoi ce n'est pas encore prêt ?")}
             </p>
-            <p className="text-xs text-amber-800 leading-relaxed">
+            <p className="text-xs text-amber-200 leading-relaxed">
               {brief.campaignType === "ads"
                 ? t("On attend les validations finales de Meta (Business Manager) et de Google (developer token). Délai estimé : quelques semaines. En attendant, tu peux lancer une campagne Réseaux Sociaux gratuite — c'est déjà très efficace !")
                 : t("On finalise le système de gestion de tes contacts et de programmation des envois. En attendant, tu peux lancer une campagne Réseaux Sociaux gratuite pour préparer le terrain.")}
@@ -1516,7 +1516,7 @@ function ComingSoonScreen({
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm p-5 space-y-4">
+      <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
         <h3 className="font-semibold text-sm">{t("Ton brief (gardé pour cette session) 📝")}</h3>
         <p className="text-xs text-muted-foreground -mt-2">
           {t("Pour l'instant on ne le sauvegarde pas côté serveur — tu pourras le ressaisir quand la fonctionnalité sera prête.")}
@@ -1551,7 +1551,7 @@ function ComingSoonScreen({
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm p-5 space-y-3">
+      <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
         <Label htmlFor="notif-email" className="text-sm font-semibold">
           {t("📬 Préviens-moi quand c'est disponible")}
         </Label>
@@ -1565,7 +1565,7 @@ function ComingSoonScreen({
           placeholder="ton@email.fr"
           value={notificationEmail}
           onChange={(e) => setNotificationEmail(e.target.value)}
-          className="w-full h-11 px-3 rounded-md border border-input bg-white text-base"
+          className="w-full h-11 px-3 rounded-md border border-input bg-background text-base"
         />
         <p className="text-[11px] text-muted-foreground italic">
           {t("Pour l'instant on ne stocke pas ton email automatiquement — note-le, on l'ajoutera à la liste d'attente bientôt.")}
@@ -1672,7 +1672,7 @@ function PreviewScreen({
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("Voilà ce que j'ai préparé 🎉")}</h1>
           <p className="text-muted-foreground">{t("Regarde, modifie si tu veux, puis appuie sur le gros bouton vert.")}</p>
         </div>
-        <div className="flex items-center gap-2 bg-white border rounded-full px-4 py-2 shadow-sm">
+        <div className="flex items-center gap-2 bg-card border rounded-full px-4 py-2 shadow-sm">
           <HelpCircle className="w-4 h-4 text-violet-600" />
           <Label htmlFor="explain" className="text-sm cursor-pointer">{t("Explique-moi tout")}</Label>
           <Switch id="explain" checked={explainMode} onCheckedChange={setExplainMode} data-testid="switch-explain" />
@@ -1680,21 +1680,21 @@ function PreviewScreen({
       </div>
 
       {explainMode && (
-        <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 border-2 border-purple-200 rounded-2xl p-6 space-y-3" data-testid="explain-box">
-          <h3 className="font-bold text-lg flex items-center gap-2 text-purple-900">
+        <div className="bg-gradient-to-br from-purple-500/15 to-fuchsia-500/10 border-2 border-purple-500/30 rounded-2xl p-6 space-y-3" data-testid="explain-box">
+          <h3 className="font-bold text-lg flex items-center gap-2 text-foreground">
             <Lightbulb className="w-5 h-5" /> {t("Mes choix, expliqués comme à un enfant")}
           </h3>
           {plan.decisions && plan.decisions.length > 0 ? (
             <ul className="space-y-3">
               {plan.decisions.map((d, i) => (
-                <li key={i} className="bg-white/70 rounded-lg p-3">
-                  <div className="font-semibold text-purple-900 text-sm">✓ {d.what}</div>
-                  <div className="text-sm text-slate-700 mt-1">→ {d.why}</div>
+                <li key={i} className="bg-white/10 rounded-lg p-3">
+                  <div className="font-semibold text-foreground text-sm">✓ {d.what}</div>
+                  <div className="text-sm text-foreground mt-1">→ {d.why}</div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-purple-900 bg-white/70 rounded-lg p-3">
+            <p className="text-sm text-foreground bg-white/10 rounded-lg p-3">
               {t("😊 Cette campagne a été créée avant cette nouveauté, donc je n'ai pas gardé le détail de mes choix. Pour les prochaines, tu verras ici tout ce que j'ai décidé et pourquoi.")}
             </p>
           )}
@@ -1718,12 +1718,12 @@ function PreviewScreen({
         />
       </div>
 
-      <div className="bg-white rounded-2xl border p-5 space-y-2">
+      <div className="bg-card rounded-2xl border p-5 space-y-2">
         <h3 className="font-semibold flex items-center gap-2">{t("🎯 Comment je vais les trouver")}</h3>
         <p className="text-sm text-muted-foreground whitespace-pre-line">{plan.targetingNarrative}</p>
       </div>
 
-      <div className="bg-white rounded-2xl border p-5 space-y-2">
+      <div className="bg-card rounded-2xl border p-5 space-y-2">
         <h3 className="font-semibold flex items-center gap-2">{t("💰 Côté argent")}</h3>
         <p className="text-sm text-muted-foreground whitespace-pre-line">{plan.budgetNarrative}</p>
       </div>
@@ -1746,25 +1746,25 @@ function PreviewScreen({
       </div>
 
       {plan.recommendations?.length > 0 && (
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 space-y-2">
-          <h3 className="font-bold flex items-center gap-2 text-amber-900">
+        <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl p-5 space-y-2">
+          <h3 className="font-bold flex items-center gap-2 text-amber-200">
             <Lightbulb className="w-5 h-5" /> {t("Mes petits conseils en plus")}
           </h3>
-          <ul className="text-sm text-amber-900 space-y-2">
+          <ul className="text-sm text-amber-200 space-y-2">
             {plan.recommendations.map((r, i) => <li key={i}>✨ {r}</li>)}
           </ul>
         </div>
       )}
 
       {!launched && (
-        <div className="bg-white rounded-2xl border-2 border-purple-100 p-5 space-y-4 sticky bottom-4 shadow-xl">
+        <div className="bg-card rounded-2xl border-2 border-purple-100 p-5 space-y-4 sticky bottom-4 shadow-xl">
           {!canLaunch && !channels.loading && (
             <div
-              className="flex items-start gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 p-4"
+              className="flex items-start gap-3 rounded-xl border-2 border-amber-500/40 bg-amber-500/10 p-4"
               data-testid="launch-blocked-warning"
             >
-              <Lightbulb className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-amber-900 space-y-1">
+              <Lightbulb className="w-5 h-5 text-amber-300 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-amber-200 space-y-1">
                 <p className="font-semibold">
                   {t("Tu dois connecter {channels} pour pouvoir lancer cette campagne.", { channels: missingChannels.join(t(" et ")) })}
                 </p>
@@ -1789,14 +1789,14 @@ function PreviewScreen({
               className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm"
             />
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3">
+          <div className="flex items-center gap-2 rounded-md border border-dashed border-border bg-muted p-3">
             <Checkbox
               id="todo-checkbox"
               checked={todoChecked}
               onCheckedChange={(v) => setTodoChecked(v === true)}
               data-testid="checkbox-todo"
             />
-            <Label htmlFor="todo-checkbox" className="text-sm text-slate-600 cursor-pointer">
+            <Label htmlFor="todo-checkbox" className="text-sm text-muted-foreground cursor-pointer">
               {t("J'ai vérifié les textes et les dates — je confirme le lancement")}
             </Label>
           </div>
@@ -1820,11 +1820,11 @@ function PreviewScreen({
       )}
 
       {launched && (
-        <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 flex items-center gap-3">
+        <div className="bg-green-500/10 border-2 border-green-500/30 rounded-2xl p-5 flex items-center gap-3">
           <CheckCircle2 className="w-8 h-8 text-green-600" />
           <div>
-            <p className="font-bold text-green-900">{t("Campagne lancée le {date} ✨", { date: new Date(campaign.launchedAt!).toLocaleString("fr-FR") })}</p>
-            <p className="text-sm text-green-800">{t("Les messages partiront tout seuls aux dates prévues. Profite de ta journée !")}</p>
+            <p className="font-bold text-green-200">{t("Campagne lancée le {date} ✨", { date: new Date(campaign.launchedAt!).toLocaleString("fr-FR") })}</p>
+            <p className="text-sm text-green-200">{t("Les messages partiront tout seuls aux dates prévues. Profite de ta journée !")}</p>
           </div>
         </div>
       )}
@@ -1834,11 +1834,11 @@ function PreviewScreen({
 
 function FriendlyCard({ emoji, title, body }: { emoji: string; title: string; body: string }) {
   return (
-    <div className="bg-white rounded-2xl border p-4 space-y-2">
+    <div className="bg-card rounded-2xl border p-4 space-y-2">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <span className="text-2xl">{emoji}</span> {title}
       </div>
-      <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed">{body}</p>
+      <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{body}</p>
     </div>
   );
 }
@@ -1869,7 +1869,7 @@ function PostCard({
   });
 
   return (
-    <div className="bg-slate-50 rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-md transition">
+    <div className="bg-muted rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-md transition">
       {post.channel === "instagram" ? (
         <InstagramMockup post={post} index={index} />
       ) : post.channel === "linkedin" ? (
@@ -1878,7 +1878,7 @@ function PostCard({
         <FacebookMockup post={post} index={index} />
       )}
 
-      <div className="p-4 space-y-3 bg-white border-t">
+      <div className="p-4 space-y-3 bg-card border-t">
         <div className="flex items-center gap-2 text-xs font-semibold text-violet-700">
           {t("✏️ Modifie si tu veux")}
         </div>
@@ -1914,26 +1914,26 @@ function PostCard({
 function InstagramMockup({ post, index }: { post: PlannedPost; index: number }) {
   const t = useT();
   return (
-    <div className="bg-white">
+    <div className="bg-card">
       <div className="flex items-center justify-between px-3 py-2.5">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2px]">
-            <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-xs font-bold">
+            <div className="w-full h-full rounded-full bg-card flex items-center justify-center text-xs font-bold">
               T
             </div>
           </div>
           <div className="leading-tight">
             <div className="text-xs font-semibold">ta_marque</div>
-            <div className="text-[10px] text-slate-500">{t("Sponsorisé")}</div>
+            <div className="text-[10px] text-muted-foreground">{t("Sponsorisé")}</div>
           </div>
         </div>
-        <MoreHorizontal className="w-4 h-4 text-slate-700" />
+        <MoreHorizontal className="w-4 h-4 text-foreground" />
       </div>
-      <div className="aspect-square bg-slate-100 relative">
+      <div className="aspect-square bg-muted relative">
         {post.imageUrl ? (
           <img src={post.imageUrl} alt={`Post ${index}`} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
+          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
             <Instagram className="w-8 h-8" />
             {t("Image en cours…")}
           </div>
@@ -1942,18 +1942,18 @@ function InstagramMockup({ post, index }: { post: PlannedPost; index: number }) 
       <div className="px-3 py-2 space-y-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Heart className="w-5 h-5 text-slate-800" />
-            <MessageCircle className="w-5 h-5 text-slate-800" />
-            <Send className="w-5 h-5 text-slate-800" />
+            <Heart className="w-5 h-5 text-foreground" />
+            <MessageCircle className="w-5 h-5 text-foreground" />
+            <Send className="w-5 h-5 text-foreground" />
           </div>
-          <Bookmark className="w-5 h-5 text-slate-800" />
+          <Bookmark className="w-5 h-5 text-foreground" />
         </div>
         <div className="text-xs font-semibold">{t("{count} mentions J'aime", { count: 124 + index * 17 })}</div>
-        <div className="text-xs text-slate-700 whitespace-pre-wrap break-words">
+        <div className="text-xs text-foreground whitespace-pre-wrap break-words">
           <span className="font-semibold">ta_marque</span>{" "}
           <span>{post.copy}</span>
         </div>
-        <div className="text-[10px] text-slate-400 uppercase">{t("Il y a quelques instants")}</div>
+        <div className="text-[10px] text-muted-foreground uppercase">{t("Il y a quelques instants")}</div>
       </div>
     </div>
   );
@@ -1962,53 +1962,53 @@ function InstagramMockup({ post, index }: { post: PlannedPost; index: number }) 
 function FacebookMockup({ post, index }: { post: PlannedPost; index: number }) {
   const t = useT();
   return (
-    <div className="bg-white">
+    <div className="bg-card">
       <div className="flex items-center justify-between px-3 py-2.5">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-sm font-bold">
             T
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold text-slate-900">{t("Ta marque")}</div>
-            <div className="text-[11px] text-slate-500 flex items-center gap-1">
+            <div className="text-sm font-semibold text-foreground">{t("Ta marque")}</div>
+            <div className="text-[11px] text-muted-foreground flex items-center gap-1">
               {t("Sponsorisé · ")}<span className="text-blue-600">🌐</span>
             </div>
           </div>
         </div>
-        <MoreHorizontal className="w-5 h-5 text-slate-600" />
+        <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
       </div>
-      <div className="px-3 pb-2.5 text-sm text-slate-800 whitespace-pre-wrap break-words">
+      <div className="px-3 pb-2.5 text-sm text-foreground whitespace-pre-wrap break-words">
         {post.copy}
       </div>
-      <div className="aspect-[4/3] bg-slate-100 relative">
+      <div className="aspect-[4/3] bg-muted relative">
         {post.imageUrl ? (
           <img src={post.imageUrl} alt={`Pub ${index}`} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
+          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
             <Facebook className="w-8 h-8" />
             {t("Image en cours…")}
           </div>
         )}
       </div>
-      <div className="px-3 py-2 bg-slate-50 flex items-center justify-between">
-        <div className="text-[11px] text-slate-600 font-semibold uppercase tracking-wide">
+      <div className="px-3 py-2 bg-muted flex items-center justify-between">
+        <div className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wide">
           {t("En savoir plus")}
         </div>
-        <div className="text-[10px] text-slate-500">tamarque.fr</div>
+        <div className="text-[10px] text-muted-foreground">tamarque.fr</div>
       </div>
-      <div className="px-3 py-1.5 flex items-center justify-between text-xs text-slate-600 border-t">
+      <div className="px-3 py-1.5 flex items-center justify-between text-xs text-muted-foreground border-t">
         <div className="flex items-center gap-1">
           <span className="w-4 h-4 rounded-full bg-blue-600 inline-flex items-center justify-center">
             <ThumbsUp className="w-2.5 h-2.5 text-white" />
           </span>
           <span>{286 + index * 23}</span>
         </div>
-        <div className="text-[11px] text-slate-500">{t("{comments} commentaires · {shares} partages", { comments: 34 + index * 3, shares: 12 + index })}</div>
+        <div className="text-[11px] text-muted-foreground">{t("{comments} commentaires · {shares} partages", { comments: 34 + index * 3, shares: 12 + index })}</div>
       </div>
-      <div className="grid grid-cols-3 border-t text-xs text-slate-600 font-medium">
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><ThumbsUp className="w-3.5 h-3.5" /> {t("J'aime")}</button>
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><MessageCircle className="w-3.5 h-3.5" /> {t("Commenter")}</button>
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><Share2 className="w-3.5 h-3.5" /> {t("Partager")}</button>
+      <div className="grid grid-cols-3 border-t text-xs text-muted-foreground font-medium">
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-muted"><ThumbsUp className="w-3.5 h-3.5" /> {t("J'aime")}</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-muted"><MessageCircle className="w-3.5 h-3.5" /> {t("Commenter")}</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-muted"><Share2 className="w-3.5 h-3.5" /> {t("Partager")}</button>
       </div>
     </div>
   );
@@ -2017,45 +2017,45 @@ function FacebookMockup({ post, index }: { post: PlannedPost; index: number }) {
 function LinkedinMockup({ post, index }: { post: PlannedPost; index: number }) {
   const t = useT();
   return (
-    <div className="bg-white">
+    <div className="bg-card">
       <div className="flex items-center justify-between px-3 py-2.5">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0a66c2] to-[#004182] flex items-center justify-center text-white text-sm font-bold">
             T
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold text-slate-900">{t("Ta marque")}</div>
-            <div className="text-[11px] text-slate-500">{t("Entreprise · Sponsorisé")}</div>
+            <div className="text-sm font-semibold text-foreground">{t("Ta marque")}</div>
+            <div className="text-[11px] text-muted-foreground">{t("Entreprise · Sponsorisé")}</div>
           </div>
         </div>
         <Linkedin className="w-5 h-5 text-[#0a66c2]" />
       </div>
-      <div className="px-3 pb-2.5 text-sm text-slate-800 whitespace-pre-wrap break-words">
+      <div className="px-3 pb-2.5 text-sm text-foreground whitespace-pre-wrap break-words">
         {post.copy}
       </div>
-      <div className="aspect-[4/3] bg-slate-100 relative">
+      <div className="aspect-[4/3] bg-muted relative">
         {post.imageUrl ? (
           <img src={post.imageUrl} alt={`Post ${index}`} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
+          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground text-xs gap-2">
             <Linkedin className="w-8 h-8" />
             {t("Image en cours…")}
           </div>
         )}
       </div>
-      <div className="px-3 py-1.5 flex items-center justify-between text-xs text-slate-600 border-t">
+      <div className="px-3 py-1.5 flex items-center justify-between text-xs text-muted-foreground border-t">
         <div className="flex items-center gap-1">
           <span className="w-4 h-4 rounded-full bg-[#0a66c2] inline-flex items-center justify-center">
             <ThumbsUp className="w-2.5 h-2.5 text-white" />
           </span>
           <span>{142 + index * 19}</span>
         </div>
-        <div className="text-[11px] text-slate-500">{t("{comments} commentaires · {shares} republications", { comments: 18 + index * 2, shares: 7 + index })}</div>
+        <div className="text-[11px] text-muted-foreground">{t("{comments} commentaires · {shares} republications", { comments: 18 + index * 2, shares: 7 + index })}</div>
       </div>
-      <div className="grid grid-cols-3 border-t text-xs text-slate-600 font-medium">
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><ThumbsUp className="w-3.5 h-3.5" /> {t("J'aime")}</button>
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><MessageCircle className="w-3.5 h-3.5" /> {t("Commenter")}</button>
-        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-slate-50"><Share2 className="w-3.5 h-3.5" /> {t("Republier")}</button>
+      <div className="grid grid-cols-3 border-t text-xs text-muted-foreground font-medium">
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-muted"><ThumbsUp className="w-3.5 h-3.5" /> {t("J'aime")}</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-muted"><MessageCircle className="w-3.5 h-3.5" /> {t("Commenter")}</button>
+        <button className="py-1.5 flex items-center justify-center gap-1.5 hover:bg-muted"><Share2 className="w-3.5 h-3.5" /> {t("Republier")}</button>
       </div>
     </div>
   );
@@ -2116,10 +2116,10 @@ function SuccessScreen({
           {t("J'ai programmé {count} messages. Ils partiront tout seuls aux dates prévues. Tu n'as plus rien à faire 😊", { count: campaign.plan.posts.length })}
         </p>
         {campaign.notificationEmail && emailStatus?.sent && (
-          <p className="text-sm text-green-700">{t("📧 Récap envoyé à {email} (pense à vérifier tes spams).", { email: campaign.notificationEmail })}</p>
+          <p className="text-sm text-green-300">{t("📧 Récap envoyé à {email} (pense à vérifier tes spams).", { email: campaign.notificationEmail })}</p>
         )}
         {campaign.notificationEmail && emailStatus && !emailStatus.sent && (
-          <div className="max-w-md mx-auto bg-amber-50 border border-amber-200 rounded-lg p-3 text-left text-sm text-amber-900">
+          <div className="max-w-md mx-auto bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-left text-sm text-amber-200">
             <p className="font-semibold">{t("📧 L'email récap n'est pas parti.")}</p>
             <p className="text-xs mt-1">
               {t("Ta campagne, elle, est bien lancée ! Côté email, ça vient probablement de l'adresse expéditeur configurée. Détail technique : {detail}.", { detail: emailStatus.error?.slice(0, 200) || t("raison inconnue") })}
@@ -2162,7 +2162,7 @@ function Dashboard({
       </div>
 
       {campaigns.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border">
+        <div className="text-center py-16 bg-card rounded-2xl border">
           <div className="text-5xl mb-3">🌱</div>
           <p className="text-muted-foreground mb-4">{t("Aucune campagne pour l'instant. On commence ?")}</p>
           <Button onClick={onNew}>{t("Créer ma première campagne")}</Button>
@@ -2170,7 +2170,7 @@ function Dashboard({
       ) : (
         <div className="space-y-3">
           {campaigns.map((c) => (
-            <div key={c.id} className="bg-white rounded-2xl border p-5 flex items-center justify-between gap-4 hover:shadow-md transition" data-testid={`campaign-${c.id}`}>
+            <div key={c.id} className="bg-card rounded-2xl border p-5 flex items-center justify-between gap-4 hover:shadow-md transition" data-testid={`campaign-${c.id}`}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <h3 className="font-semibold truncate">{c.name}</h3>
@@ -2314,9 +2314,9 @@ function EmailPreviewScreen({
         <p className="text-muted-foreground">{t("Relis, ajuste, choisis tes destinataires, puis on envoie.")}</p>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
+      <div className="bg-card rounded-xl border shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm uppercase text-gray-500">{t("Aperçu")}</h3>
+          <h3 className="font-semibold text-sm uppercase text-muted-foreground">{t("Aperçu")}</h3>
           <Button variant={editing ? "secondary" : "ghost"} size="sm" onClick={() => setEditing((v) => !v)}>
             {editing ? t("Annuler") : t("Modifier")}
           </Button>
@@ -2338,7 +2338,7 @@ function EmailPreviewScreen({
                 value={bodyText}
                 onChange={(e) => setBodyText(e.target.value)}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {t("Note : on garde la mise en page HTML d'origine. Seul le sujet et la version texte sont édités ici.")}
               </p>
             </div>
@@ -2349,19 +2349,19 @@ function EmailPreviewScreen({
         ) : (
           <>
             <div>
-              <p className="text-xs text-gray-500 uppercase">{t("Sujet")}</p>
+              <p className="text-xs text-muted-foreground uppercase">{t("Sujet")}</p>
               <p className="font-semibold text-lg">{campaign.subject}</p>
             </div>
-            <div className="border rounded-lg p-4 bg-gray-50 prose prose-sm max-w-none"
+            <div className="border rounded-lg p-4 bg-muted prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(campaign.bodyHtml) }}
             />
           </>
         )}
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm p-6 space-y-4">
+      <div className="bg-card rounded-xl border shadow-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm uppercase text-gray-500">{t("Destinataires")}</h3>
+          <h3 className="font-semibold text-sm uppercase text-muted-foreground">{t("Destinataires")}</h3>
           <Link href="/app/emails" className="text-xs text-violet-600 hover:underline">
             {t("Gérer mes contacts")}
           </Link>
@@ -2369,7 +2369,7 @@ function EmailPreviewScreen({
         {loadingContacts ? (
           <div className="py-6 text-center"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></div>
         ) : contacts.length === 0 ? (
-          <div className="text-center py-6 text-sm text-gray-500">
+          <div className="text-center py-6 text-sm text-muted-foreground">
             {t("Tu n'as pas encore de contacts.")} <Link href="/app/emails" className="text-violet-600 font-semibold hover:underline">{t("Ajoute-les")}</Link> {t("avant d'envoyer.")}
           </div>
         ) : (
@@ -2391,7 +2391,7 @@ function EmailPreviewScreen({
             {!allSubscribed && (
               <div className="max-h-72 overflow-y-auto border rounded-lg divide-y">
                 {contacts.filter((c) => c.subscribed).map((c) => (
-                  <label key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                  <label key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer">
                     <input
                       type="checkbox"
                       checked={selected.has(c.id)}
@@ -2400,7 +2400,7 @@ function EmailPreviewScreen({
                     />
                     <span className="text-sm flex-1">{c.email}</span>
                     {(c.firstName || c.lastName) && (
-                      <span className="text-xs text-gray-500">{c.firstName} {c.lastName}</span>
+                      <span className="text-xs text-muted-foreground">{c.firstName} {c.lastName}</span>
                     )}
                   </label>
                 ))}
@@ -2449,7 +2449,7 @@ function EmailSuccessScreen({
           {t("{sent} email(s) partis sur {total}.", { sent: result.sent, total: result.total })}
           {result.failed > 0 && ` ${t("{failed} échec(s).", { failed: result.failed })}`}
         </p>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           « {campaign.subject} »
         </p>
       </div>
@@ -2461,7 +2461,7 @@ function EmailSuccessScreen({
           <Wand2 className="w-4 h-4 mr-2" /> {t("En lancer une autre")}
         </Button>
       </div>
-      <p className="text-xs text-gray-500 max-w-md mx-auto">
+      <p className="text-xs text-muted-foreground max-w-md mx-auto">
         {t("Les ouvertures et clics apparaîtront dans tes stats au fur et à mesure (si le webhook Resend est configuré).")}
       </p>
     </div>

@@ -3,7 +3,7 @@ import { Sparkles, ArrowLeft } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gradient-to-b from-violet-50 via-white to-blue-50">
+    <div className="min-h-screen w-full flex flex-col bg-background">
       <header className="px-6 h-16 flex items-center">
         <Link href="/" className="flex items-center gap-2 group" data-testid="link-home-404">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:scale-105 transition-transform">

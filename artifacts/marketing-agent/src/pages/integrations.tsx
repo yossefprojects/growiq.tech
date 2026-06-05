@@ -150,14 +150,14 @@ function Badge({
   }
   if (variant === "warn") {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/100/15 text-amber-300">
         <AlertTriangle className="w-3.5 h-3.5" />
         {children}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground">
       <XCircle className="w-3.5 h-3.5" />
       {children}
     </span>
@@ -321,13 +321,13 @@ function MetaChecklist() {
     "Ton Instagram lié à ta page Facebook",
   ];
   return (
-    <div className="rounded-xl bg-blue-50 border border-blue-200 p-4" data-testid="meta-checklist">
-      <p className="text-sm font-semibold text-blue-900 mb-2">
+    <div className="rounded-xl bg-blue-500/10 border border-blue-500/30 p-4" data-testid="meta-checklist">
+      <p className="text-sm font-semibold text-blue-200 mb-2">
         Avant de commencer, assure-toi d'avoir :
       </p>
       <ul className="space-y-1.5">
         {items.map((t) => (
-          <li key={t} className="flex items-center gap-2 text-sm text-blue-900">
+          <li key={t} className="flex items-center gap-2 text-sm text-blue-200">
             <CheckCircle2 className="w-4 h-4 text-[#1a7a55] shrink-0" />
             {t}
           </li>
@@ -440,7 +440,7 @@ function FacebookSection({
               Ton compte est connecté. Tu peux publier des posts depuis l'agence
               automatique ou le chat.
               {!ig.connected ? (
-                <div className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+                <div className="mt-2 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded p-2">
                   Astuce : pour publier sur Instagram, lie un compte Instagram Business
                   à ta page Facebook depuis l'app Instagram (Paramètres → Compte
                   connecté), puis reconnecte ici.
@@ -466,7 +466,7 @@ function FacebookSection({
                 variant="ghost"
                 size="sm"
                 onClick={onDisconnect}
-                className="text-red-600 hover:text-red-700"
+                className="text-red-600 hover:text-red-300"
                 data-testid="button-facebook-disconnect"
               >
                 <Trash2 className="w-4 h-4 mr-1.5" />
@@ -477,14 +477,14 @@ function FacebookSection({
         ) : (
           <div className="space-y-3">
             {fb.expired ? (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-sm text-amber-200">
                 Ton accès Facebook a expiré (ça arrive tous les ~60 jours). Reconnecte-toi
                 pour continuer à publier.
               </div>
             ) : (
               <>
                 <MetaChecklist />
-                <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+                <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-3 text-xs text-blue-200">
                   <span className="font-semibold">Accès anticipé.</span> La
                   connexion Facebook est en cours de validation par Meta. En
                   attendant, elle fonctionne pour les comptes invités par
@@ -494,7 +494,7 @@ function FacebookSection({
             )}
             {friendlyError ? (
               <p
-                className="text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2"
+                className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded p-2"
                 data-testid="text-facebook-error"
               >
                 {friendlyError}
@@ -594,7 +594,7 @@ function LinkedinSection({
             variant="ghost"
             size="sm"
             onClick={onDisconnect}
-            className="text-red-600 hover:text-red-700"
+            className="text-red-600 hover:text-red-300"
             data-testid="button-linkedin-disconnect"
           >
             <Trash2 className="w-4 h-4 mr-1.5" />
@@ -604,7 +604,7 @@ function LinkedinSection({
       ) : (
         <div className="space-y-3">
           {ln.expired ? (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-sm text-amber-200">
               Ton accès LinkedIn a expiré. Reconnecte-toi en 1 clic.
             </div>
           ) : (
@@ -712,7 +712,7 @@ function ResendSection({
         {usageInfo}
 
         {resend.lastErrorMessage ? (
-          <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-900">
+          <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-300">
             <strong>Échec du dernier test :</strong> {resend.lastErrorMessage}
           </div>
         ) : null}
@@ -745,7 +745,7 @@ function ResendSection({
               variant="ghost"
               size="sm"
               onClick={onDisconnect}
-              className="text-red-600 hover:text-red-700"
+              className="text-red-600 hover:text-red-300"
               data-testid="button-resend-disconnect"
             >
               <Trash2 className="w-4 h-4 mr-1.5" />
@@ -897,7 +897,7 @@ function MetaAdsSection({
               variant="ghost"
               size="sm"
               onClick={onDisconnect}
-              className="text-red-600 hover:text-red-700"
+              className="text-red-600 hover:text-red-300"
               data-testid="button-meta-ads-disconnect"
             >
               <Trash2 className="w-4 h-4 mr-1.5" />
@@ -908,7 +908,7 @@ function MetaAdsSection({
       ) : (
         <div className="space-y-3">
           {fb.connected && status.adAccountsCount === 0 ? (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-sm text-amber-200">
               Tu es connecté à Facebook, mais on n'a pas trouvé de compte
               publicitaire. Crée d'abord un compte pub dans Meta Business Suite,
               puis reconnecte ici pour activer le scope publicitaire.
@@ -920,7 +920,7 @@ function MetaAdsSection({
               l'accès publicitaire.
             </p>
           )}
-          <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+          <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-3 text-xs text-blue-200">
             <span className="font-semibold">Accès anticipé.</span> L'accès
             publicitaire Meta est en cours de validation par Meta (App Review).
             En attendant, il fonctionne pour les comptes invités par l'équipe
@@ -990,7 +990,7 @@ function GoogleAdsSection({
           <div className="rounded-lg bg-[#3dbf8e]/10 border border-[#3dbf8e]/30 p-3 text-sm text-[#1a7a55]">
             Ton compte Google est connecté.
             {!status.apiReady ? (
-              <div className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+              <div className="mt-2 text-xs text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded p-2">
                 On attend encore la validation Google pour créer de vraies
                 campagnes (Developer Token Basic Access). Ta connexion est
                 prête, on l'activera dès l'autorisation.
@@ -1016,7 +1016,7 @@ function GoogleAdsSection({
               variant="ghost"
               size="sm"
               onClick={onDisconnect}
-              className="text-red-600 hover:text-red-700"
+              className="text-red-600 hover:text-red-300"
               data-testid="button-google-ads-disconnect"
             >
               <Trash2 className="w-4 h-4 mr-1.5" />
@@ -1031,7 +1031,7 @@ function GoogleAdsSection({
             Ads (recherche Google) depuis l'agence automatique.
           </p>
           {!status.apiReady ? (
-            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+            <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-3 text-xs text-blue-200">
               <span className="font-semibold">Connexion possible dès maintenant.</span>{" "}
               Les vraies campagnes seront activées dès que Google valide notre
               accès API (en cours, 2-6 semaines).
@@ -1405,7 +1405,7 @@ export default function IntegrationsPage() {
             <Loader2 className="w-6 h-6 animate-spin text-[#5b54d6]" />
           </div>
         ) : !data ? (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
             Impossible de charger tes intégrations. Recharge la page.
           </div>
         ) : (
