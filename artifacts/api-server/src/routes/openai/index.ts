@@ -1240,7 +1240,14 @@ router.post("/meta/publish", async (req, res): Promise<void> => {
   }
   // Non-admin → publie via l'OAuth perso (publishToMetaForUser).
   // Admin → garde la voie globale historique (publishToMeta env).
-  let result: { success: boolean; postId?: string; permalink?: string; error?: string; configMissing?: boolean };
+  let result: {
+    success: boolean;
+    postId?: string;
+    permalink?: string;
+    error?: string;
+    configMissing?: boolean;
+    tokenExpired?: boolean;
+  };
   if (isAdmin) {
     result = await publishToMeta({ platform, message, imageUrl });
   } else {
@@ -1251,6 +1258,7 @@ router.post("/meta/publish", async (req, res): Promise<void> => {
       permalink: r.success ? r.permalink : undefined,
       error: r.success ? undefined : r.error,
       configMissing: !r.success && (r.notConnected || r.tokenExpired || r.missingInstagram),
+      tokenExpired: !r.success && r.tokenExpired,
     };
   }
   if (!result.success) {
@@ -1270,6 +1278,23 @@ router.post("/meta/publish", async (req, res): Promise<void> => {
         error:
           "Publication Facebook en accès anticipé — contacte l'équipe GrowIQ pour activer ton compte.",
         earlyAccess: true,
+      });
+      return;
+    }
+    // Token expiré / invalide : Meta renvoie "Error validating access token:
+    // Session has expired..." ou code 190. On renvoie un message FR clair et
+    // actionnable (401) plutôt qu'un 502 Bad Gateway illisible.
+    const tokenExpired =
+      result.tokenExpired === true ||
+      /validating access token|session has expired|access token.*expired|malformed access token|\(#?190\)|\bcode\s*190\b/i.test(
+        raw,
+      );
+    if (tokenExpired) {
+      res.status(401).json({
+        error: isAdmin
+          ? "La connexion Facebook / Instagram de GrowIQ a expiré. Reconnecte le compte administrateur pour pouvoir publier."
+          : "Ta connexion Facebook / Instagram a expiré. Reconnecte ton compte dans Réglages, onglet Intégrations, pour publier.",
+        tokenExpired: true,
       });
       return;
     }
