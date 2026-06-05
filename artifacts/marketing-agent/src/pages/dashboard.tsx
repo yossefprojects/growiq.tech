@@ -24,6 +24,9 @@ import {
   Sparkles,
   Mail,
   Plug,
+  Palette,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { Sidebar } from "@/components/sidebar";
 import { CampaignLaunchModal } from "@/components/campaign-launch-modal";
@@ -169,6 +172,16 @@ export default function DashboardPage() {
       onClick: () => setToolboxOpen(true),
       testId: "action-schedule-post",
       help: t("Ouvre la boîte à outils pour programmer un post simple (texte + image) à une date et heure précises, sans passer par l'agence complète."),
+    },
+    {
+      title: t("Campagne de branding"),
+      description: t("Renforce ton image de marque et fais-toi connaître auprès d'une nouvelle audience."),
+      icon: Palette,
+      bg: "bg-gradient-to-br from-[#c026d3] to-[#5b54d6] text-white",
+      iconBg: "bg-white/20",
+      onClick: () => setLocation("/app/agency"),
+      testId: "action-branding-campaign",
+      help: t("L'agence prépare une campagne de notoriété (posts, email et publicité possible) avec un ton et un message cohérents sur tous tes réseaux, pour renforcer ton image et toucher de nouvelles personnes."),
     },
     {
       title: t("Parler à l'agent"),
@@ -327,6 +340,58 @@ export default function DashboardPage() {
                 )}
               </button>
             ))}
+          </section>
+
+          {/* Branding — ce que GrowIQ fait pour ta marque */}
+          <section className="mb-10 rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="w-9 h-9 rounded-xl bg-[#c026d3]/15 text-[#c026d3] flex items-center justify-center shrink-0">
+                <Palette className="w-4 h-4" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight">
+                {t("Ce que GrowIQ fait pour ta marque")}
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4 ml-[2.875rem]">
+              {t("Le branding, c'est l'image que les gens gardent de ton entreprise. Voici ce que l'agent peut faire pour toi, en toute transparence.")}
+            </p>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold text-sm">{t("Campagnes de notoriété (posts + email + pub)")}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {t("L'agent crée et publie des posts, des emails et, si tu le souhaites, de la publicité pour te faire connaître auprès d'une nouvelle audience.")}
+                  </div>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold text-sm">{t("Cohérence de ton et de message sur tous les réseaux")}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {t("À partir de ton profil (ton histoire, ton ton de communication), tout ce qui est publié parle d'une seule voix, reconnaissable.")}
+                  </div>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold text-sm">{t("Identité visuelle partielle (style cohérent, pas de charte figée)")}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {t("Les visuels sont générés par l'IA dans un style soigné et cohérent, mais l'agent ne fige pas encore un logo et une palette de couleurs appliqués à l'identique partout.")}
+                  </div>
+                </div>
+              </li>
+            </ul>
+            <button
+              onClick={() => setLocation("/app/agency")}
+              data-testid="branding-start-campaign"
+              className="mt-5 inline-flex items-center gap-1.5 bg-[#c026d3] hover:bg-[#a81fb5] text-white rounded-md px-4 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#c026d3] focus:ring-offset-2"
+            >
+              <Palette className="w-4 h-4" />
+              {t("Lancer une campagne de branding")}
+            </button>
           </section>
 
           {/* Quick stats */}

@@ -1,0 +1,39 @@
+Sur la landing page (/), ajoute une section témoignages clients entre la section "Fonctionnalités" et la section "Tarifs".
+Design de la section :
+
+Fond : #0F0F1A
+Badge : "Ils nous font confiance" en violet #7B74E8, uppercase, letterspacing
+Titre : "Ce que nos utilisateurs disent" — blanc, font-weight 900, clamp(26px, 4vw, 44px)
+3 cartes en grille repeat(auto-fit, minmax(300px, 1fr)), gap 24px
+
+Les 3 témoignages :
+Carte 1 — Sophie M.
+Avatar : initiale "S" sur fond gradient #5B54D6→#C026D3
+Nom : Sophie M. | Rôle : Gérante de restaurant, Lyon
+Étoiles : ⭐⭐⭐⭐⭐
+Texte : "En 10 minutes j'avais une campagne Instagram complète pour mon menu du week-end. Avant je passais 2h sur Canva pour un résultat moins pro. GrowIQ a changé ma façon de travailler."
+Carte 2 — Thomas R.
+Avatar : initiale "T" sur fond gradient #06B6D4→#5B54D6
+Nom : Thomas R. | Rôle : Coach business indépendant, Paris
+Étoiles : ⭐⭐⭐⭐⭐
+Texte : "J'ai lancé 3 campagnes LinkedIn en une semaine sans toucher à un seul outil de design. Le ton est parfait, les textes sont meilleurs que ce que j'écrivais moi-même. Je recommande à tous les indépendants."
+Carte 3 — Camille D.
+Avatar : initiale "C" sur fond gradient #C026D3→#7B74E8
+Nom : Camille D. | Rôle : Fondatrice boutique e-commerce, Bordeaux
+Étoiles : ⭐⭐⭐⭐⭐
+Texte : "Ce qui m'a convaincue c'est que tout est en français et que l'agent comprend vraiment mon secteur. Ma dernière campagne email a fait 38% de taux d'ouverture. Je suis bluffée."
+Style des cartes :
+
+Fond : rgba(255,255,255,0.03), bordure 1px solid rgba(255,255,255,0.07)
+Border-radius : 20px, padding : 28px
+Guillemet décoratif " en position absolute, font-size 80px, couleur rgba(91,84,214,0.15), en haut à droite
+Hover : bordure rgba(91,84,214,0.35), translateY(-4px), transition smooth
+Avatar : cercle 44px avec initiale blanche, font-weight 700
+Nom en blanc font-weight 700, rôle en rgba(255,255,255,0.45) font-size 13px
+Étoiles en #F59E0B (jaune/or)
+Texte du témoignage en rgba(255,255,255,0.65), font-size 14px, line-height 1.7, style italic
+
+Animations :
+
+Ajoute la classe .reveal sur chaque carte avec transitionDelay échelonné : 0s, 0.1s, 0.2s
+Section entière avec .reveal sur le titre

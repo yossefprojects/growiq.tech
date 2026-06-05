@@ -1,0 +1,53 @@
+Dans le dashboard /app, refais la mise en page des cartes d'action pour donner une hiérarchie visuelle claire. "Lancer une campagne" doit dominer visuellement toutes les autres cartes.
+Nouvelle structure de la grille :
+Remplace la grille actuelle par ce layout :
+[  Lancer une campagne — GRANDE CARTE HERO  ] [ Programmer un post ]
+[  Lancer une campagne — GRANDE CARTE HERO  ] [ Parler à l'agent   ]
+                                              [ Emails & contacts  ]
+[        Mes campagnes — carte large         ]
+CSS grid :
+cssgrid-template-columns: 2fr 1fr;
+grid-template-rows: auto;
+La carte "Lancer une campagne" prend grid-row: span 2 pour occuper toute la hauteur gauche.
+Style de la carte hero "Lancer une campagne" :
+
+Fond : linear-gradient(135deg, #5B54D6 0%, #C026D3 100%)
+Border-radius : 20px
+Padding : 40px
+Hauteur minimale : 280px
+Icône ⚡ dans un cercle blanc semi-transparent rgba(255,255,255,0.15), taille 56px, icône font-size 28px
+Titre : "Lancer une campagne" — blanc, font-size 24px, font-weight 800
+Description : "L'agent prépare tout : visuels, posts, emails. Tu valides, c'est publié." — rgba(255,255,255,0.75), font-size 15px, line-height 1.6
+Bouton en bas : "Commencer →" — fond blanc, texte #5B54D6, font-weight 700, border-radius 50px, padding 10px 24px
+Effet au hover sur la carte : brightness(1.08) + translateY(-3px) + box-shadow: 0 20px 50px rgba(91,84,214,0.45)
+Petites particules décoratives : 3 cercles blancs rgba(255,255,255,0.06) en position absolute de tailles différentes (120px, 80px, 200px) pour créer de la profondeur
+Flèche → en haut à droite, couleur rgba(255,255,255,0.4)
+
+Style des cartes secondaires (Programmer un post, Parler à l'agent, Emails & contacts) :
+
+Fond : rgba(255,255,255,0.04) — plus sombre que maintenant
+Bordure : 1px solid rgba(255,255,255,0.08)
+Border-radius : 16px
+Padding : 24px
+Icône dans carré 40px, fond rgba(91,84,214,0.15), border-radius 10px
+Titre : blanc, font-weight 700, font-size 15px
+Description : rgba(255,255,255,0.45), font-size 13px
+Hover : bordure rgba(91,84,214,0.4) + translateY(-2px)
+Flèche → en haut à droite, rgba(255,255,255,0.25), qui devient rgba(255,255,255,0.8) au hover
+
+Carte "Mes campagnes" (bas, pleine largeur) :
+
+grid-column: 1 / -1 pour prendre toute la largeur
+Fond : rgba(255,255,255,0.03), bordure subtile
+Layout horizontal : icône à gauche + texte au centre + "Voir toutes →" à droite
+Padding : 20px 28px
+
+Stats sous les cartes (12 conversations, 9 campagnes, posts programmés) :
+
+Garde les stats mais améliore leur style : fond rgba(255,255,255,0.03), bordure 1px solid rgba(255,255,255,0.06), border-radius 14px
+Le chiffre en blanc font-weight 800 font-size 32px
+Le label en rgba(255,255,255,0.35) uppercase letterspacing
+Petite barre gradient en bas de chaque stat card : height: 2px, background: linear-gradient(135deg, #5B54D6, #C026D3)
+
+Responsive mobile :
+En dessous de 768px : grid-template-columns: 1fr, toutes les cartes en pleine largeur, "Lancer une campagne" en premier avec min-height: 220px
