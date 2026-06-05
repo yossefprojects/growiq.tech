@@ -14,8 +14,10 @@ import {
 } from "@workspace/api-client-react";
 import { toastError } from "@/lib/toast-helpers";
 import { HelpTip } from "@/components/help-tip";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Rocket,
+  Zap,
   CalendarClock,
   MessageCircle,
   ListChecks,
@@ -36,20 +38,8 @@ import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding-
 import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
 import { AdminIconButton } from "@/components/admin-button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { useEffect } from "react";
-
-type ActionCard = {
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  bg: string;
-  iconBg: string;
-  onClick: () => void;
-  testId: string;
-  help?: string;
-};
 
 type IntegrationsSummary = {
   facebook: { connected: boolean };
@@ -152,72 +142,6 @@ export default function DashboardPage() {
     [deleteCamp, queryClient, t],
   );
 
-  const actions: ActionCard[] = [
-    {
-      title: t("Lancer une campagne"),
-      description: t("L'agent prépare tout : visuels, posts, emails. Tu valides, c'est publié."),
-      icon: Rocket,
-      bg: "bg-gradient-to-br from-[#5b54d6] to-[#7c6cf0] text-white",
-      iconBg: "bg-white/20",
-      onClick: () => setLocation("/app/agency"),
-      testId: "action-launch-campaign",
-      help: t("L'agence automatique te pose 3 questions, choisit les réseaux et horaires, génère les visuels et le texte, puis publie sur Facebook et Instagram à ta validation."),
-    },
-    {
-      title: t("Programmer un post"),
-      description: t("Choisis le réseau, la date, l'heure. On s'occupe du reste."),
-      icon: CalendarClock,
-      bg: "bg-gradient-to-br from-[#3dbf8e] to-[#5dd4a6] text-white",
-      iconBg: "bg-white/20",
-      onClick: () => setToolboxOpen(true),
-      testId: "action-schedule-post",
-      help: t("Ouvre la boîte à outils pour programmer un post simple (texte + image) à une date et heure précises, sans passer par l'agence complète."),
-    },
-    {
-      title: t("Campagne de branding"),
-      description: t("Renforce ton image de marque et fais-toi connaître auprès d'une nouvelle audience."),
-      icon: Palette,
-      bg: "bg-gradient-to-br from-[#c026d3] to-[#5b54d6] text-white",
-      iconBg: "bg-white/20",
-      onClick: () => setLocation("/app/agency"),
-      testId: "action-branding-campaign",
-      help: t("L'agence prépare une campagne de notoriété (posts, email et publicité possible) avec un ton et un message cohérents sur tous tes réseaux, pour renforcer ton image et toucher de nouvelles personnes."),
-    },
-    {
-      title: t("Parler à l'agent"),
-      description: t("Pose une question marketing, demande une idée, brainstorme."),
-      icon: MessageCircle,
-      bg: "bg-gradient-to-br from-[#1e1b4b] to-[#3a3470] text-white",
-      iconBg: "bg-white/20",
-      onClick: () => setLocation("/app/chat"),
-      testId: "action-open-chat",
-      help: t("Une conversation libre avec un stratège marketing senior. Idéal pour réfléchir, poser des questions précises ou faire valider une idée."),
-    },
-    {
-      title: t("Emails & contacts"),
-      description: t("Gère ta base d'abonnés et retrouve les stats de tes campagnes emailing."),
-      icon: Mail,
-      bg: "bg-gradient-to-br from-amber-500/15 to-amber-400/10 text-foreground",
-      iconBg: "bg-[#d97706]/15 text-[#d97706]",
-      onClick: () => setLocation("/app/emails"),
-      testId: "action-emails",
-      help: t("Ajoute ou importe tes contacts, et consulte ouvertures et clics des campagnes que tu as envoyées depuis l'agence."),
-    },
-    {
-      title: t("Mes campagnes"),
-      description: t("Retrouve toutes tes campagnes et leurs résultats."),
-      icon: ListChecks,
-      bg: "bg-gradient-to-br from-violet-500/15 to-blue-500/10 text-foreground",
-      iconBg: "bg-[#5b54d6]/15 text-[#5b54d6]",
-      onClick: () => {
-        const el = document.getElementById("recent-campaigns");
-        el?.scrollIntoView({ behavior: "smooth", block: "start" });
-      },
-      testId: "action-my-campaigns",
-      help: t("Toutes tes campagnes générées par l'agence, avec leur statut (en cours, programmée, publiée) et la possibilité de les rouvrir."),
-    },
-  ];
-
   const sidebarProps = {
     conversations,
     campaigns,
@@ -267,7 +191,10 @@ export default function DashboardPage() {
               <BrandIcon size={28} className="drop-shadow-sm" />
               <BrandWordmark className="text-base" />
             </Link>
-            <AdminIconButton variant="ghost" />
+            <div className="flex items-center gap-1">
+              <ThemeToggle testId="theme-toggle-header" />
+              <AdminIconButton variant="ghost" />
+            </div>
           </div>
         </header>
 
@@ -313,33 +240,110 @@ export default function DashboardPage() {
             </button>
           ) : null}
 
-          {/* Action cards */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-10">
-            {actions.map((a) => (
-              <button
-                key={a.title}
-                onClick={a.onClick}
-                data-testid={a.testId}
-                className={cn(
-                  "group relative overflow-hidden rounded-2xl p-5 sm:p-6 text-left",
-                  "shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200",
-                  "focus:outline-none focus:ring-2 focus:ring-[#5b54d6] focus:ring-offset-2",
-                  a.bg,
-                )}
-              >
-                <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center mb-3", a.iconBg)}>
-                  <a.icon className="w-5 h-5" />
+          {/* Action cards — hiérarchie : hero "Lancer une campagne" + cartes secondaires */}
+          <section className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4 mb-10">
+            {/* Hero — Lancer une campagne */}
+            <button
+              onClick={() => setLocation("/app/agency")}
+              data-testid="action-launch-campaign"
+              className="group relative overflow-hidden text-left flex flex-col justify-between min-h-[220px] md:min-h-[280px] p-8 sm:p-10 rounded-[20px] text-white transition-all duration-300 hover:-translate-y-[3px] hover:brightness-110 hover:shadow-[0_20px_50px_rgba(91,84,214,0.45)] focus:outline-none focus:ring-2 focus:ring-[#5b54d6] focus:ring-offset-2 focus:ring-offset-background"
+              style={{ background: "linear-gradient(135deg, #5B54D6 0%, #C026D3 100%)" }}
+            >
+              {/* Particules décoratives */}
+              <span aria-hidden className="pointer-events-none absolute -top-12 -right-12 w-[200px] h-[200px] rounded-full" style={{ background: "rgba(255,255,255,0.06)" }} />
+              <span aria-hidden className="pointer-events-none absolute bottom-4 -left-10 w-[120px] h-[120px] rounded-full" style={{ background: "rgba(255,255,255,0.06)" }} />
+              <span aria-hidden className="pointer-events-none absolute top-1/2 right-20 w-[80px] h-[80px] rounded-full" style={{ background: "rgba(255,255,255,0.06)" }} />
+
+              <ArrowRight className="absolute top-6 right-6 w-5 h-5 group-hover:translate-x-1 transition-transform" style={{ color: "rgba(255,255,255,0.4)" }} />
+
+              <div className="relative">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center mb-5" style={{ background: "rgba(255,255,255,0.15)" }}>
+                  <Zap className="w-7 h-7" />
                 </div>
-                <div className="font-bold text-base sm:text-lg leading-snug mb-1">{a.title}</div>
-                <div className="text-xs sm:text-sm opacity-85 leading-relaxed">{a.description}</div>
-                <ArrowRight className="absolute top-5 right-5 w-4 h-4 opacity-60 group-hover:translate-x-1 transition-transform" />
-                {a.help && (
-                  <span className="absolute bottom-3 right-3">
-                    <HelpTip text={a.help} side="top" className="text-white/70 hover:text-white hover:bg-white/15" />
+                <div className="text-2xl font-extrabold mb-2">{t("Lancer une campagne")}</div>
+                <p className="text-[15px] leading-relaxed max-w-md" style={{ color: "rgba(255,255,255,0.75)" }}>
+                  {t("L'agent prépare tout : visuels, posts, emails. Tu valides, c'est publié.")}
+                </p>
+              </div>
+
+              <span className="relative mt-6 inline-flex items-center gap-1.5 self-start bg-white text-[#5B54D6] font-bold rounded-full px-6 py-2.5 transition-transform group-hover:translate-x-0.5">
+                {t("Commencer")}
+                <ArrowRight className="w-4 h-4" />
+              </span>
+
+              <span className="absolute bottom-4 right-4 z-10">
+                <HelpTip text={t("L'agence automatique te pose 3 questions, choisit les réseaux et horaires, génère les visuels et le texte, puis publie sur Facebook et Instagram à ta validation.")} side="top" className="text-white/70 hover:text-white hover:bg-white/15" />
+              </span>
+            </button>
+
+            {/* Cartes secondaires — colonne droite */}
+            <div className="flex flex-col gap-4">
+              {[
+                {
+                  title: t("Programmer un post"),
+                  description: t("Choisis le réseau, la date, l'heure. On s'occupe du reste."),
+                  icon: CalendarClock,
+                  onClick: () => setToolboxOpen(true),
+                  testId: "action-schedule-post",
+                  help: t("Ouvre la boîte à outils pour programmer un post simple (texte + image) à une date et heure précises, sans passer par l'agence complète."),
+                },
+                {
+                  title: t("Parler à l'agent"),
+                  description: t("Pose une question marketing, demande une idée, brainstorme."),
+                  icon: MessageCircle,
+                  onClick: () => setLocation("/app/chat"),
+                  testId: "action-open-chat",
+                  help: t("Une conversation libre avec un stratège marketing senior. Idéal pour réfléchir, poser des questions précises ou faire valider une idée."),
+                },
+                {
+                  title: t("Emails & contacts"),
+                  description: t("Gère ta base d'abonnés et retrouve les stats de tes campagnes emailing."),
+                  icon: Mail,
+                  onClick: () => setLocation("/app/emails"),
+                  testId: "action-emails",
+                  help: t("Ajoute ou importe tes contacts, et consulte ouvertures et clics des campagnes que tu as envoyées depuis l'agence."),
+                },
+              ].map((a) => (
+                <button
+                  key={a.testId}
+                  onClick={a.onClick}
+                  data-testid={a.testId}
+                  className="group relative text-left flex-1 p-6 rounded-2xl border border-card-border bg-card transition-all duration-200 hover:-translate-y-[2px] hover:border-[#5b54d6]/40 focus:outline-none focus:ring-2 focus:ring-[#5b54d6] focus:ring-offset-2 focus:ring-offset-background"
+                >
+                  <div className="w-10 h-10 rounded-[10px] flex items-center justify-center mb-3 bg-[#5b54d6]/15">
+                    <a.icon className="w-5 h-5 text-[#5b54d6]" />
+                  </div>
+                  <div className="font-bold text-[15px] text-foreground mb-1">{a.title}</div>
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">{a.description}</p>
+                  <ArrowRight className="absolute top-5 right-5 w-4 h-4 text-muted-foreground/50 transition-all group-hover:translate-x-1 group-hover:text-foreground/80" />
+                  <span className="absolute bottom-3 right-3 z-10">
+                    <HelpTip text={a.help} side="top" />
                   </span>
-                )}
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
+
+            {/* Mes campagnes — pleine largeur */}
+            <button
+              onClick={() => {
+                const el = document.getElementById("recent-campaigns");
+                el?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              data-testid="action-my-campaigns"
+              className="group md:col-span-2 flex items-center gap-4 rounded-2xl border border-card-border bg-card px-6 sm:px-7 py-5 text-left transition-all duration-200 hover:border-[#5b54d6]/40 focus:outline-none focus:ring-2 focus:ring-[#5b54d6] focus:ring-offset-2 focus:ring-offset-background"
+            >
+              <div className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0 bg-[#5b54d6]/15">
+                <ListChecks className="w-5 h-5 text-[#5b54d6]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-[15px] text-foreground">{t("Mes campagnes")}</div>
+                <p className="text-[13px] text-muted-foreground">{t("Retrouve toutes tes campagnes et leurs résultats.")}</p>
+              </div>
+              <span className="shrink-0 inline-flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground transition-colors group-hover:text-foreground">
+                {t("Voir toutes")}
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </span>
+            </button>
           </section>
 
           {/* Branding — ce que GrowIQ fait pour ta marque */}
@@ -403,14 +407,15 @@ export default function DashboardPage() {
             ].map((s) => (
               <div
                 key={s.label}
-                className="rounded-xl border border-border/60 bg-card px-4 py-3 sm:px-5 sm:py-4"
+                className="relative overflow-hidden rounded-[14px] border border-card-border bg-card px-4 py-3 sm:px-5 sm:py-4"
               >
-                <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                <div className="text-[28px] sm:text-[32px] font-extrabold tracking-tight leading-none text-foreground">
                   {s.value}
                 </div>
-                <div className="text-[11px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-0.5">
+                <div className="text-[10px] sm:text-[11px] uppercase tracking-wider mt-1.5 text-muted-foreground">
                   {s.label}
                 </div>
+                <span aria-hidden className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(135deg, #5B54D6, #C026D3)" }} />
               </div>
             ))}
           </div>

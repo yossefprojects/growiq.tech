@@ -7,6 +7,7 @@ import { dark } from "@clerk/themes";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
+import { ThemeProvider } from "@/lib/theme";
 import NotFound from "@/pages/not-found";
 import ChatPage from "@/pages/chat";
 import LandingPage from "@/pages/landing";
@@ -348,9 +349,11 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 function App() {
   return (
     <GlobalErrorBoundary>
-      <WouterRouter base={basePath}>
-        <ClerkProviderWithRoutes />
-      </WouterRouter>
+      <ThemeProvider>
+        <WouterRouter base={basePath}>
+          <ClerkProviderWithRoutes />
+        </WouterRouter>
+      </ThemeProvider>
     </GlobalErrorBoundary>
   );
 }

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { CAMPAIGN_TYPES } from "./campaign-launch-modal";
 import { ToolboxModal } from "./toolbox-modal";
 import { LanguageSwitcher } from "./language-switcher";
+import { ThemeToggle } from "./theme-toggle";
 import { useT } from "@/lib/i18n";
 import { BrandLogo } from "./brand-logo";
 import { AdminIconButton } from "./admin-button";
@@ -284,6 +285,8 @@ export function Sidebar({
         <AdminLink />
 
         <LanguageSwitcher className="px-2 py-1.5" />
+
+        <ThemeToggle variant="row" testId="theme-toggle-sidebar" />
 
         <AccountLink />
         <SignOutButton redirectUrl="/">

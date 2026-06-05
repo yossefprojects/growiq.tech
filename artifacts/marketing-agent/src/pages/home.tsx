@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { Link } from "wouter";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function SmartLink({
   href,
@@ -138,25 +139,28 @@ function Navbar() {
         ))}
       </div>
 
-      <SmartLink
-        href="/app"
-        style={{
-          background: "linear-gradient(135deg, #5B54D6, #C026D3)",
-          color: "white",
-          borderRadius: 50,
-          padding: "8px 20px",
-          fontSize: 13,
-          fontWeight: 700,
-          textDecoration: "none",
-          boxShadow: "0 4px 16px rgba(91,84,214,0.4)",
-          transition: "all .2s",
-          whiteSpace: "nowrap",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 8px 26px rgba(91,84,214,0.6)")}
-        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 4px 16px rgba(91,84,214,0.4)")}
-      >
-        Lancer gratuitement →
-      </SmartLink>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <ThemeToggle variant="landing" testId="theme-toggle-landing" />
+        <SmartLink
+          href="/app"
+          style={{
+            background: "linear-gradient(135deg, #5B54D6, #C026D3)",
+            color: "white",
+            borderRadius: 50,
+            padding: "8px 20px",
+            fontSize: 13,
+            fontWeight: 700,
+            textDecoration: "none",
+            boxShadow: "0 4px 16px rgba(91,84,214,0.4)",
+            transition: "all .2s",
+            whiteSpace: "nowrap",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 8px 26px rgba(91,84,214,0.6)")}
+          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 4px 16px rgba(91,84,214,0.4)")}
+        >
+          Lancer gratuitement →
+        </SmartLink>
+      </div>
     </nav>
   );
 }

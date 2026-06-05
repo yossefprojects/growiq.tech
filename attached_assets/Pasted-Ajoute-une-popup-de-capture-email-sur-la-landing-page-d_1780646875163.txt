@@ -1,0 +1,42 @@
+Ajoute une popup de capture email sur la landing page / de growiq.tech. Ne touche pas à /app.
+Comportement de la popup :
+
+Elle s'affiche après 30 secondes de présence sur la page
+OU quand l'utilisateur déplace sa souris vers le haut de la fenêtre pour fermer l'onglet (exit-intent) : document.addEventListener('mouseleave', ...)
+Elle ne s'affiche qu'une seule fois par visiteur — stocke dans localStorage la clé "popup_seen" à "true" dès qu'elle s'affiche
+Elle ne s'affiche jamais sur /app
+
+Design de la popup :
+
+Overlay fond : rgba(0,0,0,0.7) avec backdrop-filter: blur(8px), z-index 9999
+Carte centrale : fond #0F0F1A, bordure 1px solid rgba(91,84,214,0.3), border-radius 24px, padding 40px, max-width 480px, centré à l'écran
+Animation d'entrée : scale(0.85) opacity(0) → scale(1) opacity(1) en 0.35s cubic-bezier
+Bouton fermer ✕ en haut à droite : rgba(255,255,255,0.3), hover blanc
+
+Contenu de la popup :
+
+Emoji + badge : 🎯 "Exemple gratuit" — pill gradient #5B54D6→#C026D3, font-size 11px uppercase
+Titre : "Tu veux voir une vraie campagne générée par GrowIQ ?" — blanc, font-weight 800, font-size 22px, letter-spacing -0.02em
+Sous-titre : "Laisse ton email — on t'envoie un exemple concret adapté à ton secteur. Gratuit, en 2 minutes." — rgba(255,255,255,0.55), font-size 14px, line-height 1.6
+Champ email : fond rgba(255,255,255,0.06), bordure 1px solid rgba(255,255,255,0.1), border-radius 12px, padding 14px 18px, couleur texte blanc, placeholder rgba(255,255,255,0.3) "Ton adresse email...", focus : bordure rgba(91,84,214,0.6)
+Bouton submit : pleine largeur, gradient #5B54D6→#C026D3, border-radius 50px, padding 14px, font-weight 800, texte "Recevoir mon exemple gratuit →", glow au hover box-shadow: 0 8px 30px rgba(91,84,214,0.5)
+Texte légal sous le bouton : "Pas de spam. Désabonnement en 1 clic." — rgba(255,255,255,0.25), font-size 11px, centré
+
+Comportement du formulaire :
+
+À la soumission : vérifie que l'email est valide (format basique)
+Si valide : remplace le contenu de la popup par un message de confirmation :
+
+Emoji ✅ grand (48px)
+Titre : "C'est dans ta boîte !" — blanc, font-weight 800
+Sous-titre : "Vérifie tes emails dans 2 minutes. Et pendant ce temps... pourquoi ne pas lancer ta première campagne ?" — rgba(255,255,255,0.55)
+Bouton : "Lancer ma première campagne →" — gradient, pill, lien vers /app
+La popup se ferme automatiquement après 4 secondes
+
+
+Si invalide : bordure rouge #EF4444 sur le champ + message "Adresse email invalide" en rouge font-size 12px
+Dans tous les cas : sauvegarde localStorage.setItem("popup_seen", "true")
+
+Responsive mobile :
+
+Sur mobile (< 640px) : popup en bas de l'écran, border-radius 24px 24px 0 0, padding 32px 24px, animation slide-up depuis le bas

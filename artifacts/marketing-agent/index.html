@@ -24,6 +24,20 @@
     <link rel="icon" type="image/jpeg" href="/brand/growiq-square-light.jpg" />
     <link rel="apple-touch-icon" href="/brand/growiq-square-light.jpg" />
     <meta name="theme-color" content="#5b54d6" />
+    <script>
+      // Anti-flash : applique le thème enregistré avant le rendu React.
+      // Défaut = sombre (cohérent avec l'identité GrowIQ).
+      (function () {
+        try {
+          // Règle stricte alignée sur readStoredTheme() : seule "light" force le
+          // mode clair, toute autre valeur (absente, legacy, invalide) = sombre.
+          var t = localStorage.getItem("theme");
+          document.documentElement.classList.add(t === "light" ? "light" : "dark");
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
