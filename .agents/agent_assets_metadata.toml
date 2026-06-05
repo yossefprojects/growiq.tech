@@ -12,3 +12,9 @@ id = "UPwMfr3azhqJjFoiaGrew"
 uri = "file://growiq-code.tar.gz"
 type = "unspecified"
 title = "GrowIQ — code source complet"
+
+[[outputs]]
+id = "-FRF5xwYEUzY0ygMegTWj"
+uri = "file://screenshots/landing-accueil.jpg"
+type = "image"
+title = "Page d'accueil publique growiq.tech (visiteurs non connectés)"
