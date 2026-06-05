@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { Link } from "wouter";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { EmailCapturePopup } from "@/components/email-capture-popup";
 
 function SmartLink({
   href,
@@ -1743,6 +1744,7 @@ export default function HomePage() {
       <FAQSection />
       <CTAFinalSection />
       <Footer />
+      <EmailCapturePopup />
     </div>
   );
 }
