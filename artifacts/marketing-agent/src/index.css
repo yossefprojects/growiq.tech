@@ -128,6 +128,14 @@
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
 
+  /* GrowIQ landing publique — palette premium sombre */
+  --purple: #5B54D6;
+  --purple2: #7B74E8;
+  --magenta: #C026D3;
+  --cyan: #06B6D4;
+  --void: #08080F;
+  --deep: #0F0F1A;
+
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
