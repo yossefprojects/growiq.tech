@@ -899,6 +899,155 @@ function FeaturesSection() {
   );
 }
 
+function TestimonialsSection() {
+  const testimonials = [
+    {
+      initial: "S",
+      gradient: "linear-gradient(135deg, #5B54D6, #C026D3)",
+      name: "Sophie M.",
+      role: "Gérante de restaurant, Lyon",
+      text: "En 10 minutes j'avais une campagne Instagram complète pour mon menu du week-end. Avant je passais 2h sur Canva pour un résultat moins pro. GrowIQ a changé ma façon de travailler.",
+    },
+    {
+      initial: "T",
+      gradient: "linear-gradient(135deg, #06B6D4, #5B54D6)",
+      name: "Thomas R.",
+      role: "Coach business indépendant, Paris",
+      text: "J'ai lancé 3 campagnes LinkedIn en une semaine sans toucher à un seul outil de design. Le ton est parfait, les textes sont meilleurs que ce que j'écrivais moi-même. Je recommande à tous les indépendants.",
+    },
+    {
+      initial: "C",
+      gradient: "linear-gradient(135deg, #C026D3, #7B74E8)",
+      name: "Camille D.",
+      role: "Fondatrice boutique e-commerce, Bordeaux",
+      text: "Ce qui m'a convaincue c'est que tout est en français et que l'agent comprend vraiment mon secteur. Ma dernière campagne email a fait 38% de taux d'ouverture. Je suis bluffée.",
+    },
+  ];
+
+  return (
+    <section id="testimonials" style={{ padding: "100px clamp(16px, 5vw, 48px)", background: "#0F0F1A" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div className="reveal" style={{ textAlign: "center", marginBottom: 64 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#7B74E8",
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              marginBottom: 12,
+            }}
+          >
+            Ils nous font confiance
+          </div>
+          <h2
+            style={{
+              fontSize: "clamp(26px, 4vw, 44px)",
+              fontWeight: 900,
+              color: "white",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Ce que nos utilisateurs disent
+          </h2>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gap: 24,
+          }}
+        >
+          {testimonials.map((tm, i) => (
+            <div key={i} className="reveal" style={{ transitionDelay: `${i * 0.1}s` }}>
+              <div
+                style={{
+                  position: "relative",
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 20,
+                  padding: 28,
+                  height: "100%",
+                  transition: "border-color .25s ease, transform .25s ease",
+                  overflow: "hidden",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(91,84,214,0.35)";
+                  e.currentTarget.style.transform = "translateY(-4px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    top: -6,
+                    right: 14,
+                    fontSize: 80,
+                    lineHeight: 1,
+                    fontWeight: 900,
+                    color: "rgba(91,84,214,0.15)",
+                    pointerEvents: "none",
+                  }}
+                >
+                  &ldquo;
+                </span>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+                      background: tm.gradient,
+                      color: "white",
+                      fontWeight: 700,
+                      fontSize: 18,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {tm.initial}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: "white", fontWeight: 700, fontSize: 15 }}>{tm.name}</div>
+                    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 13 }}>{tm.role}</div>
+                  </div>
+                </div>
+
+                <div
+                  aria-label="Note 5 sur 5"
+                  style={{ color: "#F59E0B", fontSize: 15, letterSpacing: "0.08em", marginBottom: 14 }}
+                >
+                  {"\u2605\u2605\u2605\u2605\u2605"}
+                </div>
+
+                <p
+                  style={{
+                    color: "rgba(255,255,255,0.65)",
+                    fontSize: 14,
+                    lineHeight: 1.7,
+                    fontStyle: "italic",
+                    position: "relative",
+                  }}
+                >
+                  {tm.text}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 type Stat = { end: number; suffix: string; label: string; prefix?: string; special?: string };
 
 function StatsSection() {
@@ -1585,6 +1734,7 @@ export default function HomePage() {
       <HowSection />
       <FeaturesSection />
       <StatsSection />
+      <TestimonialsSection />
       <PricingSection />
       <FAQSection />
       <CTAFinalSection />
