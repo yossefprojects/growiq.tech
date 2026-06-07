@@ -27,6 +27,7 @@ function uid(req: Request): string {
   return (req as AuthedRequest).userId;
 }
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { sendEmail } from "../../lib/email";
 import { publishToMeta, isMetaConfigured, getMetaProfile, getTokenStatus } from "../../lib/meta";
 import { publishToMetaForUser, getMetaCredentialsForUser } from "../../lib/meta-user";
@@ -44,6 +45,59 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+const JARVIS_SYSTEM_PROMPT = `Tu es un expert en publicité digitale spécialisé dans Meta Ads (Facebook & Instagram) et Google Ads. Tu aides les utilisateurs à créer et optimiser leurs campagnes publicitaires de façon simple et guidée.
+
+## Ton rôle
+
+Tu collectes les informations nécessaires à la création d'une campagne, puis tu génères un plan de campagne complet et actionnable.
+
+## Déroulement de la conversation
+
+Pose les questions UNE PAR UNE, dans cet ordre. N'avance pas à la question suivante avant d'avoir une réponse claire.
+
+1. **Plateforme** : "Sur quelle plateforme souhaitez-vous diffuser votre campagne ? Meta Ads (Facebook/Instagram), Google Ads, ou les deux ?"
+
+2. **Objectif** : "Quel est votre objectif principal ? (Trafic vers le site, Génération de leads, Conversions/Ventes, ou Notoriété de marque)"
+
+3. **Budget** : "Quel est votre budget journalier en euros ? Et quelle est la durée souhaitée de la campagne ?"
+
+4. **Audience** : "Décrivez votre audience cible : tranche d'âge, localisation géographique, et centres d'intérêt principaux."
+
+5. **Annonce** : "Donnez-moi le contenu de votre annonce : le titre (max 90 caractères), le texte principal, l'URL de destination, et l'appel à l'action souhaité (ex: Acheter maintenant, En savoir plus, S'inscrire...)."
+
+## Une fois toutes les informations collectées
+
+Génère un plan de campagne structuré avec exactement ces sections :
+
+**📊 Analyse rapide**
+Évalue en 2-3 lignes la pertinence de la combinaison plateforme + objectif + budget.
+
+**🏗️ Structure de campagne recommandée**
+Propose une structure claire : nombre d'ensembles de publicités, segmentation audience, types de formats recommandés.
+
+**🎯 Recommandations de ciblage**
+Affinements audience, audiences similaires (lookalike) si pertinent, exclusions à prévoir.
+
+**✍️ Variantes d'annonces**
+Propose 2 titres alternatifs et 1 texte principal alternatif, optimisés pour la conversion.
+
+**💰 Répartition du budget**
+Comment distribuer le budget journalier (si multi-plateforme, répartis entre les deux avec justification).
+
+**📈 KPIs à suivre**
+3 à 4 métriques clés à surveiller selon l'objectif (CTR, CPC, CPL, ROAS, etc.) avec des benchmarks indicatifs.
+
+**⚡ Actions J+3**
+3 actions concrètes à réaliser après les 3 premiers jours pour optimiser les performances.
+
+## Règles importantes
+
+- Réponds toujours en français
+- Sois concis et directement actionnable, sans jargon inutile
+- Si l'utilisateur donne des informations incomplètes, reformule avec ce que tu as et demande confirmation avant de continuer
+- Si le budget semble trop faible pour l'objectif choisi, signale-le poliment et propose une alternative réaliste
+- Tu peux proposer de générer un nouveau plan à tout moment si l'utilisateur veut modifier des paramètres`;
 
 const MARKETING_SYSTEM_PROMPT = `Tu es un expert en marketing avec une connaissance approfondie de tous les domaines du marketing. Tu aides les professionnels et entrepreneurs à développer leurs stratégies marketing, en particulier les campagnes 100% gratuites et accessibles à tous les budgets.
 
@@ -416,13 +470,11 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     .where(eq(messages.conversationId, params.data.id))
     .orderBy(asc(messages.createdAt));
 
-  const chatMessages = [
-    { role: "system" as const, content: MARKETING_SYSTEM_PROMPT + (await getBusinessContextPrompt(uid(req))) },
-    ...history.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
-  ];
+  const systemPrompt = JARVIS_SYSTEM_PROMPT + (await getBusinessContextPrompt(uid(req)));
+  const chatMessages = history.map((m) => ({
+    role: m.role as "user" | "assistant",
+    content: m.content,
+  }));
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -430,30 +482,45 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
 
   let fullResponse = "";
 
-  const stream = await openai.chat.completions.create({
-    model: "gpt-5.4",
-    max_completion_tokens: 8192,
+  const stream = anthropic.messages.stream({
+    model: "claude-opus-4-8",
+    max_tokens: 8192,
+    system: systemPrompt,
     messages: chatMessages,
-    stream: true,
   });
 
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content;
-    if (content) {
-      fullResponse += content;
-      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+  req.on("close", () => {
+    stream.abort();
+  });
+
+  try {
+    for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        fullResponse += event.delta.text;
+        res.write(`data: ${JSON.stringify({ content: event.delta.text })}\n\n`);
+      }
+    }
+
+    if (fullResponse) {
+      await db.insert(messages).values({
+        conversationId: params.data.id,
+        role: "assistant",
+        content: fullResponse,
+        userId: uid(req),
+      });
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+  } catch (err) {
+    req.log.error({ err }, "chat stream failed");
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ error: "Désolé, une erreur est survenue. Réessaie dans un instant." })}\n\n`);
+    }
+  } finally {
+    if (!res.writableEnded) {
+      res.end();
     }
   }
-
-  await db.insert(messages).values({
-    conversationId: params.data.id,
-    role: "assistant",
-    content: fullResponse,
-    userId: uid(req),
-  });
-
-  res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-  res.end();
 });
 
 router.post("/openai/analyze-url", async (req, res): Promise<void> => {

@@ -19,7 +19,8 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 - Frontend: React + Vite + Tailwind CSS + shadcn/ui
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
-- AI: OpenAI gpt-5.4 via Replit AI Integrations (no API key needed)
+- AI chat (Jarvis, expert pub Meta/Google Ads): Anthropic Claude `claude-opus-4-8` via Replit AI Integrations
+- AI génération (campagnes, agency, analyze-url, images): OpenAI gpt-5.4 / gpt-image-1 via Replit AI Integrations (no API key needed)
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
@@ -48,8 +49,9 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 ## Architecture decisions
 
 - SSE streaming for chat responses (token-by-token) using raw fetch + ReadableStream on the client
-- Conversation history is persisted in PostgreSQL and sent to OpenAI on each request for context
-- The marketing system prompt is hardcoded in the API route for consistency
+- **Chat principal = "Jarvis"** (Anthropic Claude `claude-opus-4-8`) : expert publicité Meta/Google Ads, pose 5 questions une par une (plateforme → objectif → budget → audience → annonce) puis génère un plan structuré. Prompt `JARVIS_SYSTEM_PROMPT` dans `routes/openai/index.ts`. Le système est un param top-level Anthropic (pas un message). Stream filtré sur `content_block_delta`/`text_delta`. Le wire SSE est identique (`data:{content}` + `data:{done:true}`) donc le client `chat.tsx` est inchangé. Stream wrappé try/catch/finally + `req.on("close")` → `stream.abort()`.
+- Les autres flux IA (campaigns/generate, analyze-url, agency, images, email) restent sur OpenAI + `MARKETING_SYSTEM_PROMPT`.
+- Conversation history is persisted in PostgreSQL and sent to the model on each request for context
 - Orval-generated hooks used for all CRUD operations; SSE endpoint uses raw fetch
 - AI API keys auto-provisioned via Replit AI Integrations (no user API key required)
 
