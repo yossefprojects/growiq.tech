@@ -75,10 +75,12 @@ publicFacebookRouter.get("/auth/facebook/callback", async (req, res) => {
       return back("no_pages");
     }
 
-    // MVP : on prend la 1ère page. L'utilisateur pourra changer plus tard via
-    // metadata.selectedFacebookPageId (UI à venir si plusieurs pages).
+    // MVP : on prend la 1ère page pour Facebook. Pour Instagram, on cherche la
+    // 1ère page qui a un compte Instagram Business lié (peut être une page
+    // différente de pages[0]).
     const first = pages[0];
-    const ig = first.instagram_business_account;
+    const pageWithIg = pages.find((p) => p.instagram_business_account?.id) ?? null;
+    const ig = pageWithIg?.instagram_business_account ?? null;
 
     // Récupère aussi les comptes publicitaires Meta (ads_management). Non-fatal :
     // si l'user a refusé le scope ou n'a pas de compte pub, on continue.
@@ -103,8 +105,13 @@ publicFacebookRouter.get("/auth/facebook/callback", async (req, res) => {
           name: p.name,
           accessToken: p.access_token,
           category: p.category,
+          instagramBusinessAccountId: p.instagram_business_account?.id,
+          instagramBusinessAccountUsername: p.instagram_business_account?.username,
         })),
         selectedFacebookPageId: first.id,
+        // La page dont le token doit être utilisé pour publier sur Instagram
+        // (peut être différente de la page Facebook principale).
+        selectedInstagramPageId: pageWithIg?.id,
         instagramAccount: ig ? { id: ig.id, username: ig.username } : undefined,
         displayName: me.name,
         metaAdAccounts: adAccounts.map((a) => ({

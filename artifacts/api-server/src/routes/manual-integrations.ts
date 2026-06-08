@@ -135,7 +135,10 @@ router.post("/integrations/facebook/manual", async (req, res) => {
     return;
   }
   const firstPage = pages[0];
-  const ig = firstPage.instagram_business_account;
+  // Cherche la 1ère page qui a un compte Instagram Business lié (peut être
+  // différente de firstPage si l'utilisateur a plusieurs pages FB).
+  const pageWithIg = pages.find((p) => p.instagram_business_account?.id) ?? null;
+  const ig = pageWithIg?.instagram_business_account ?? null;
 
   await upsertUserIntegration({
     userId,
@@ -151,8 +154,11 @@ router.post("/integrations/facebook/manual", async (req, res) => {
         name: p.name,
         accessToken: p.access_token,
         category: p.category,
+        instagramBusinessAccountId: p.instagram_business_account?.id,
+        instagramBusinessAccountUsername: p.instagram_business_account?.username,
       })),
       selectedFacebookPageId: firstPage.id,
+      selectedInstagramPageId: pageWithIg?.id,
       instagramAccount: ig ? { id: ig.id, username: ig.username } : undefined,
     },
     status: "active",

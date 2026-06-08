@@ -26,11 +26,22 @@ export type UserIntegrationStatus =
 // re-migrer à chaque ajout de champ.
 export type UserIntegrationMetadata = {
   // Meta : pages FB de l'user (utile si plusieurs pages liées au token)
-  facebookPages?: Array<{ id: string; name: string; accessToken: string; category?: string }>;
+  facebookPages?: Array<{
+    id: string;
+    name: string;
+    accessToken: string;
+    category?: string;
+    // IG Business Account lié à cette page (absent si aucun compte IG lié)
+    instagramBusinessAccountId?: string;
+    instagramBusinessAccountUsername?: string;
+  }>;
   // Meta : compte Instagram Business lié à la page FB choisie
   instagramAccount?: { id: string; username?: string };
-  // Meta : id de la page FB actuellement sélectionnée pour publier
+  // Meta : id de la page FB actuellement sélectionnée pour publier sur Facebook
   selectedFacebookPageId?: string;
+  // Meta : id de la page FB dont le compte IG est lié (peut être ≠ selectedFacebookPageId)
+  // C'est le token de CETTE page qu'il faut utiliser pour publier sur Instagram.
+  selectedInstagramPageId?: string;
   // Meta Ads : comptes publicitaires Meta auxquels l'user a accès (scope ads_management)
   metaAdAccounts?: Array<{
     id: string; // ex "act_1234567890"

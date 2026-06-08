@@ -96,7 +96,12 @@ export async function getMetaCredentialsForUser(
         },
       };
     }
-    return { creds: { fbPageId: selectedPage.id, fbPageToken: selectedPage.accessToken, igUserId: igId } };
+    // Instagram exige le token de la page à laquelle le compte IG est lié,
+    // qui peut être différente de la page Facebook principale (selectedPage).
+    const igPageId = meta.selectedInstagramPageId;
+    const igPage = igPageId ? pages.find((p) => p.id === igPageId) : null;
+    const igPageToken = igPage?.accessToken ?? selectedPage.accessToken;
+    return { creds: { fbPageId: igPage?.id ?? selectedPage.id, fbPageToken: igPageToken, igUserId: igId } };
   }
 
   return { creds: { fbPageId: selectedPage.id, fbPageToken: selectedPage.accessToken } };
