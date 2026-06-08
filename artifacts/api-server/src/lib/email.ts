@@ -33,6 +33,8 @@ export interface SendEmailInput {
   tags?: Array<{ name: string; value: string }>;
   // Permet à l'utilisateur de se désinscrire en un clic (RFC 8058).
   unsubscribeUrl?: string;
+  // Pièces jointes : contenu encodé en base64 (sans préfixe data:).
+  attachments?: Array<{ filename: string; content: string; contentType?: string }>;
   // Si fourni : on cherche la clé Resend perso de l'user, puis fallback freemium
   // admin avec décompte du quota mensuel (100/mois).
   userId?: string;
@@ -110,6 +112,13 @@ async function callResend(
   };
   if (input.html) body.html = input.html;
   if (input.tags && input.tags.length > 0) body.tags = input.tags;
+  if (input.attachments && input.attachments.length > 0) {
+    body.attachments = input.attachments.map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      ...(a.contentType ? { content_type: a.contentType } : {}),
+    }));
+  }
   if (Object.keys(headers).length > 0) body.headers = headers;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",

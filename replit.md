@@ -129,6 +129,9 @@ Si on ajoute une nouvelle route qui appelle `publishToMeta`, `*MetaAds*`, ou `*G
 - **Webhook Resend** : `POST /api/webhooks/resend` vérifie signature Svix sur **bytes bruts** (`express.raw` monté avant `express.json` sur cette route). Idempotency via unique index sur `(resend_message_id, type)` + `onConflictDoNothing`. Compteurs `openCount`/`clickCount` incrémentés UNIQUEMENT si l'insert n'a pas été dédupliqué.
 - **Secret requis pour activer le tracking** : `RESEND_WEBHOOK_SECRET` (sinon `/webhooks/resend` renvoie 503). Sans ce secret, l'envoi marche mais pas les events ouvertures/clics.
 - **HTML email** : preview rendue avec `dangerouslySetInnerHTML` après passage par `sanitizeEmailHtml` (DOMPurify, allowlist).
+- **Expéditeur ("from")** : `GET /email/sender` renvoie `{usingOwnKey, fromEmail, fromName}`. L'écran d'envoi (EmailPreviewScreen) affiche l'adresse d'envoi active. Pas de champ "from" libre : Resend exige un domaine vérifié. Si freemium (clé partagée GrowIQ) → bandeau + lien vers `/app/integrations` pour connecter son propre domaine.
+- **Édition complète** : en mode "Modifier", le texte saisi régénère `bodyHtml` côté client via `textToSimpleHtml` (échappe `<`/`>`/`&`, paragraphes sur ligne vide). Ce qui est écrit = ce qui est envoyé.
+- **Pièces jointes** : `POST /email/campaigns/:id/attachments` (JSON base64, max 3 fichiers / 10 Mo chacun) → bucket public, métadonnées `{filename, path, contentType, size}` dans `email_campaigns.attachments` (jsonb). `DELETE .../attachments/:index`. À l'envoi : téléchargées UNE fois (`downloadPublicObject`) avant la boucle, passées à Resend en base64 `content`. Tradeoff : stockage public (URL aléatoire non devinable, pas d'authz) — à migrer en privé + URL signées si confidentialité requise.
 
 ## Rappels actifs
 

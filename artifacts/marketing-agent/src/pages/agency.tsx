@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { Link } from "wouter";
 import {
   Sparkles,
@@ -30,6 +30,9 @@ import {
   Globe,
   Target,
   Zap,
+  Paperclip,
+  X,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { sanitizeEmailHtml } from "@/lib/sanitize-html";
@@ -112,6 +115,13 @@ interface AgencyCampaign {
 
 type Step = "form" | "loading" | "preview" | "success" | "dashboard" | "coming-soon" | "email-preview" | "email-success";
 
+interface EmailAttachmentRow {
+  filename: string;
+  path: string;
+  contentType: string;
+  size: number;
+}
+
 interface EmailCampaignRow {
   id: number;
   name: string;
@@ -121,6 +131,7 @@ interface EmailCampaignRow {
   recipientCount: number;
   sentCount: number;
   failedCount: number;
+  attachments?: EmailAttachmentRow[];
 }
 
 interface EmailContactRow {
@@ -2200,6 +2211,27 @@ function Dashboard({
 // Écran preview email + sélection destinataires + envoi
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Convertit le texte saisi par l'utilisateur en HTML simple, pour que le mail
+// envoyé corresponde exactement à ce qu'il a écrit (paragraphes + retours ligne).
+function textToSimpleHtml(text: string): string {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text
+    .split(/\n{2,}/)
+    .map((para) => para.trim())
+    .filter(Boolean)
+    .map((para) => `<p>${esc(para).replace(/\n/g, "<br>")}</p>`)
+    .join("\n");
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+type SenderInfo = { usingOwnKey: boolean; fromEmail: string | null; fromName: string | null };
+
 function EmailPreviewScreen({
   campaign,
   setCampaign,
@@ -2220,6 +2252,10 @@ function EmailPreviewScreen({
   const [subject, setSubject] = useState(campaign.subject);
   const [bodyText, setBodyText] = useState(campaign.bodyText);
   const [sending, setSending] = useState(false);
+  const [sender, setSender] = useState<SenderInfo | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachments = campaign.attachments ?? [];
 
   useEffect(() => {
     void (async () => {
@@ -2232,7 +2268,71 @@ function EmailPreviewScreen({
       } catch { /* silent */ }
       finally { setLoadingContacts(false); }
     })();
+    void (async () => {
+      try {
+        const r = await fetch(API("/email/sender"));
+        if (r.ok) setSender(await r.json());
+      } catch { /* silent */ }
+    })();
   }, []);
+
+  async function onPickFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = "";
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error(t("Fichier trop lourd (10 Mo maximum)."));
+      return;
+    }
+    setUploading(true);
+    try {
+      const dataBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result);
+          const comma = result.indexOf(",");
+          resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        reader.onerror = () => reject(new Error("read failed"));
+        reader.readAsDataURL(file);
+      });
+      const r = await fetch(API(`/email/campaigns/${campaign.id}/attachments`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type || "application/octet-stream",
+          dataBase64,
+        }),
+      });
+      if (r.ok) {
+        setCampaign(await r.json());
+        toast.success(t("Pièce jointe ajoutée"));
+      } else {
+        const err = await r.json().catch(() => ({ error: "Oups" }));
+        toast.error(t(err.error || "Impossible d'ajouter la pièce jointe"));
+      }
+    } catch {
+      toast.error(t("La connexion a coupé"));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeAttachment(index: number) {
+    try {
+      const r = await fetch(API(`/email/campaigns/${campaign.id}/attachments/${index}`), {
+        method: "DELETE",
+      });
+      if (r.ok) {
+        setCampaign(await r.json());
+      } else {
+        toast.error(t("Impossible de retirer la pièce jointe"));
+      }
+    } catch {
+      toast.error(t("La connexion a coupé"));
+    }
+  }
 
   function toggle(id: number) {
     setAllSubscribed(false);
@@ -2245,10 +2345,13 @@ function EmailPreviewScreen({
 
   async function saveEdits() {
     try {
+      // On régénère le HTML à partir du texte saisi pour que le mail envoyé
+      // corresponde exactement à ce que l'utilisateur a écrit.
+      const bodyHtml = textToSimpleHtml(bodyText);
       const r = await fetch(API(`/email/campaigns/${campaign.id}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, bodyText }),
+        body: JSON.stringify({ subject, bodyText, bodyHtml }),
       });
       if (r.ok) {
         const updated: EmailCampaignRow = await r.json();
@@ -2332,14 +2435,14 @@ function EmailPreviewScreen({
               />
             </div>
             <div>
-              <Label className="text-xs">{t("Contenu (texte brut)")}</Label>
+              <Label className="text-xs">{t("Contenu du mail")}</Label>
               <Textarea
                 className="mt-1 min-h-60"
                 value={bodyText}
                 onChange={(e) => setBodyText(e.target.value)}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {t("Note : on garde la mise en page HTML d'origine. Seul le sujet et la version texte sont édités ici.")}
+                {t("Écris ton message librement. Laisse une ligne vide entre deux paragraphes. C'est exactement ce texte qui sera envoyé.")}
               </p>
             </div>
             <div className="flex justify-end">
@@ -2356,6 +2459,68 @@ function EmailPreviewScreen({
               dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(campaign.bodyHtml) }}
             />
           </>
+        )}
+      </div>
+
+      <div className="bg-card rounded-xl border shadow-sm p-6 space-y-3">
+        <h3 className="font-semibold text-sm uppercase text-muted-foreground">{t("Expéditeur")}</h3>
+        {sender?.usingOwnKey && sender.fromEmail ? (
+          <p className="text-sm">
+            {t("Cet email partira de")} <span className="font-semibold">{sender.fromName ? `${sender.fromName} ` : ""}&lt;{sender.fromEmail}&gt;</span>
+          </p>
+        ) : (
+          <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+            <Info className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              {t("Cet email partira de l'adresse partagée GrowIQ.")}{" "}
+              <Link href="/app/integrations" className="font-semibold underline">
+                {t("Connecte ta propre adresse d'envoi")}
+              </Link>{" "}
+              {t("pour que tes emails partent à ton nom.")}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-card rounded-xl border shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm uppercase text-muted-foreground">{t("Pièces jointes")}</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || attachments.length >= 3}
+          >
+            {uploading ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t("Ajout…")}</>
+            ) : (
+              <><Paperclip className="w-4 h-4 mr-2" /> {t("Ajouter un fichier")}</>
+            )}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={onPickFile}
+          />
+        </div>
+        {attachments.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {t("Aucune pièce jointe. Tu peux ajouter jusqu'à 3 fichiers (10 Mo max chacun).")}
+          </p>
+        ) : (
+          <div className="border rounded-lg divide-y">
+            {attachments.map((a, i) => (
+              <div key={`${a.path}-${i}`} className="flex items-center gap-2 px-3 py-2">
+                <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="text-sm flex-1 truncate">{a.filename}</span>
+                <span className="text-xs text-muted-foreground">{formatBytes(a.size)}</span>
+                <Button variant="ghost" size="sm" onClick={() => removeAttachment(i)} aria-label={t("Retirer")}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

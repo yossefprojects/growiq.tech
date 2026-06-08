@@ -4,4 +4,5 @@
 - [OAuth error sanitization](oauth-error-sanitization.md) — OAuth result strings (query string, postMessage, backend text) can leak raw Meta codes to UI toasts; always map to friendly French first.
 - [Publish-gating per-user status](publish-gating-per-user-status.md) — publish/launch buttons must read per-user /api/integrations, not admin-gated /api/meta/status (returns false for non-admins).
 - [Landing claims policy](landing-claims-policy.md) — public landing must avoid invented numbers (compliance); pricing 0/29/79€ shown by user choice despite no billing.
+- [Email attachments & sender](email-attachments-and-sender.md) — attachments: public bucket + base64 to Resend, download once before send loop; "from" can't be free-typed (Resend domain-verified), surface active sender + link to integrations.
 - [Claude chat integration](claude-chat-integration.md) — claude-opus-4-8: no temperature/top_p (400), system is top-level param, stream on content_block_delta/text_delta; SDK not hoisted to api-server.
