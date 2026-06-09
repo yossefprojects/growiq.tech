@@ -299,6 +299,7 @@ const generateSchema = z.object({
   audience: z.string().min(1).max(2000),
   objective: z.string().min(1).max(2000),
   tone: z.string().max(120).optional(),
+  style: z.enum(["vouvoiement", "tutoiement"]).optional(),
   name: z.string().max(200).optional(),
 });
 
@@ -308,7 +309,11 @@ interface GeneratedEmail {
   bodyHtml: string;
 }
 
-async function generateEmailWithAI(brief: EmailCampaignBrief): Promise<GeneratedEmail> {
+async function generateEmailWithAI(brief: EmailCampaignBrief, style: "vouvoiement" | "tutoiement" = "vouvoiement"): Promise<GeneratedEmail> {
+  const styleInstruction = style === "vouvoiement"
+    ? "VOUVOIEMENT OBLIGATOIRE : utilise « vous », « votre », « vos » partout. Ne tutoie JAMAIS."
+    : "TUTOIEMENT : utilise « tu », « ton », « tes » partout. Ne vouvoie pas.";
+
   const prompt = `Tu es un expert en email marketing francophone.
 Rédige UN email pour cette campagne. Réponds STRICTEMENT en JSON :
 {"subject": "...", "bodyText": "...", "bodyHtml": "..."}
@@ -317,8 +322,9 @@ Règles :
 - Sujet court (max 60 caractères), accrocheur, sans clickbait.
 - bodyText : version texte plain, lisible, sans markdown.
 - bodyHtml : HTML simple et propre (<p>, <h2>, <a>, <strong>). Pas de CSS inline complexe.
-- Ton : ${brief.tone || "chaleureux, tutoiement, naturel"}.
-- Termine par une signature simple et un PS si pertinent.
+- ${styleInstruction}
+- Ton : ${brief.tone || "professionnel, naturel"}.
+- Termine par une signature simple [Signature] et un PS si pertinent.
 
 Brief :
 - Produit / message : ${brief.product}
@@ -349,6 +355,7 @@ router.post("/email/campaigns/generate", async (req, res) => {
     res.status(400).json({ error: "Brief invalide", details: parsed.error.flatten() });
     return;
   }
+  const style = parsed.data.style ?? "vouvoiement";
   const brief: EmailCampaignBrief = {
     product: parsed.data.product,
     audience: parsed.data.audience,
@@ -356,7 +363,7 @@ router.post("/email/campaigns/generate", async (req, res) => {
     tone: parsed.data.tone,
   };
   try {
-    const ai = await generateEmailWithAI(brief);
+    const ai = await generateEmailWithAI(brief, style);
     const [row] = await db
       .insert(emailCampaigns)
       .values({
