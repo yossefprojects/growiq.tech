@@ -19,6 +19,7 @@ import {
   insertEmailContactSchema,
   type EmailCampaignBrief,
   type EmailCampaignStatus,
+  type EmailWritingStyle,
   type EmailAttachment,
 } from "@workspace/db";
 import { z } from "zod/v4";
@@ -147,8 +148,15 @@ const generateSchema = z.object({
   audience: z.string().min(1).max(2000),
   objective: z.string().min(1).max(2000),
   tone: z.string().max(120).optional(),
+  style: z.enum(["vouvoiement", "tutoiement"]).optional(),
   name: z.string().max(200).optional(),
 });
+
+function styleInstruction(style: EmailWritingStyle): string {
+  return style === "tutoiement"
+    ? `Adresse-toi au destinataire au TUTOIEMENT : utilise "tu", "ton", "ta", "tes". Ton chaleureux et proche. N'emploie JAMAIS "vous", "votre", "vos".`
+    : `Adresse-toi au destinataire au VOUVOIEMENT : utilise "vous", "votre", "vos". Ton professionnel, courtois et chaleureux. N'emploie JAMAIS "tu", "ton", "ta", "tes".`;
+}
 
 interface GeneratedEmail {
   subject: string;
@@ -156,7 +164,10 @@ interface GeneratedEmail {
   bodyHtml: string;
 }
 
-async function generateEmailWithAI(brief: EmailCampaignBrief): Promise<GeneratedEmail> {
+async function generateEmailWithAI(
+  brief: EmailCampaignBrief,
+  style: EmailWritingStyle,
+): Promise<GeneratedEmail> {
   const prompt = `Tu es un expert en email marketing francophone.
 Rédige UN email pour cette campagne. Réponds STRICTEMENT en JSON :
 {"subject": "...", "bodyText": "...", "bodyHtml": "..."}
@@ -165,7 +176,8 @@ Règles :
 - Sujet court (max 60 caractères), accrocheur, sans clickbait.
 - bodyText : version texte plain, lisible, sans markdown.
 - bodyHtml : HTML simple et propre (<p>, <h2>, <a>, <strong>). Pas de CSS inline complexe.
-- Ton : ${brief.tone || "chaleureux, tutoiement, naturel"}.
+- ${styleInstruction(style)}
+- Ton général : ${brief.tone || "chaleureux et naturel"}.
 - Termine par une signature simple et un PS si pertinent.
 
 Brief :
@@ -197,14 +209,16 @@ router.post("/email/campaigns/generate", async (req, res) => {
     res.status(400).json({ error: "Brief invalide", details: parsed.error.flatten() });
     return;
   }
+  const style: EmailWritingStyle = parsed.data.style ?? "vouvoiement";
   const brief: EmailCampaignBrief = {
     product: parsed.data.product,
     audience: parsed.data.audience,
     objective: parsed.data.objective,
     tone: parsed.data.tone,
+    style,
   };
   try {
-    const ai = await generateEmailWithAI(brief);
+    const ai = await generateEmailWithAI(brief, style);
     const [row] = await db
       .insert(emailCampaigns)
       .values({

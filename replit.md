@@ -123,6 +123,7 @@ Si on ajoute une nouvelle route qui appelle `publishToMeta`, `*MetaAds*`, ou `*G
 
 - **Par-utilisateur** : contacts, campagnes, events scopés par `userId` (pas admin-only).
 - **Tunnel agency** : path `email` génère un email IA → preview éditable → sélecteur destinataires (contacts ou tag ou tous abonnés) → envoi Resend.
+- **Style d'écriture** : à l'étape objectif (flux email), choix Vouvoiement / Tutoiement. **Défaut = vouvoiement** (registre pro). Le champ `style` (`vouvoiement|tutoiement`) est envoyé à `/email/campaigns/generate`, injecté dans le prompt via `styleInstruction()` et persisté dans `email_campaigns.brief.style`. Sans sélection → vouvoiement côté serveur (`?? "vouvoiement"`). L'ancien défaut tutoiement a été retiré.
 - **Page dédiée** : `/app/emails` pour CRUD contacts (ajout, import CSV, suppression) + liste campagnes avec stats live.
 - **Anti double-envoi** : route `/send` fait une transition atomique `draft|partially_failed → sending` via `UPDATE ... WHERE status IN (...) RETURNING`. Try/finally garantit statut terminal (`sent`/`failed`/`partially_failed`).
 - **Retry** : sur `partially_failed`, exclut les contacts déjà reçus avec succès (event `sent` présent).

@@ -3,12 +3,16 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 // Brief utilisé par l'IA pour générer le contenu de l'email.
+export type EmailWritingStyle = "vouvoiement" | "tutoiement";
+
 export type EmailCampaignBrief = {
   product: string;
   audience: string;
   objective: string;
   subject?: string;
   tone?: string;
+  // Forme d'adresse au destinataire. Défaut : vouvoiement (registre pro).
+  style?: EmailWritingStyle;
 };
 
 export type EmailCampaignStatus =
