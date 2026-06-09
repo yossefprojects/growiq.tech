@@ -889,8 +889,8 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
           <BigStat label="Clics" value={c.clickCount} color="text-blue-600" />
         </div>
 
-        {/* Bouton Envoyer pour les brouillons */}
-        {isDraft && (
+        {/* Bouton Envoyer pour les brouillons — caché en mode édition */}
+        {isDraft && !editing && (
           <div className="pt-4 border-t">
             {!showSendModal ? (
               <Button onClick={() => setShowSendModal(true)} className="bg-green-600 hover:bg-green-700">
