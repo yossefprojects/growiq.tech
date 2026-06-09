@@ -321,10 +321,11 @@ function ContactsTab() {
 
   const filtered = useMemo(() => {
     let list = contacts;
-    // Filtre par dossier (-1 = sans dossier, null = tous)
-    if (activeFolder === -1) {
+    // Filtre par dossier : null = sans dossier (non classés), number = dossier spécifique
+    if (activeFolder === null || activeFolder === -1) {
+      // "Tous" et "Sans dossier" montrent uniquement les contacts non classés
       list = list.filter((c) => !c.folderId);
-    } else if (activeFolder !== null) {
+    } else {
       list = list.filter((c) => c.folderId === activeFolder);
     }
     // Filtre par recherche
@@ -380,8 +381,8 @@ function ContactsTab() {
           )}
         >
           <Users className="w-4 h-4" />
-          <span className="flex-1 text-left">Tous</span>
-          <span className="text-xs opacity-70">{contacts.length}</span>
+          <span className="flex-1 text-left">Non classés</span>
+          <span className="text-xs opacity-70">{contacts.filter((c) => !c.folderId).length}</span>
         </button>
 
         {folders.map((f) => (
@@ -436,19 +437,7 @@ function ContactsTab() {
           </div>
         ))}
 
-        {unfolderedCount > 0 && folders.length > 0 && (
-          <button
-            onClick={() => setActiveFolder(-1)}
-            className={cn(
-              "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition",
-              activeFolder === -1 ? "bg-violet-600 text-white shadow" : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            <Folder className="w-4 h-4" />
-            <span className="flex-1 text-left">Sans dossier</span>
-            <span className="text-xs opacity-70">{unfolderedCount}</span>
-          </button>
-        )}
+        {/* "Sans dossier" supprimé — "Non classés" remplit ce rôle */}
       </div>
 
       {/* ── Contenu principal ── */}
@@ -794,6 +783,9 @@ function StatusBadge({ status }: { status: Campaign["status"] }) {
 
 function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () => void }) {
   const af = useAuthedFetch();
+  const qc = useQueryClient();
+  const isDraft = campaign.status === "draft";
+
   const { data } = useQuery<Campaign & { stats?: Record<string, number> }>({
     queryKey: ["email-campaign", campaign.id],
     queryFn: () =>
@@ -801,6 +793,46 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
     refetchInterval: campaign.status === "sending" ? 3000 : false,
   });
   const c = data ?? campaign;
+
+  // État édition (brouillons uniquement)
+  const [editing, setEditing] = useState(false);
+  const [editSubject, setEditSubject] = useState(c.subject);
+  const [editName, setEditName] = useState(c.name);
+
+  // État envoi
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [sendFolderId, setSendFolderId] = useState<number | null>(null);
+  const [sendAll, setSendAll] = useState(false);
+
+  const { data: folders = [] } = useQuery<Folder[]>({
+    queryKey: ["email-folders"],
+    queryFn: () => af("/api/email/folders") as Promise<Folder[]>,
+  });
+
+  const updateCampaign = useMutation({
+    mutationFn: (payload: { name?: string; subject?: string }) =>
+      af(`/api/email/campaigns/${campaign.id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["email-campaign", campaign.id] });
+      qc.invalidateQueries({ queryKey: ["email-campaigns"] });
+      setEditing(false);
+      toast.success("Campagne mise à jour");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const sendCampaign = useMutation({
+    mutationFn: (payload: { folderId?: number; allSubscribed?: boolean }) =>
+      af(`/api/email/campaigns/${campaign.id}/send`, { method: "POST", body: JSON.stringify(payload) }) as Promise<{ sent: number; failed: number; total: number }>,
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["email-campaign", campaign.id] });
+      qc.invalidateQueries({ queryKey: ["email-campaigns"] });
+      toast.success(`Campagne envoyée : ${data.sent} email(s) envoyé(s)`);
+      setShowSendModal(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   return (
     <div className="space-y-4">
       <button onClick={onBack} className="text-sm text-muted-foreground hover:text-violet-600 flex items-center gap-1">
@@ -808,11 +840,38 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
       </button>
       <div className="bg-card rounded-xl border p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">{c.name}</h2>
-            <p className="text-muted-foreground mt-1">{c.subject}</p>
+          {editing ? (
+            <div className="flex-1 space-y-2">
+              <div>
+                <Label className="text-xs">Nom de la campagne</Label>
+                <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Sujet de l'email</Label>
+                <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => updateCampaign.mutate({ name: editName, subject: editSubject })} disabled={updateCampaign.isPending}>
+                  {updateCampaign.isPending && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+                  Sauvegarder
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Annuler</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold">{c.name}</h2>
+              <p className="text-muted-foreground mt-1">{c.subject}</p>
+            </div>
+          )}
+          <div className="flex items-center gap-2 shrink-0">
+            <StatusBadge status={c.status} />
+            {isDraft && !editing && (
+              <button onClick={() => { setEditName(c.name); setEditSubject(c.subject); setEditing(true); }} className="text-muted-foreground hover:text-violet-600" title="Modifier">
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
           </div>
-          <StatusBadge status={c.status} />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4 border-t">
           <BigStat label="Destinataires" value={c.recipientCount} />
@@ -821,6 +880,55 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
           <BigStat label="Ouvertures" value={c.openCount} color="text-violet-600" />
           <BigStat label="Clics" value={c.clickCount} color="text-blue-600" />
         </div>
+
+        {/* Bouton Envoyer pour les brouillons */}
+        {isDraft && (
+          <div className="pt-4 border-t">
+            {!showSendModal ? (
+              <Button onClick={() => setShowSendModal(true)} className="bg-green-600 hover:bg-green-700">
+                <Send className="w-4 h-4 mr-2" /> Envoyer cette campagne
+              </Button>
+            ) : (
+              <div className="bg-muted rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Choisir les destinataires :</h3>
+                <div className="flex flex-wrap gap-2">
+                  {folders.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => { setSendFolderId(f.id); setSendAll(false); }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-sm border transition flex items-center gap-1.5",
+                        sendFolderId === f.id && !sendAll ? "bg-violet-600 text-white border-violet-600" : "hover:bg-card",
+                      )}
+                    >
+                      <Folder className="w-3.5 h-3.5" /> {f.name} ({f.contactCount})
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => { setSendAll(true); setSendFolderId(null); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-sm border transition",
+                      sendAll ? "bg-violet-600 text-white border-violet-600" : "hover:bg-card",
+                    )}
+                  >
+                    Tous les abonnés
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => sendCampaign.mutate(sendAll ? { allSubscribed: true } : { folderId: sendFolderId! })}
+                    disabled={sendCampaign.isPending || (!sendAll && !sendFolderId)}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {sendCampaign.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+                    Confirmer l'envoi
+                  </Button>
+                  <Button variant="ghost" onClick={() => setShowSendModal(false)}>Annuler</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <div className="bg-card rounded-xl border p-6 space-y-2">
         <h3 className="font-semibold text-sm uppercase text-muted-foreground">Aperçu de l'email</h3>
