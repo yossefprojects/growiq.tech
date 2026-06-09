@@ -300,6 +300,21 @@ router.delete("/email/campaigns/:id", async (req, res) => {
     res.status(400).json({ error: "ID invalide" });
     return;
   }
+  // Empêcher la suppression des campagnes déjà envoyées (pour conserver l'historique et les stats)
+  const [existing] = await db
+    .select({ status: emailCampaigns.status })
+    .from(emailCampaigns)
+    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)));
+  if (!existing) {
+    res.status(404).json({ error: "Campagne introuvable" });
+    return;
+  }
+  if (existing.status === "sent" || existing.status === "sending" || existing.status === "partially_failed") {
+    res.status(403).json({
+      error: "Impossible de supprimer une campagne déjà envoyée. L'historique et les statistiques sont conservés.",
+    });
+    return;
+  }
   await db
     .delete(emailCampaigns)
     .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)));
