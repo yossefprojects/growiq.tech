@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@clerk/react";
@@ -798,6 +798,8 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
   const [editing, setEditing] = useState(false);
   const [editSubject, setEditSubject] = useState(c.subject);
   const [editName, setEditName] = useState(c.name);
+  const [editBodyHtml, setEditBodyHtml] = useState(c.bodyHtml);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   // État envoi
   const [showSendModal, setShowSendModal] = useState(false);
@@ -810,7 +812,7 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
   });
 
   const updateCampaign = useMutation({
-    mutationFn: (payload: { name?: string; subject?: string }) =>
+    mutationFn: (payload: { name?: string; subject?: string; bodyHtml?: string }) =>
       af(`/api/email/campaigns/${campaign.id}`, { method: "PATCH", body: JSON.stringify(payload) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["email-campaign", campaign.id] });
@@ -851,7 +853,10 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
                 <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => updateCampaign.mutate({ name: editName, subject: editSubject })} disabled={updateCampaign.isPending}>
+                <Button size="sm" onClick={() => {
+                  const html = bodyRef.current?.innerHTML ?? editBodyHtml;
+                  updateCampaign.mutate({ name: editName, subject: editSubject, bodyHtml: html });
+                }} disabled={updateCampaign.isPending}>
                   {updateCampaign.isPending && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
                   Sauvegarder
                 </Button>
@@ -867,7 +872,7 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
           <div className="flex items-center gap-2 shrink-0">
             <StatusBadge status={c.status} />
             {isDraft && !editing && (
-              <button onClick={() => { setEditName(c.name); setEditSubject(c.subject); setEditing(true); }} className="text-muted-foreground hover:text-violet-600" title="Modifier">
+              <button onClick={() => { setEditName(c.name); setEditSubject(c.subject); setEditBodyHtml(c.bodyHtml); setEditing(true); }} className="text-muted-foreground hover:text-violet-600" title="Modifier">
                 <Pencil className="w-4 h-4" />
               </button>
             )}
@@ -931,12 +936,26 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
         )}
       </div>
       <div className="bg-card rounded-xl border p-6 space-y-2">
-        <h3 className="font-semibold text-sm uppercase text-muted-foreground">Aperçu de l'email</h3>
-        <div
-          className="prose prose-sm max-w-none border rounded-lg p-4 bg-muted"
-          // Email HTML généré par notre propre IA — pas d'input utilisateur direct ici.
-          dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(c.bodyHtml) }}
-        />
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm uppercase text-muted-foreground">
+            {editing ? "Modifier le contenu de l'email" : "Aperçu de l'email"}
+          </h3>
+          {editing && <span className="text-xs text-muted-foreground">Cliquez dans le texte pour le modifier directement</span>}
+        </div>
+        {editing ? (
+          <div
+            ref={bodyRef}
+            contentEditable
+            suppressContentEditableWarning
+            className="prose prose-sm max-w-none border-2 border-violet-300 rounded-lg p-4 bg-white focus:outline-none focus:border-violet-500 min-h-[200px]"
+            dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(editBodyHtml) }}
+          />
+        ) : (
+          <div
+            className="prose prose-sm max-w-none border rounded-lg p-4 bg-muted"
+            dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(c.bodyHtml) }}
+          />
+        )}
       </div>
     </div>
   );
