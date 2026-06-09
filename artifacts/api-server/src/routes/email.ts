@@ -143,9 +143,9 @@ router.delete("/email/contacts/:id", async (req, res) => {
 // ── Campagnes : génération IA ───────────────────────────────────────────────
 
 const generateSchema = z.object({
-  product: z.string().min(1).max(500),
-  audience: z.string().min(1).max(500),
-  objective: z.string().min(1).max(500),
+  product: z.string().min(1).max(2000),
+  audience: z.string().min(1).max(2000),
+  objective: z.string().min(1).max(2000),
   tone: z.string().max(120).optional(),
   name: z.string().max(200).optional(),
 });

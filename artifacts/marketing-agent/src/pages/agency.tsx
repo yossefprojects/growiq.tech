@@ -632,6 +632,7 @@ function friendlyError(err: string | undefined): string {
   if (err.includes("Trop de g")) return "Tu as déjà créé beaucoup de campagnes aujourd'hui. Reviens dans une heure 🙂";
   if (err.toLowerCase().includes("réponds")) return err;
   if (err.toLowerCase().includes("vide")) return "Il manque une réponse. Vérifie tes choix dans le formulaire.";
+  if (err.toLowerCase().includes("invalide")) return "Une de tes réponses est un peu trop longue ou incomplète. Raccourcis-la un peu et réessaie.";
   if (err.includes("Cette campagne a déjà été lancée") || err.includes("déjà en cours")) {
     return "Cette campagne a déjà été lancée 🎉";
   }
@@ -997,6 +998,7 @@ function StepProduct({
         placeholder={t("Ex : Je vends des bougies parfumées faites à la main, dans ma boutique à Lyon et en ligne.")}
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        maxLength={2000}
         rows={3}
         className="text-base"
         autoFocus
@@ -1070,6 +1072,7 @@ function StepAudience({
         placeholder={t("Ex : Des femmes entre 30 et 50 ans qui aiment leur intérieur et les choses bien faites.")}
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        maxLength={2000}
         rows={3}
         className="text-base"
         autoFocus
@@ -2432,6 +2435,7 @@ function EmailPreviewScreen({
                 className="w-full mt-1 px-3 py-2 border rounded-md"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
+                maxLength={200}
               />
             </div>
             <div>

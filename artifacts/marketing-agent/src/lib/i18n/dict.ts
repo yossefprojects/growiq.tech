@@ -435,6 +435,7 @@
   "Oups, ça n'a pas marché. On réessaie ?": "Oops, that didn't work. Shall we try again?",
   "Tu as déjà créé beaucoup de campagnes aujourd'hui. Reviens dans une heure 🙂": "You've already made a lot of campaigns today. Come back in an hour 🙂",
   "Il manque une réponse. Vérifie tes choix dans le formulaire.": "An answer is missing. Check your choices in the form.",
+  "Une de tes réponses est un peu trop longue ou incomplète. Raccourcis-la un peu et réessaie.": "One of your answers is a bit too long or incomplete. Shorten it a little and try again.",
   "Cette campagne a déjà été lancée 🎉": "This campaign has already been launched 🎉",
   "Quelque chose n'a pas marché de notre côté. Réessaie dans un instant.": "Something went wrong on our side. Try again in a moment.",
   // --- Dashboard (tableau de bord) ---
