@@ -9,8 +9,24 @@ import { Router, type IRouter } from "express";
 import { Webhook } from "svix";
 import { eq, sql } from "drizzle-orm";
 import { db, emailCampaigns, emailEvents, type EmailEventType } from "@workspace/db";
+import { getUserIntegration } from "../lib/user-integrations";
 
 const router: IRouter = Router();
+
+// Extrait la valeur d'un tag (campaign_id, user_id) depuis le payload Resend.
+// Resend renvoie les tags soit en tableau [{name,value}] soit en objet {name:value}.
+function readTag(tags: unknown, name: string): string | null {
+  if (Array.isArray(tags)) {
+    const t = tags.find((x) => x && typeof x === "object" && (x as { name?: string }).name === name);
+    const v = t ? (t as { value?: string }).value : undefined;
+    return v != null ? String(v) : null;
+  }
+  if (tags && typeof tags === "object") {
+    const v = (tags as Record<string, unknown>)[name];
+    return v != null ? String(v) : null;
+  }
+  return null;
+}
 
 // Mapping Resend → notre type interne
 function mapEventType(resendType: string): EmailEventType | null {
@@ -46,13 +62,6 @@ interface ResendWebhookPayload {
 }
 
 router.post("/webhooks/resend", async (req, res) => {
-  const secret = process.env.RESEND_WEBHOOK_SECRET;
-  if (!secret) {
-    req.log.warn("Resend webhook called but RESEND_WEBHOOK_SECRET is not set");
-    res.status(503).json({ error: "Webhook non configuré." });
-    return;
-  }
-
   // express.raw est monté en amont sur cette route — req.body est un Buffer
   // contenant les octets bruts du payload, indispensable pour la signature Svix.
   if (!Buffer.isBuffer(req.body)) {
@@ -61,6 +70,28 @@ router.post("/webhooks/resend", async (req, res) => {
     return;
   }
   const rawBody = req.body.toString("utf8");
+
+  // Multi-tenant : chaque user a SON compte Resend, donc SON secret de webhook.
+  // On lit (sans confiance) le tag user_id dans le payload pour choisir le bon
+  // secret. La signature reste vérifiée ensuite — un payload forgé sans le secret
+  // de l'user échouera. Fallback sur le secret global (compte GrowIQ partagé).
+  let userWebhookSecret: string | null = null;
+  try {
+    const preview = JSON.parse(rawBody) as ResendWebhookPayload;
+    const tagUserId = readTag(preview.data?.tags, "user_id");
+    if (tagUserId) {
+      const conn = await getUserIntegration(tagUserId, "resend");
+      userWebhookSecret = conn?.metadata?.resendWebhookSecret ?? null;
+    }
+  } catch {
+    // payload non-JSON → on tombera sur le secret global ci-dessous
+  }
+  const secret = userWebhookSecret ?? process.env.RESEND_WEBHOOK_SECRET;
+  if (!secret) {
+    req.log.warn("Resend webhook called but no signing secret configured (per-user nor env)");
+    res.status(503).json({ error: "Webhook non configuré." });
+    return;
+  }
 
   const headers = {
     "svix-id": String(req.headers["svix-id"] ?? ""),
@@ -102,6 +133,43 @@ router.post("/webhooks/resend", async (req, res) => {
   }
   if (!campaignId || !Number.isFinite(campaignId)) {
     res.json({ ok: true, ignored: true });
+    return;
+  }
+
+  // Isolation multi-tenant : la signature prouve seulement que le payload vient
+  // d'un compte Resend connu, PAS que campaign_id appartient à l'expéditeur.
+  // Sans ce contrôle, l'user A (qui connaît son propre whsec) pourrait signer un
+  // event valide ciblant la campagne de l'user B et gonfler ses stats. On lie donc
+  // la campagne au tenant vérifié avant toute écriture.
+  const verifiedUserId = readTag(payload.data?.tags, "user_id");
+  const [campaign] = await db
+    .select({ id: emailCampaigns.id, userId: emailCampaigns.userId })
+    .from(emailCampaigns)
+    .where(eq(emailCampaigns.id, campaignId))
+    .limit(1);
+  if (!campaign) {
+    res.json({ ok: true, ignored: true });
+    return;
+  }
+  if (userWebhookSecret) {
+    // Event authentifié avec le secret PERSO d'un user → la campagne DOIT lui
+    // appartenir, sinon c'est une tentative d'injection cross-tenant.
+    if (!verifiedUserId || campaign.userId !== verifiedUserId) {
+      req.log.warn(
+        { campaignId, verifiedUserId, ownerId: campaign.userId },
+        "Resend webhook: cross-tenant mismatch rejected",
+      );
+      res.status(403).json({ error: "Campagne hors périmètre." });
+      return;
+    }
+  } else if (verifiedUserId && campaign.userId && campaign.userId !== verifiedUserId) {
+    // Secret partagé GrowIQ (freemium) : si un tag user_id est présent il doit
+    // correspondre au propriétaire de la campagne.
+    req.log.warn(
+      { campaignId, verifiedUserId, ownerId: campaign.userId },
+      "Resend webhook (shared secret): user_id tag mismatch rejected",
+    );
+    res.status(403).json({ error: "Campagne hors périmètre." });
     return;
   }
 

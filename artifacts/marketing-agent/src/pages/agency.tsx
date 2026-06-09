@@ -51,6 +51,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 // que facebook/instagram aujourd'hui (cf. allowedChannels dans /agency/generate).
 // LinkedIn, Meta Ads et Google Ads sont affichés dans l'UI mais ne sont PAS
 // encore générés par l'IA — on tombe sur un écran "Bientôt" au submit.
+// (Le flux `email` est désormais actif : génération réelle via /email/campaigns/generate.)
 type Channel =
   | "facebook"
   | "instagram"
@@ -59,6 +60,8 @@ type Channel =
   | "google-ads";
 
 type CampaignType = "social" | "ads" | "email";
+
+type EmailStyle = "vouvoiement" | "tutoiement";
 
 interface AgencyBrief {
   // Type de campagne (UI-only — pas envoyé au backend pour l'instant)
@@ -72,6 +75,8 @@ interface AgencyBrief {
   budget: string;
   objective: string;
   channels: Channel[];
+  // Forme d'adresse de l'email (flow email uniquement). Défaut : vouvoiement.
+  emailStyle: EmailStyle;
 }
 
 // Les posts planifiés par l'IA : FB / IG / LinkedIn (cf. backend).
@@ -139,7 +144,14 @@ interface EmailContactRow {
   email: string;
   firstName: string;
   lastName: string;
+  folderId: number | null;
   subscribed: boolean;
+}
+
+interface EmailFolderInfo {
+  id: number;
+  name: string;
+  contactCount: number;
 }
 
 const API = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
@@ -151,8 +163,9 @@ const API = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
 //   1. Choix du type de campagne (3 cartes : Réseaux Sociaux / Ads / Email)
 //   2. Formulaire adaptatif (questions différentes selon le type choisi)
 //
-// État backend : seul `social` (FB/IG) génère vraiment une campagne. `ads` et
-// `email` affichent un écran "Bientôt" — pas d'appel serveur. Voir generatePlan.
+// État backend : `social` (FB/IG) et `email` génèrent vraiment du contenu
+// (email via /email/campaigns/generate). Seul `ads` affiche un écran "Bientôt"
+// — pas d'appel serveur. Voir generatePlan.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CAMPAIGN_TYPES = [
@@ -354,6 +367,7 @@ export default function AgencyPage() {
     budget: "",
     objective: "",
     channels: [],
+    emailStyle: "vouvoiement",
   });
   const [notificationEmail, setNotificationEmail] = useState("");
   const [explainMode, setExplainMode] = useState(false);
@@ -409,6 +423,7 @@ export default function AgencyPage() {
               : brief.product,
             audience: brief.audience,
             objective: brief.objective,
+            style: brief.emailStyle,
           }),
         });
         if (!r.ok) {
@@ -532,6 +547,7 @@ export default function AgencyPage() {
       budget: "",
       objective: "",
       channels: [],
+      emailStyle: "vouvoiement",
     });
     setStep("form");
   }
@@ -838,6 +854,8 @@ function BriefForm({
               loading={loading}
               currentStep={step + 1}
               totalSteps={totalSteps}
+              emailStyle={brief.emailStyle}
+              setEmailStyle={(s) => setBrief({ ...brief, emailStyle: s })}
             />
           )}
           {step === 4 && brief.campaignType === "social" && (
@@ -1398,6 +1416,8 @@ function StepObjective({
   loading,
   currentStep,
   totalSteps,
+  emailStyle,
+  setEmailStyle,
 }: {
   objectives: ObjectiveOption[];
   value: string;
@@ -1407,6 +1427,9 @@ function StepObjective({
   loading: boolean;
   currentStep: number;
   totalSteps: number;
+  // Présents uniquement pour le flux email : affichent le choix vouvoiement/tutoiement.
+  emailStyle?: EmailStyle;
+  setEmailStyle?: (s: EmailStyle) => void;
 }) {
   const t = useT();
   const isLast = currentStep === totalSteps;
@@ -1456,6 +1479,47 @@ function StepObjective({
           );
         })}
       </div>
+      {emailStyle && setEmailStyle && (
+        <div className="space-y-2">
+          <div className="text-sm font-semibold">
+            {t("Comment je m'adresse à tes contacts ?")}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              data-testid="email-style-vouvoiement"
+              onClick={() => setEmailStyle("vouvoiement")}
+              aria-pressed={emailStyle === "vouvoiement"}
+              className={`text-left p-4 rounded-xl border-2 transition-all hover:scale-[1.02] ${
+                emailStyle === "vouvoiement"
+                  ? "border-primary bg-primary/15 shadow-md"
+                  : "border-border hover:border-violet-300 bg-card"
+              }`}
+            >
+              <div className="font-semibold text-sm">{t("Vouvoiement")}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {t("Plus poli et professionnel (« vous »). Recommandé.")}
+              </div>
+            </button>
+            <button
+              type="button"
+              data-testid="email-style-tutoiement"
+              onClick={() => setEmailStyle("tutoiement")}
+              aria-pressed={emailStyle === "tutoiement"}
+              className={`text-left p-4 rounded-xl border-2 transition-all hover:scale-[1.02] ${
+                emailStyle === "tutoiement"
+                  ? "border-primary bg-primary/15 shadow-md"
+                  : "border-border hover:border-violet-300 bg-card"
+              }`}
+            >
+              <div className="font-semibold text-sm">{t("Tutoiement")}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {t("Plus proche et chaleureux (« tu »).")}
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex gap-3">
         <Button variant="outline" onClick={onBack} disabled={loading} className="h-16 px-6">
           ←
@@ -2251,6 +2315,9 @@ function EmailPreviewScreen({
   const [loadingContacts, setLoadingContacts] = useState(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [allSubscribed, setAllSubscribed] = useState(true);
+  const [folders, setFolders] = useState<EmailFolderInfo[]>([]);
+  // null = pas de filtre dossier (tous / sélection manuelle). number = ce dossier.
+  const [folderId, setFolderId] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [subject, setSubject] = useState(campaign.subject);
   const [bodyText, setBodyText] = useState(campaign.bodyText);
@@ -2270,6 +2337,15 @@ function EmailPreviewScreen({
         }
       } catch { /* silent */ }
       finally { setLoadingContacts(false); }
+    })();
+    void (async () => {
+      try {
+        const r = await fetch(API("/email/folders"));
+        if (r.ok) {
+          const data: { folders: EmailFolderInfo[] } = await r.json();
+          setFolders(data.folders ?? []);
+        }
+      } catch { /* silent */ }
     })();
     void (async () => {
       try {
@@ -2375,9 +2451,14 @@ function EmailPreviewScreen({
       toast.error(t("Tu n'as pas encore de contacts. Ajoute-les depuis l'onglet Emails."));
       return;
     }
+    const folderCount = folderId == null
+      ? 0
+      : subscribedContacts.filter((c) => c.folderId === folderId).length;
     const willSend = allSubscribed
       ? subscribedContacts.length
-      : selected.size;
+      : folderId != null
+        ? folderCount
+        : selected.size;
     if (willSend === 0) {
       toast.error(t("Sélectionne au moins un destinataire"));
       return;
@@ -2391,7 +2472,9 @@ function EmailPreviewScreen({
         body: JSON.stringify(
           allSubscribed
             ? { allSubscribed: true }
-            : { contactIds: Array.from(selected) },
+            : folderId != null
+              ? { folderId }
+              : { contactIds: Array.from(selected) },
         ),
       });
       if (!r.ok) {
@@ -2557,7 +2640,10 @@ function EmailPreviewScreen({
                 checked={allSubscribed}
                 onChange={(e) => {
                   setAllSubscribed(e.target.checked);
-                  if (e.target.checked) setSelected(new Set());
+                  if (e.target.checked) {
+                    setSelected(new Set());
+                    setFolderId(null);
+                  }
                 }}
                 className="w-4 h-4"
               />
@@ -2566,21 +2652,53 @@ function EmailPreviewScreen({
               </span>
             </label>
             {!allSubscribed && (
-              <div className="max-h-72 overflow-y-auto border rounded-lg divide-y">
-                {contacts.filter((c) => c.subscribed).map((c) => (
-                  <label key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(c.id)}
-                      onChange={() => toggle(c.id)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm flex-1">{c.email}</span>
-                    {(c.firstName || c.lastName) && (
-                      <span className="text-xs text-muted-foreground">{c.firstName} {c.lastName}</span>
-                    )}
-                  </label>
-                ))}
+              <div className="space-y-3">
+                {folders.length > 0 && (
+                  <div>
+                    <Label className="text-xs">{t("Envoyer à un dossier précis")}</Label>
+                    <select
+                      className="w-full mt-1 px-3 py-2 border rounded-md bg-background text-sm"
+                      value={folderId == null ? "" : String(folderId)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "") {
+                          setFolderId(null);
+                        } else {
+                          setFolderId(Number(v));
+                          setSelected(new Set());
+                        }
+                      }}
+                    >
+                      <option value="">{t("— Choisir des contacts un par un —")}</option>
+                      {folders.map((f) => {
+                        const count = contacts.filter((c) => c.subscribed && c.folderId === f.id).length;
+                        return (
+                          <option key={f.id} value={String(f.id)}>
+                            {f.name} ({count})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+                {folderId == null && (
+                  <div className="max-h-72 overflow-y-auto border rounded-lg divide-y">
+                    {contacts.filter((c) => c.subscribed).map((c) => (
+                      <label key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(c.id)}
+                          onChange={() => toggle(c.id)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm flex-1">{c.email}</span>
+                        {(c.firstName || c.lastName) && (
+                          <span className="text-xs text-muted-foreground">{c.firstName} {c.lastName}</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>
