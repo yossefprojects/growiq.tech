@@ -15,6 +15,7 @@ import integrationsRouter from "./integrations";
 import manualIntegrationsRouter from "./manual-integrations";
 import emailRouter from "./email";
 import webhooksRouter from "./webhooks";
+import contactRouter from "./contact";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -27,6 +28,7 @@ router.use(publicLinkedinRouter);
 router.use(publicFacebookRouter);
 router.use(publicGoogleRouter);
 router.use(webhooksRouter);
+router.use(contactRouter);
 
 // Authenticated (any signed-in user can read their own profile)
 router.use(meRouter);

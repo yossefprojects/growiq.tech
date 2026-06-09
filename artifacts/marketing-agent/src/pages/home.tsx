@@ -1691,7 +1691,7 @@ function Footer() {
           {[
             { label: "Politique de confidentialité", href: "/privacy" },
             { label: "Google Ads API", href: "/google-ads-api" },
-            { label: "Contact", href: "mailto:contact@growiq.tech" },
+            { label: "Contact", href: "/contact" },
           ].map((l) => (
             <SmartLink
               key={l.label}

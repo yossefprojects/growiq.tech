@@ -27,6 +27,7 @@ import AccountPage from "@/pages/account";
 import DashboardPage from "@/pages/dashboard";
 import GoogleAdsApiPage from "@/pages/google-ads-api";
 import PrivacyPage from "@/pages/privacy";
+import ContactPage from "@/pages/contact";
 import { SignInPage, SignUpPage } from "@/pages/auth-pages";
 import { Loader2 } from "lucide-react";
 
@@ -265,6 +266,7 @@ function Router() {
       <Route path="/landing/:slug" component={LandingPage} />
       <Route path="/google-ads-api" component={GoogleAdsApiPage} />
       <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/contact" component={ContactPage} />
       <Route component={NotFound} />
     </Switch>
   );
