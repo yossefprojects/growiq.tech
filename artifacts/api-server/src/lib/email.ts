@@ -66,50 +66,31 @@ interface ResendCreds {
   fromEmail: string;
 }
 
-async function getResendConnectorCreds(): Promise<ResendCreds | null> {
+// Le connecteur Resend de Replit (SDK @replit/connectors-sdk) n'expose PAS la clé
+// API en clair : `listConnections` ne renvoie jamais `settings.api_key` (les
+// valeurs `expand=settings|credentials` sont rejetées en 400). La seule manière
+// supportée d'utiliser le connecteur est son PROXY (`connectors.proxy(...)`), qui
+// injecte l'Authorization côté Replit. On envoie donc les emails "connector" via
+// ce proxy plutôt qu'en lisant la clé. (Bug historique : l'ancien code cherchait
+// `settings.api_key` qui était toujours absent → "Aucun fournisseur" en dev ET prod.)
+async function connectorResendAvailable(): Promise<boolean> {
   try {
     const conns = await connectors.listConnections({ connector_names: "resend" });
-    const conn = conns[0];
-    if (!conn) return null;
-    // The settings shape (per the connector schema) is { api_key, from_email }.
-    // Different SDK versions expose them under slightly different keys — try the
-    // common locations defensively.
-    const candidates: Array<Record<string, unknown> | undefined> = [
-      (conn as Record<string, unknown>)["settings"] as Record<string, unknown> | undefined,
-      conn.integration as Record<string, unknown> | undefined,
-      conn.metadata as Record<string, unknown> | undefined,
-      conn as unknown as Record<string, unknown>,
-    ];
-    for (const c of candidates) {
-      if (!c) continue;
-      const apiKey =
-        (c["api_key"] as string | undefined) ??
-        (c["apiKey"] as string | undefined) ??
-        (c["secret"] as string | undefined);
-      const fromEmail =
-        (c["from_email"] as string | undefined) ??
-        (c["fromEmail"] as string | undefined) ??
-        (c["from"] as string | undefined);
-      if (apiKey && fromEmail) return { apiKey, fromEmail };
-    }
-    return null;
+    return conns.length > 0;
   } catch (err) {
-    logger.warn({ err }, "Failed to read Resend connector settings");
-    return null;
+    logger.warn({ err }, "Failed to list Resend connector");
+    return false;
   }
 }
 
-async function callResend(
-  apiKey: string,
-  from: string,
-  input: SendEmailInput,
-  provider: "resend-user" | "resend-connector" | "resend-env"
-): Promise<SendEmailResult> {
-  const headers: Record<string, string> = {};
+// Construit le corps JSON attendu par l'API Resend (/emails), partagé entre
+// l'envoi direct (clé en clair) et l'envoi via proxy connecteur.
+function buildResendBody(from: string, input: SendEmailInput): Record<string, unknown> {
+  const customHeaders: Record<string, string> = {};
   if (input.unsubscribeUrl) {
     // Permet à Gmail/Outlook d'afficher un lien Désinscription natif.
-    headers["List-Unsubscribe"] = `<${input.unsubscribeUrl}>`;
-    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+    customHeaders["List-Unsubscribe"] = `<${input.unsubscribeUrl}>`;
+    customHeaders["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
   }
   const body: Record<string, unknown> = {
     from,
@@ -126,18 +107,58 @@ async function callResend(
       ...(a.contentType ? { content_type: a.contentType } : {}),
     }));
   }
-  if (Object.keys(headers).length > 0) body.headers = headers;
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  if (Object.keys(customHeaders).length > 0) body.headers = customHeaders;
+  return body;
+}
+
+async function parseResendResponse(
+  response: Response,
+  from: string,
+  provider: "resend-user" | "resend-connector" | "resend-env"
+): Promise<SendEmailResult> {
   if (response.ok) {
     const data = (await response.json().catch(() => ({}))) as { id?: string };
     return { success: true, provider, from, messageId: data.id };
   }
   const errText = await response.text().catch(() => "");
   return { success: false, provider, error: errText.slice(0, 400), from };
+}
+
+// Envoi direct avec une clé API Resend en clair (clé perso de l'user ou RESEND_API_KEY env).
+async function callResend(
+  apiKey: string,
+  from: string,
+  input: SendEmailInput,
+  provider: "resend-user" | "resend-connector" | "resend-env"
+): Promise<SendEmailResult> {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(buildResendBody(from, input)),
+  });
+  return parseResendResponse(response, from, provider);
+}
+
+// Envoi via le proxy du connecteur Resend (clé injectée par Replit, jamais extraite).
+async function sendViaResendProxy(
+  from: string,
+  input: SendEmailInput
+): Promise<SendEmailResult> {
+  try {
+    const response = await connectors.proxy("resend", "/emails", {
+      method: "POST",
+      body: buildResendBody(from, input),
+    });
+    return parseResendResponse(response, from, "resend-connector");
+  } catch (err) {
+    logger.warn({ err }, "Resend proxy send failed");
+    return {
+      success: false,
+      provider: "resend-connector",
+      error: err instanceof Error ? err.message.slice(0, 400) : "Erreur proxy Resend",
+      from,
+    };
+  }
 }
 
 async function trySendgridEnv(input: SendEmailInput): Promise<SendEmailResult | null> {
@@ -187,9 +208,10 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     }
 
     // 2) Pas de clé perso → tenter la clé admin partagée AVEC quota freemium.
-    const adminCreds = await getResendConnectorCreds();
+    //    En priorité le proxy du connecteur Resend ; sinon RESEND_API_KEY env.
+    const hasConnector = await connectorResendAvailable();
     const envKey = process.env.RESEND_API_KEY;
-    if (adminCreds || envKey) {
+    if (hasConnector || envKey) {
       const reservation = await reserveEmailsFromQuota(input.userId, recipientCount);
       if (!reservation.allowed) {
         return {
@@ -203,13 +225,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       }
       try {
         let result: SendEmailResult;
-        if (adminCreds) {
-          result = await callResend(
-            adminCreds.apiKey,
-            input.from || SHARED_FROM || adminCreds.fromEmail,
-            input,
-            "resend-connector",
-          );
+        if (hasConnector) {
+          const from = input.from || SHARED_FROM || process.env.EMAIL_FROM || "onboarding@resend.dev";
+          result = await sendViaResendProxy(from, input);
         } else {
           const from = input.from || SHARED_FROM || process.env.EMAIL_FROM || "onboarding@resend.dev";
           result = await callResend(envKey!, from, input, "resend-env");
@@ -227,9 +245,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   }
 
   // 3) Pas de userId → envois système (notifications admin). Pas de quota.
-  const creds = await getResendConnectorCreds();
-  if (creds) {
-    return callResend(creds.apiKey, input.from || SHARED_FROM || creds.fromEmail, input, "resend-connector");
+  if (await connectorResendAvailable()) {
+    const from = input.from || SHARED_FROM || process.env.EMAIL_FROM || "onboarding@resend.dev";
+    return sendViaResendProxy(from, input);
   }
   const envKey = process.env.RESEND_API_KEY;
   if (envKey) {

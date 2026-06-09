@@ -146,6 +146,7 @@ Si on ajoute une nouvelle route qui appelle `publishToMeta`, `*MetaAds*`, ou `*G
 
 - Always run `pnpm --filter @workspace/api-spec run codegen` after changing `openapi.yaml`
 - SSE endpoints cannot use generated React Query hooks — use raw fetch
+- **Connecteur Resend = proxy uniquement** : `@replit/connectors-sdk` (v0.4.x) n'expose JAMAIS la clé API (`listConnections` ne renvoie pas `settings.api_key`, `expand=settings/credentials` → 400). Envoyer via `connectors.proxy("resend", "/emails", {method, body})` (la clé est injectée côté Replit). `sendEmail` (`lib/email.ts`) décide la dispo connecteur via `listConnections().length > 0` puis `sendViaResendProxy`. `RESEND_API_KEY` env reste un fallback indépendant. Piège : le `listConnections('resend')` de l'outil agent (sandbox, privilégié) EXPOSE la clé — ne pas en déduire que le SDK applicatif le fait. Bug historique : l'ancien code cherchait `settings.api_key` (toujours absent) → "Aucun fournisseur email configuré" en dev ET prod.
 - `response.data` from gpt-image-1 may be undefined — always use optional chaining
 - **Routers montés sans préfixe** : tous les routers dans `routes/index.ts` sont montés via `router.use(xxxRouter)` SANS path. Donc tout `router.use(middleware)` à l'intérieur d'un router voit TOUTES les requêtes API, pas seulement celles du préfixe sémantique. Toujours filtrer sur `req.path.startsWith("/<prefix>")` dans le middleware. Bug historique : le middleware admin de `routes/ads.ts` interceptait `/auth/facebook/start` et renvoyait `[]` (corrigé 2026-05-28).
 
