@@ -18,6 +18,10 @@ import {
   XCircle,
   Send,
   AlertCircle,
+  Folder,
+  FolderPlus,
+  Pencil,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -34,9 +38,22 @@ type Contact = {
   firstName: string;
   lastName: string;
   tags: string[];
+  folderId: number | null;
   subscribed: boolean;
   source: string;
   createdAt: string;
+};
+
+type Folder = {
+  id: number;
+  name: string;
+  createdAt: string;
+  contactCount: number;
+};
+
+type FoldersResponse = {
+  folders: Folder[];
+  noFolderCount: number;
 };
 
 type Campaign = {
@@ -157,6 +174,9 @@ export default function EmailsPage() {
 // Contacts
 // ─────────────────────────────────────────────────────────────────────────────
 
+// `all` = tous les contacts, `none` = sans dossier, number = un dossier précis.
+type FolderFilter = "all" | "none" | number;
+
 function ContactsTab() {
   const af = useAuthedFetch();
   const qc = useQueryClient();
@@ -166,17 +186,42 @@ function ContactsTab() {
   const [newFirst, setNewFirst] = useState("");
   const [newLast, setNewLast] = useState("");
   const [importing, setImporting] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<FolderFilter>("all");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+
+  // Dossier "cible" pour ajout/import : si on est sur un dossier précis, c'est
+  // lui ; sinon (Tous / Sans dossier) → pas de dossier (null).
+  const targetFolderId = typeof selectedFolder === "number" ? selectedFolder : null;
+
+  const { data: foldersData } = useQuery<FoldersResponse>({
+    queryKey: ["email-folders"],
+    queryFn: () => af("/api/email/folders") as Promise<FoldersResponse>,
+  });
+  const folders = foldersData?.folders ?? [];
+  const noFolderCount = foldersData?.noFolderCount ?? 0;
+  const totalCount = folders.reduce((sum, f) => sum + f.contactCount, 0) + noFolderCount;
+
+  const contactsPath =
+    selectedFolder === "all"
+      ? "/api/email/contacts"
+      : `/api/email/contacts?folderId=${selectedFolder === "none" ? "none" : selectedFolder}`;
 
   const { data: contacts = [], isLoading } = useQuery<Contact[]>({
-    queryKey: ["email-contacts"],
-    queryFn: () => af("/api/email/contacts") as Promise<Contact[]>,
+    queryKey: ["email-contacts", selectedFolder],
+    queryFn: () => af(contactsPath) as Promise<Contact[]>,
   });
 
+  function refreshAll() {
+    qc.invalidateQueries({ queryKey: ["email-contacts"] });
+    qc.invalidateQueries({ queryKey: ["email-folders"] });
+  }
+
   const addContact = useMutation({
-    mutationFn: (payload: { email: string; firstName?: string; lastName?: string }) =>
+    mutationFn: (payload: { email: string; firstName?: string; lastName?: string; folderId: number | null }) =>
       af("/api/email/contacts", { method: "POST", body: JSON.stringify(payload) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["email-contacts"] });
+      refreshAll();
       setNewEmail("");
       setNewFirst("");
       setNewLast("");
@@ -188,17 +233,50 @@ function ContactsTab() {
 
   const deleteContact = useMutation({
     mutationFn: (id: number) => af(`/api/email/contacts/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-contacts"] }),
+    onSuccess: () => refreshAll(),
+  });
+
+  const createFolder = useMutation({
+    mutationFn: (name: string) =>
+      af("/api/email/folders", { method: "POST", body: JSON.stringify({ name }) }) as Promise<Folder>,
+    onSuccess: (folder) => {
+      qc.invalidateQueries({ queryKey: ["email-folders"] });
+      setNewFolderName("");
+      setCreatingFolder(false);
+      setSelectedFolder(folder.id);
+      toast.success("Dossier créé");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const renameFolder = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) =>
+      af(`/api/email/folders/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["email-folders"] });
+      toast.success("Dossier renommé");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteFolder = useMutation({
+    mutationFn: (id: number) => af(`/api/email/folders/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      refreshAll();
+      setSelectedFolder("all");
+      toast.success("Dossier supprimé. Les contacts ont été conservés.");
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const bulkImport = useMutation({
     mutationFn: (rows: Array<{ email: string; firstName?: string; lastName?: string }>) =>
       af("/api/email/contacts/bulk", {
         method: "POST",
-        body: JSON.stringify({ contacts: rows }),
+        body: JSON.stringify({ contacts: rows, folderId: targetFolderId }),
       }) as Promise<{ requested: number; inserted: number; skipped: number }>,
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["email-contacts"] });
+      refreshAll();
       toast.success(`${data.inserted} contact(s) importé(s), ${data.skipped} déjà existant(s)`);
     },
     onError: (err: Error) => toast.error(err.message),
@@ -221,6 +299,13 @@ function ContactsTab() {
     }
   }
 
+  function startRename(folder: Folder) {
+    const name = prompt("Nouveau nom du dossier", folder.name);
+    if (name && name.trim() && name.trim() !== folder.name) {
+      renameFolder.mutate({ id: folder.id, name: name.trim() });
+    }
+  }
+
   const filtered = useMemo(() => {
     if (!query.trim()) return contacts;
     const q = query.toLowerCase();
@@ -232,8 +317,78 @@ function ContactsTab() {
     );
   }, [contacts, query]);
 
+  const currentFolder = typeof selectedFolder === "number"
+    ? folders.find((f) => f.id === selectedFolder)
+    : null;
+  const importDestinationLabel = currentFolder
+    ? `dans « ${currentFolder.name} »`
+    : "sans dossier";
+
   return (
     <div className="space-y-4">
+      {/* Sélecteur de dossiers */}
+      <div className="bg-card rounded-xl border shadow-sm p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase">Dossiers</h2>
+          <Button size="sm" variant="ghost" onClick={() => setCreatingFolder((v) => !v)}>
+            <FolderPlus className="w-4 h-4 mr-1" /> Nouveau dossier
+          </Button>
+        </div>
+        {creatingFolder && (
+          <div className="flex items-center gap-2">
+            <Input
+              autoFocus
+              placeholder="Nom du dossier (ex. PDV Intermarché)"
+              value={newFolderName}
+              maxLength={120}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newFolderName.trim()) createFolder.mutate(newFolderName.trim());
+              }}
+            />
+            <Button
+              disabled={!newFolderName.trim() || createFolder.isPending}
+              onClick={() => createFolder.mutate(newFolderName.trim())}
+            >
+              {createFolder.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Créer"}
+            </Button>
+            <Button variant="ghost" onClick={() => { setCreatingFolder(false); setNewFolderName(""); }}>
+              Annuler
+            </Button>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <FolderChip
+            active={selectedFolder === "all"}
+            label="Tous"
+            count={totalCount}
+            onClick={() => setSelectedFolder("all")}
+          />
+          {folders.map((f) => (
+            <FolderChip
+              key={f.id}
+              active={selectedFolder === f.id}
+              label={f.name}
+              count={f.contactCount}
+              icon
+              onClick={() => setSelectedFolder(f.id)}
+              onRename={() => startRename(f)}
+              onDelete={() => {
+                if (confirm(`Supprimer le dossier « ${f.name} » ? Les contacts seront conservés (sans dossier).`)) {
+                  deleteFolder.mutate(f.id);
+                }
+              }}
+            />
+          ))}
+          <FolderChip
+            active={selectedFolder === "none"}
+            label="Sans dossier"
+            count={noFolderCount}
+            onClick={() => setSelectedFolder("none")}
+          />
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-60">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -267,6 +422,11 @@ function ContactsTab() {
         </label>
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Les nouveaux contacts et les imports CSV seront rangés <span className="font-medium">{importDestinationLabel}</span>.
+        {!currentFolder && " Crée ou sélectionne un dossier pour y ranger une liste."}
+      </p>
+
       {adding && (
         <div className="bg-card rounded-xl border p-4 space-y-3 shadow-sm">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -290,7 +450,7 @@ function ContactsTab() {
             <Button
               disabled={!newEmail.includes("@") || addContact.isPending}
               onClick={() =>
-                addContact.mutate({ email: newEmail, firstName: newFirst, lastName: newLast })
+                addContact.mutate({ email: newEmail, firstName: newFirst, lastName: newLast, folderId: targetFolderId })
               }
             >
               {addContact.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
@@ -308,7 +468,7 @@ function ContactsTab() {
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-muted-foreground text-sm">
             {contacts.length === 0
-              ? "Aucun contact pour l'instant. Ajoutes-en un ou importe un CSV."
+              ? "Aucun contact dans cette vue. Ajoutes-en un ou importe un CSV."
               : "Aucun résultat pour cette recherche."}
           </div>
         ) : (
@@ -348,8 +508,63 @@ function ContactsTab() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {contacts.length} contact(s) au total. Les doublons sont ignorés à l'import.
+        {filtered.length} contact(s) affiché(s). Les doublons sont ignorés à l'import.
       </p>
+    </div>
+  );
+}
+
+function FolderChip({
+  active,
+  label,
+  count,
+  icon,
+  onClick,
+  onRename,
+  onDelete,
+}: {
+  active: boolean;
+  label: string;
+  count: number;
+  icon?: boolean;
+  onClick: () => void;
+  onRename?: () => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "group inline-flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full border text-sm transition",
+        active ? "bg-violet-600 text-white border-violet-600" : "bg-background hover:bg-muted",
+      )}
+    >
+      <button onClick={onClick} className="inline-flex items-center gap-1.5">
+        {icon && <Folder className="w-3.5 h-3.5" />}
+        <span className="font-medium">{label}</span>
+        <span className={cn("text-xs", active ? "text-violet-100" : "text-muted-foreground")}>({count})</span>
+      </button>
+      {(onRename || onDelete) && (
+        <span className="flex items-center gap-0.5">
+          {onRename && (
+            <button
+              onClick={onRename}
+              aria-label="Renommer"
+              className={cn("p-0.5 rounded hover:bg-black/10", active ? "text-violet-100" : "text-muted-foreground")}
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              aria-label="Supprimer le dossier"
+              className={cn("p-0.5 rounded hover:bg-black/10", active ? "text-violet-100" : "text-muted-foreground")}
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </span>
+      )}
     </div>
   );
 }

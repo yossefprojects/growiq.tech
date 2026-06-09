@@ -10,13 +10,15 @@
  *   - Tous les contacts/campagnes sont scopés par userId.
  */
 import { Router, type IRouter, type Request } from "express";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   db,
   emailContacts,
   emailCampaigns,
   emailEvents,
+  emailFolders,
   insertEmailContactSchema,
+  insertEmailFolderSchema,
   type EmailCampaignBrief,
   type EmailCampaignStatus,
   type EmailWritingStyle,
@@ -35,14 +37,35 @@ function uid(req: Request): string {
 
 const router: IRouter = Router();
 
+// Vérifie qu'un dossier appartient bien à l'user. Retourne true si folderId
+// est null/undefined (= sans dossier, toujours valide) ou s'il lui appartient.
+async function folderBelongsToUser(userId: string, folderId: number | null | undefined): Promise<boolean> {
+  if (folderId == null) return true;
+  const [row] = await db
+    .select({ id: emailFolders.id })
+    .from(emailFolders)
+    .where(and(eq(emailFolders.userId, userId), eq(emailFolders.id, folderId)));
+  return !!row;
+}
+
 // ── Contacts CRUD ───────────────────────────────────────────────────────────
 
 router.get("/email/contacts", async (req, res) => {
   const userId = uid(req);
+  // Filtre optionnel par dossier : ?folderId=<id> (un dossier précis) ou
+  // ?folderId=none (les contacts sans dossier). Absent = tous les contacts.
+  const folderParam = typeof req.query.folderId === "string" ? req.query.folderId : null;
+  const conds = [eq(emailContacts.userId, userId)];
+  if (folderParam === "none") {
+    conds.push(isNull(emailContacts.folderId));
+  } else if (folderParam) {
+    const fid = Number(folderParam);
+    if (Number.isFinite(fid)) conds.push(eq(emailContacts.folderId, fid));
+  }
   const rows = await db
     .select()
     .from(emailContacts)
-    .where(eq(emailContacts.userId, userId))
+    .where(and(...conds))
     .orderBy(desc(emailContacts.createdAt));
   res.json(rows);
 });
@@ -54,6 +77,10 @@ router.post("/email/contacts", async (req, res) => {
     res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() });
     return;
   }
+  if (!(await folderBelongsToUser(userId, parsed.data.folderId))) {
+    res.status(400).json({ error: "Dossier introuvable" });
+    return;
+  }
   try {
     const [row] = await db
       .insert(emailContacts)
@@ -63,6 +90,7 @@ router.post("/email/contacts", async (req, res) => {
         firstName: parsed.data.firstName ?? "",
         lastName: parsed.data.lastName ?? "",
         tags: parsed.data.tags ?? [],
+        folderId: parsed.data.folderId ?? null,
         source: parsed.data.source ?? "manual",
       })
       .returning();
@@ -79,6 +107,7 @@ router.post("/email/contacts", async (req, res) => {
 });
 
 const bulkImportSchema = z.object({
+  folderId: z.number().int().nullable().optional(),
   contacts: z
     .array(
       z.object({
@@ -99,12 +128,18 @@ router.post("/email/contacts/bulk", async (req, res) => {
     res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() });
     return;
   }
+  const folderId = parsed.data.folderId ?? null;
+  if (!(await folderBelongsToUser(userId, folderId))) {
+    res.status(400).json({ error: "Dossier introuvable" });
+    return;
+  }
   const values = parsed.data.contacts.map((c) => ({
     userId,
     email: c.email.toLowerCase().trim(),
     firstName: c.firstName ?? "",
     lastName: c.lastName ?? "",
     tags: c.tags ?? [],
+    folderId,
     source: "csv-import",
   }));
   // Déduplique en mémoire pour éviter les conflits intra-batch.
@@ -114,13 +149,20 @@ router.post("/email/contacts/bulk", async (req, res) => {
     seen.add(v.email);
     return true;
   });
-  const inserted = await db
-    .insert(emailContacts)
-    .values(deduped)
-    .onConflictDoNothing({
-      target: [emailContacts.userId, emailContacts.email],
-    })
-    .returning();
+  // Si un dossier est choisi, on (ré)affecte ce dossier même aux contacts qui
+  // existaient déjà, pour que toute la liste importée se retrouve bien dans le
+  // dossier voulu. Sinon on ne touche pas aux contacts existants.
+  const insertQuery = db.insert(emailContacts).values(deduped);
+  const inserted = folderId == null
+    ? await insertQuery
+        .onConflictDoNothing({ target: [emailContacts.userId, emailContacts.email] })
+        .returning()
+    : await insertQuery
+        .onConflictDoUpdate({
+          target: [emailContacts.userId, emailContacts.email],
+          set: { folderId },
+        })
+        .returning();
   res.json({
     requested: parsed.data.contacts.length,
     inserted: inserted.length,
@@ -138,6 +180,127 @@ router.delete("/email/contacts/:id", async (req, res) => {
   await db
     .delete(emailContacts)
     .where(and(eq(emailContacts.userId, userId), eq(emailContacts.id, id)));
+  res.json({ ok: true });
+});
+
+// ── Dossiers (listes de contacts) ───────────────────────────────────────────
+
+// Liste les dossiers de l'user avec le nombre de contacts dans chacun.
+router.get("/email/folders", async (req, res) => {
+  const userId = uid(req);
+  const folders = await db
+    .select()
+    .from(emailFolders)
+    .where(eq(emailFolders.userId, userId))
+    .orderBy(desc(emailFolders.createdAt));
+  // Compte des contacts par dossier (en une requête groupée).
+  const counts = await db
+    .select({
+      folderId: emailContacts.folderId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(emailContacts)
+    .where(eq(emailContacts.userId, userId))
+    .groupBy(emailContacts.folderId);
+  const countByFolder = new Map<number, number>();
+  let noFolderCount = 0;
+  for (const row of counts) {
+    if (row.folderId == null) noFolderCount = row.count;
+    else countByFolder.set(row.folderId, row.count);
+  }
+  res.json({
+    folders: folders.map((f) => ({
+      id: f.id,
+      name: f.name,
+      createdAt: f.createdAt,
+      contactCount: countByFolder.get(f.id) ?? 0,
+    })),
+    noFolderCount,
+  });
+});
+
+router.post("/email/folders", async (req, res) => {
+  const userId = uid(req);
+  const parsed = insertEmailFolderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Nom de dossier invalide" });
+    return;
+  }
+  try {
+    const [row] = await db
+      .insert(emailFolders)
+      .values({ userId, name: parsed.data.name.trim() })
+      .returning();
+    res.status(201).json(row);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("email_folders_user_name_unique")) {
+      res.status(409).json({ error: "Un dossier porte déjà ce nom." });
+      return;
+    }
+    req.log.error({ err }, "create folder failed");
+    res.status(500).json({ error: "Impossible de créer ce dossier." });
+  }
+});
+
+router.patch("/email/folders/:id", async (req, res) => {
+  const userId = uid(req);
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "ID invalide" });
+    return;
+  }
+  const parsed = insertEmailFolderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Nom de dossier invalide" });
+    return;
+  }
+  try {
+    const [row] = await db
+      .update(emailFolders)
+      .set({ name: parsed.data.name.trim() })
+      .where(and(eq(emailFolders.userId, userId), eq(emailFolders.id, id)))
+      .returning();
+    if (!row) {
+      res.status(404).json({ error: "Dossier introuvable" });
+      return;
+    }
+    res.json(row);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("email_folders_user_name_unique")) {
+      res.status(409).json({ error: "Un dossier porte déjà ce nom." });
+      return;
+    }
+    req.log.error({ err }, "rename folder failed");
+    res.status(500).json({ error: "Impossible de renommer ce dossier." });
+  }
+});
+
+// Supprime un dossier. Les contacts qu'il contenait ne sont PAS supprimés :
+// ils repassent simplement "sans dossier" (folderId = null).
+router.delete("/email/folders/:id", async (req, res) => {
+  const userId = uid(req);
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "ID invalide" });
+    return;
+  }
+  const [existing] = await db
+    .select({ id: emailFolders.id })
+    .from(emailFolders)
+    .where(and(eq(emailFolders.userId, userId), eq(emailFolders.id, id)));
+  if (!existing) {
+    res.status(404).json({ error: "Dossier introuvable" });
+    return;
+  }
+  await db
+    .update(emailContacts)
+    .set({ folderId: null })
+    .where(and(eq(emailContacts.userId, userId), eq(emailContacts.folderId, id)));
+  await db
+    .delete(emailFolders)
+    .where(and(eq(emailFolders.userId, userId), eq(emailFolders.id, id)));
   res.json({ ok: true });
 });
 
@@ -490,9 +653,11 @@ router.delete("/email/campaigns/:id/attachments/:index", async (req, res) => {
 // ── Campagnes : envoi ───────────────────────────────────────────────────────
 
 const sendSchema = z.object({
-  // Soit on cible des contacts spécifiques par ID, soit "tous", soit par tag.
+  // Soit on cible des contacts spécifiques par ID, soit "tous", soit par tag,
+  // soit tous les contacts d'un dossier.
   contactIds: z.array(z.number().int()).optional(),
   tag: z.string().optional(),
+  folderId: z.number().int().optional(),
   allSubscribed: z.boolean().optional(),
 });
 
@@ -552,6 +717,9 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
     if (parsed.data.contactIds && parsed.data.contactIds.length > 0) {
       const ids = new Set(parsed.data.contactIds);
       recipients = recipients.filter((c) => ids.has(c.id));
+    } else if (parsed.data.folderId != null) {
+      const fid = parsed.data.folderId;
+      recipients = recipients.filter((c) => c.folderId === fid);
     } else if (parsed.data.tag) {
       const tag = parsed.data.tag;
       recipients = recipients.filter((c) => c.tags.includes(tag));

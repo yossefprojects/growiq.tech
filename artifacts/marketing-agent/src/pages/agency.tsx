@@ -144,7 +144,14 @@ interface EmailContactRow {
   email: string;
   firstName: string;
   lastName: string;
+  folderId: number | null;
   subscribed: boolean;
+}
+
+interface EmailFolderInfo {
+  id: number;
+  name: string;
+  contactCount: number;
 }
 
 const API = (path: string) => `${import.meta.env.BASE_URL}api${path}`;
@@ -2308,6 +2315,9 @@ function EmailPreviewScreen({
   const [loadingContacts, setLoadingContacts] = useState(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [allSubscribed, setAllSubscribed] = useState(true);
+  const [folders, setFolders] = useState<EmailFolderInfo[]>([]);
+  // null = pas de filtre dossier (tous / sélection manuelle). number = ce dossier.
+  const [folderId, setFolderId] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [subject, setSubject] = useState(campaign.subject);
   const [bodyText, setBodyText] = useState(campaign.bodyText);
@@ -2327,6 +2337,15 @@ function EmailPreviewScreen({
         }
       } catch { /* silent */ }
       finally { setLoadingContacts(false); }
+    })();
+    void (async () => {
+      try {
+        const r = await fetch(API("/email/folders"));
+        if (r.ok) {
+          const data: { folders: EmailFolderInfo[] } = await r.json();
+          setFolders(data.folders ?? []);
+        }
+      } catch { /* silent */ }
     })();
     void (async () => {
       try {
@@ -2432,9 +2451,14 @@ function EmailPreviewScreen({
       toast.error(t("Tu n'as pas encore de contacts. Ajoute-les depuis l'onglet Emails."));
       return;
     }
+    const folderCount = folderId == null
+      ? 0
+      : subscribedContacts.filter((c) => c.folderId === folderId).length;
     const willSend = allSubscribed
       ? subscribedContacts.length
-      : selected.size;
+      : folderId != null
+        ? folderCount
+        : selected.size;
     if (willSend === 0) {
       toast.error(t("Sélectionne au moins un destinataire"));
       return;
@@ -2448,7 +2472,9 @@ function EmailPreviewScreen({
         body: JSON.stringify(
           allSubscribed
             ? { allSubscribed: true }
-            : { contactIds: Array.from(selected) },
+            : folderId != null
+              ? { folderId }
+              : { contactIds: Array.from(selected) },
         ),
       });
       if (!r.ok) {
@@ -2614,7 +2640,10 @@ function EmailPreviewScreen({
                 checked={allSubscribed}
                 onChange={(e) => {
                   setAllSubscribed(e.target.checked);
-                  if (e.target.checked) setSelected(new Set());
+                  if (e.target.checked) {
+                    setSelected(new Set());
+                    setFolderId(null);
+                  }
                 }}
                 className="w-4 h-4"
               />
@@ -2623,21 +2652,53 @@ function EmailPreviewScreen({
               </span>
             </label>
             {!allSubscribed && (
-              <div className="max-h-72 overflow-y-auto border rounded-lg divide-y">
-                {contacts.filter((c) => c.subscribed).map((c) => (
-                  <label key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(c.id)}
-                      onChange={() => toggle(c.id)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm flex-1">{c.email}</span>
-                    {(c.firstName || c.lastName) && (
-                      <span className="text-xs text-muted-foreground">{c.firstName} {c.lastName}</span>
-                    )}
-                  </label>
-                ))}
+              <div className="space-y-3">
+                {folders.length > 0 && (
+                  <div>
+                    <Label className="text-xs">{t("Envoyer à un dossier précis")}</Label>
+                    <select
+                      className="w-full mt-1 px-3 py-2 border rounded-md bg-background text-sm"
+                      value={folderId == null ? "" : String(folderId)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "") {
+                          setFolderId(null);
+                        } else {
+                          setFolderId(Number(v));
+                          setSelected(new Set());
+                        }
+                      }}
+                    >
+                      <option value="">{t("— Choisir des contacts un par un —")}</option>
+                      {folders.map((f) => {
+                        const count = contacts.filter((c) => c.subscribed && c.folderId === f.id).length;
+                        return (
+                          <option key={f.id} value={String(f.id)}>
+                            {f.name} ({count})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+                {folderId == null && (
+                  <div className="max-h-72 overflow-y-auto border rounded-lg divide-y">
+                    {contacts.filter((c) => c.subscribed).map((c) => (
+                      <label key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(c.id)}
+                          onChange={() => toggle(c.id)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm flex-1">{c.email}</span>
+                        {(c.firstName || c.lastName) && (
+                          <span className="text-xs text-muted-foreground">{c.firstName} {c.lastName}</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>
