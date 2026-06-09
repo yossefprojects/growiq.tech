@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useAuth } from "@clerk/react";
@@ -786,20 +786,23 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
   const qc = useQueryClient();
   const isDraft = campaign.status === "draft";
 
+  // État édition (brouillons uniquement)
+  const [editing, setEditing] = useState(false);
+  const [editSubject, setEditSubject] = useState("");
+  const [editName, setEditName] = useState("");
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Désactiver le refetch automatique quand on édite pour ne pas écraser les modifs
   const { data } = useQuery<Campaign & { stats?: Record<string, number> }>({
     queryKey: ["email-campaign", campaign.id],
     queryFn: () =>
       af(`/api/email/campaigns/${campaign.id}`) as Promise<Campaign & { stats?: Record<string, number> }>,
-    refetchInterval: campaign.status === "sending" ? 3000 : false,
+    refetchInterval: !editing && campaign.status === "sending" ? 3000 : false,
+    refetchOnWindowFocus: !editing,
+    refetchOnReconnect: !editing,
+    enabled: !editing,
   });
   const c = data ?? campaign;
-
-  // État édition (brouillons uniquement)
-  const [editing, setEditing] = useState(false);
-  const [editSubject, setEditSubject] = useState(c.subject);
-  const [editName, setEditName] = useState(c.name);
-  const [editBodyHtml, setEditBodyHtml] = useState(c.bodyHtml);
-  const bodyRef = useRef<HTMLDivElement>(null);
 
   // État envoi
   const [showSendModal, setShowSendModal] = useState(false);
@@ -854,7 +857,7 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => {
-                  const html = bodyRef.current?.innerHTML ?? editBodyHtml;
+                  const html = bodyRef.current?.innerHTML ?? c.bodyHtml;
                   updateCampaign.mutate({ name: editName, subject: editSubject, bodyHtml: html });
                 }} disabled={updateCampaign.isPending}>
                   {updateCampaign.isPending && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
@@ -943,13 +946,7 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
           {editing && <span className="text-xs text-muted-foreground">Cliquez dans le texte pour le modifier directement</span>}
         </div>
         {editing ? (
-          <div
-            ref={bodyRef}
-            contentEditable
-            suppressContentEditableWarning
-            className="prose prose-sm max-w-none border-2 border-violet-300 rounded-lg p-4 bg-white focus:outline-none focus:border-violet-500 min-h-[200px]"
-            dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(editBodyHtml) }}
-          />
+          <EditableEmailBody bodyRef={bodyRef} initialHtml={c.bodyHtml} />
         ) : (
           <div
             className="prose prose-sm max-w-none border rounded-lg p-4 bg-muted"
@@ -958,6 +955,26 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
         )}
       </div>
     </div>
+  );
+}
+
+/** Composant isolé pour l'édition du body — ne re-render jamais via le parent */
+function EditableEmailBody({ bodyRef, initialHtml }: { bodyRef: React.RefObject<HTMLDivElement | null>; initialHtml: string }) {
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.innerHTML = sanitizeEmailHtml(initialHtml);
+    }
+    // Seulement au montage — on ne veut PAS reset quand initialHtml change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div
+      ref={bodyRef}
+      contentEditable
+      suppressContentEditableWarning
+      className="prose prose-sm max-w-none border-2 border-violet-300 rounded-lg p-4 bg-white focus:outline-none focus:border-violet-500 min-h-[200px]"
+    />
   );
 }
 
