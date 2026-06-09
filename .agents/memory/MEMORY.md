@@ -4,3 +4,7 @@
 - [OAuth error sanitization](oauth-error-sanitization.md) — OAuth result strings (query string, postMessage, backend text) can leak raw Meta codes to UI toasts; always map to friendly French first.
 - [Publish-gating per-user status](publish-gating-per-user-status.md) — publish/launch buttons must read per-user /api/integrations, not admin-gated /api/meta/status (returns false for non-admins).
 - [Landing claims policy](landing-claims-policy.md) — public landing must avoid invented numbers (compliance); pricing 0/29/79€ shown by user choice despite no billing.
+- [Email attachments & sender](email-attachments-and-sender.md) — attachments: public bucket + base64 to Resend, download once before send loop; "from" can't be free-typed (Resend domain-verified), surface active sender + link to integrations.
+- [Resend freemium sender domain](resend-sender-domain.md) — shared connector from=@gmail.com → 403 "domain not verified"; fixed via env RESEND_SHARED_FROM (verified domain) preferred in sendEmail; keep it set in prod or freemium falls back to Gmail and fails.
+- [Claude chat integration](claude-chat-integration.md) — claude-opus-4-8: no temperature/top_p (400), system is top-level param, stream on content_block_delta/text_delta; SDK not hoisted to api-server.
+- [Agency brief input length](agency-input-validation.md) — long free-text briefs 400'd the email-generate route (Zod .max with no client maxLength); keep client maxLength in lockstep with server .max; social/ads flow truncates instead; debug generic agency toast via deploy-log POST status.

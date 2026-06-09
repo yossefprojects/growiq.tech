@@ -19,11 +19,14 @@ import {
   insertEmailContactSchema,
   type EmailCampaignBrief,
   type EmailCampaignStatus,
+  type EmailAttachment,
 } from "@workspace/db";
 import { z } from "zod/v4";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import type { AuthedRequest } from "../middlewares/auth";
 import { sendEmail } from "../lib/email";
+import { uploadPublicBuffer, downloadPublicObject } from "../lib/objectStorage";
+import { getUserIntegration } from "../lib/user-integrations";
 
 function uid(req: Request): string {
   return (req as AuthedRequest).userId;
@@ -140,9 +143,9 @@ router.delete("/email/contacts/:id", async (req, res) => {
 // ── Campagnes : génération IA ───────────────────────────────────────────────
 
 const generateSchema = z.object({
-  product: z.string().min(1).max(500),
-  audience: z.string().min(1).max(500),
-  objective: z.string().min(1).max(500),
+  product: z.string().min(1).max(2000),
+  audience: z.string().min(1).max(2000),
+  objective: z.string().min(1).max(2000),
   tone: z.string().max(120).optional(),
   name: z.string().max(200).optional(),
 });
@@ -171,7 +174,7 @@ Brief :
 - Objectif : ${brief.objective}`;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-5",
+    model: "gpt-5.4",
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
   });
@@ -303,6 +306,143 @@ router.delete("/email/campaigns/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Expéditeur (adresse "from") ─────────────────────────────────────────────
+
+// Parse une adresse "from" du type "GrowIQ <contact@growiq.tech>" ou
+// "contact@growiq.tech" en { name, email }.
+function parseSharedFrom(raw: string | undefined): { name: string | null; email: string | null } {
+  const value = raw?.trim();
+  if (!value) return { name: null, email: null };
+  const m = value.match(/^\s*(.*?)\s*<\s*([^>]+)\s*>\s*$/);
+  if (m) return { name: m[1] || null, email: m[2] || null };
+  return { name: null, email: value };
+}
+
+router.get("/email/sender", async (req, res) => {
+  const userId = uid(req);
+  const conn = await getUserIntegration(userId, "resend");
+  const usingOwnKey = !!conn && conn.status === "active";
+  const shared = parseSharedFrom(process.env.RESEND_SHARED_FROM);
+  res.json({
+    usingOwnKey,
+    fromEmail: usingOwnKey ? conn?.metadata?.fromEmail ?? null : shared.email,
+    fromName: usingOwnKey ? conn?.metadata?.fromName ?? null : shared.name,
+  });
+});
+
+// ── Campagnes : pièces jointes ──────────────────────────────────────────────
+
+const MAX_ATTACHMENTS = 3;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 Mo par fichier
+
+const attachmentSchema = z.object({
+  filename: z.string().min(1).max(200),
+  contentType: z.string().min(1).max(150).optional(),
+  // Contenu encodé en base64 (sans le préfixe "data:...;base64,").
+  dataBase64: z.string().min(1),
+});
+
+router.post("/email/campaigns/:id/attachments", async (req, res) => {
+  const userId = uid(req);
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "ID invalide" });
+    return;
+  }
+  const parsed = attachmentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Fichier invalide" });
+    return;
+  }
+
+  const [campaign] = await db
+    .select()
+    .from(emailCampaigns)
+    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)));
+  if (!campaign) {
+    res.status(404).json({ error: "Campagne introuvable" });
+    return;
+  }
+  if ((campaign.attachments?.length ?? 0) >= MAX_ATTACHMENTS) {
+    res.status(400).json({ error: `Maximum ${MAX_ATTACHMENTS} pièces jointes par email.` });
+    return;
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(parsed.data.dataBase64, "base64");
+  } catch {
+    res.status(400).json({ error: "Fichier illisible" });
+    return;
+  }
+  if (buffer.length === 0) {
+    res.status(400).json({ error: "Fichier vide" });
+    return;
+  }
+  if (buffer.length > MAX_ATTACHMENT_BYTES) {
+    res.status(400).json({ error: "Fichier trop lourd (10 Mo maximum)." });
+    return;
+  }
+
+  const safeName = parsed.data.filename.replace(/[/\\]/g, "_").slice(0, 200);
+  const dotIdx = safeName.lastIndexOf(".");
+  const ext = dotIdx > 0 ? safeName.slice(dotIdx + 1).toLowerCase() : "bin";
+  const contentType = parsed.data.contentType || "application/octet-stream";
+
+  let uploaded: { relativePath: string };
+  try {
+    uploaded = await uploadPublicBuffer(buffer, { ext, contentType });
+  } catch (err) {
+    req.log.error({ err }, "attachment upload failed");
+    res.status(500).json({ error: "Impossible d'enregistrer le fichier. Réessaie." });
+    return;
+  }
+
+  const newAttachment: EmailAttachment = {
+    filename: safeName,
+    path: uploaded.relativePath,
+    contentType,
+    size: buffer.length,
+  };
+  const attachments = [...(campaign.attachments ?? []), newAttachment];
+  const [row] = await db
+    .update(emailCampaigns)
+    .set({ attachments })
+    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)))
+    .returning();
+  res.status(201).json(row);
+});
+
+router.delete("/email/campaigns/:id/attachments/:index", async (req, res) => {
+  const userId = uid(req);
+  const id = Number(req.params.id);
+  const index = Number(req.params.index);
+  if (!Number.isFinite(id) || !Number.isInteger(index) || index < 0) {
+    res.status(400).json({ error: "Paramètres invalides" });
+    return;
+  }
+  const [campaign] = await db
+    .select()
+    .from(emailCampaigns)
+    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)));
+  if (!campaign) {
+    res.status(404).json({ error: "Campagne introuvable" });
+    return;
+  }
+  const current = campaign.attachments ?? [];
+  if (index >= current.length) {
+    res.status(404).json({ error: "Pièce jointe introuvable" });
+    return;
+  }
+  const attachments = current.filter((_, i) => i !== index);
+  const [row] = await db
+    .update(emailCampaigns)
+    .set({ attachments })
+    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)))
+    .returning();
+  res.json(row);
+});
+
 // ── Campagnes : envoi ───────────────────────────────────────────────────────
 
 const sendSchema = z.object({
@@ -399,6 +539,23 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
       .set({ recipientCount: (campaign.recipientCount ?? 0) + recipients.length })
       .where(eq(emailCampaigns.id, id));
 
+    // Pièces jointes : on les télécharge UNE fois depuis le bucket et on les
+    // ré-encode en base64 pour les passer à Resend sur chaque envoi.
+    const attachments: Array<{ filename: string; content: string; contentType?: string }> = [];
+    for (const a of campaign.attachments ?? []) {
+      try {
+        const buf = await downloadPublicObject(a.path);
+        attachments.push({
+          filename: a.filename,
+          content: buf.toString("base64"),
+          contentType: a.contentType,
+        });
+      } catch (err) {
+        req.log.error({ err, path: a.path }, "attachment download failed");
+        throw new Error(`Impossible de charger la pièce jointe « ${a.filename} ».`);
+      }
+    }
+
     let sent = 0;
     let failed = 0;
     // Envoi séquentiel pour ne pas saturer Resend (rate limit ~10 req/s).
@@ -410,6 +567,7 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
           subject: campaign.subject,
           body: campaign.bodyText,
           html: campaign.bodyHtml,
+          ...(attachments.length > 0 ? { attachments } : {}),
           userId, // per-user : clé Resend perso ou quota freemium
           tags: [
             { name: "campaign_id", value: String(id) },

@@ -18,6 +18,15 @@ export type EmailCampaignStatus =
   | "partially_failed"
   | "failed";
 
+// Pièce jointe stockée dans le bucket public (path relatif), envoyée à Resend
+// en base64 au moment de l'envoi.
+export type EmailAttachment = {
+  filename: string;
+  path: string;
+  contentType: string;
+  size: number;
+};
+
 export const emailCampaigns = pgTable(
   "email_campaigns",
   {
@@ -37,6 +46,8 @@ export const emailCampaigns = pgTable(
     failedCount: integer("failed_count").notNull().default(0),
     openCount: integer("open_count").notNull().default(0),
     clickCount: integer("click_count").notNull().default(0),
+    // Pièces jointes (max ~3 fichiers, < 10 Mo chacun) stockées dans le bucket public.
+    attachments: jsonb("attachments").$type<EmailAttachment[]>().notNull().default([]),
     // Envoi différé non encore wiré côté worker — champ présent pour plus tard.
     scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
     sentAt: timestamp("sent_at", { withTimezone: true }),
@@ -53,6 +64,7 @@ export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns, {
   id: true,
   userId: true,
   status: true,
+  attachments: true,
   recipientCount: true,
   sentCount: true,
   failedCount: true,

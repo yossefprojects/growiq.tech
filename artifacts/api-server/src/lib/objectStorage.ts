@@ -85,6 +85,19 @@ export async function findPublicObject(relativePath: string): Promise<File | nul
   return null;
 }
 
+/**
+ * Télécharge les octets d'un fichier du bucket public à partir de son path relatif.
+ * Utilisé pour ré-encoder une pièce jointe en base64 au moment de l'envoi email.
+ */
+export async function downloadPublicObject(relativePath: string): Promise<Buffer> {
+  const file = await findPublicObject(relativePath);
+  if (!file) {
+    throw new Error(`Fichier introuvable dans le bucket public : ${relativePath}`);
+  }
+  const [buffer] = await file.download();
+  return buffer;
+}
+
 export async function streamPublicObject(file: File): Promise<{
   body: ReadableStream;
   contentType: string;

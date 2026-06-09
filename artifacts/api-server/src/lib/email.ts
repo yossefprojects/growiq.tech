@@ -20,6 +20,13 @@ import {
 
 const connectors = new ReplitConnectors();
 
+// Adresse expéditeur partagée GrowIQ — un domaine vérifié chez Resend
+// (ex. "GrowIQ <contact@growiq.tech>"). Préférée à l'adresse du connector pour
+// les envois freemium/système : le connector pointe sur une adresse Gmail que
+// Resend refuse (domaine non vérifiable). Une adresse vérifiée ici débloque
+// l'envoi gratuit partagé pour tous les utilisateurs.
+const SHARED_FROM = process.env.RESEND_SHARED_FROM?.trim() || null;
+
 export interface SendEmailInput {
   to: string[];
   subject: string;
@@ -33,6 +40,8 @@ export interface SendEmailInput {
   tags?: Array<{ name: string; value: string }>;
   // Permet à l'utilisateur de se désinscrire en un clic (RFC 8058).
   unsubscribeUrl?: string;
+  // Pièces jointes : contenu encodé en base64 (sans préfixe data:).
+  attachments?: Array<{ filename: string; content: string; contentType?: string }>;
   // Si fourni : on cherche la clé Resend perso de l'user, puis fallback freemium
   // admin avec décompte du quota mensuel (100/mois).
   userId?: string;
@@ -110,6 +119,13 @@ async function callResend(
   };
   if (input.html) body.html = input.html;
   if (input.tags && input.tags.length > 0) body.tags = input.tags;
+  if (input.attachments && input.attachments.length > 0) {
+    body.attachments = input.attachments.map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      ...(a.contentType ? { content_type: a.contentType } : {}),
+    }));
+  }
   if (Object.keys(headers).length > 0) body.headers = headers;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -190,12 +206,12 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         if (adminCreds) {
           result = await callResend(
             adminCreds.apiKey,
-            input.from || adminCreds.fromEmail,
+            input.from || SHARED_FROM || adminCreds.fromEmail,
             input,
             "resend-connector",
           );
         } else {
-          const from = input.from || process.env.EMAIL_FROM || "onboarding@resend.dev";
+          const from = input.from || SHARED_FROM || process.env.EMAIL_FROM || "onboarding@resend.dev";
           result = await callResend(envKey!, from, input, "resend-env");
         }
         // Si l'envoi échoue après réservation, on rend les emails au quota.
@@ -213,11 +229,11 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   // 3) Pas de userId → envois système (notifications admin). Pas de quota.
   const creds = await getResendConnectorCreds();
   if (creds) {
-    return callResend(creds.apiKey, input.from || creds.fromEmail, input, "resend-connector");
+    return callResend(creds.apiKey, input.from || SHARED_FROM || creds.fromEmail, input, "resend-connector");
   }
   const envKey = process.env.RESEND_API_KEY;
   if (envKey) {
-    const from = input.from || process.env.EMAIL_FROM || "onboarding@resend.dev";
+    const from = input.from || SHARED_FROM || process.env.EMAIL_FROM || "onboarding@resend.dev";
     return callResend(envKey, from, input, "resend-env");
   }
   const sg = await trySendgridEnv(input);
