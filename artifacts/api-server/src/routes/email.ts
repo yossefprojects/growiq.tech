@@ -308,17 +308,25 @@ router.delete("/email/campaigns/:id", async (req, res) => {
 
 // ── Expéditeur (adresse "from") ─────────────────────────────────────────────
 
-// Renvoie l'adresse d'envoi active de l'utilisateur. Si l'user a connecté sa
-// propre clé Resend, on renvoie son adresse vérifiée. Sinon il est sur le quota
-// gratuit partagé GrowIQ et ne peut pas personnaliser l'expéditeur.
+// Parse une adresse "from" du type "GrowIQ <contact@growiq.tech>" ou
+// "contact@growiq.tech" en { name, email }.
+function parseSharedFrom(raw: string | undefined): { name: string | null; email: string | null } {
+  const value = raw?.trim();
+  if (!value) return { name: null, email: null };
+  const m = value.match(/^\s*(.*?)\s*<\s*([^>]+)\s*>\s*$/);
+  if (m) return { name: m[1] || null, email: m[2] || null };
+  return { name: null, email: value };
+}
+
 router.get("/email/sender", async (req, res) => {
   const userId = uid(req);
   const conn = await getUserIntegration(userId, "resend");
   const usingOwnKey = !!conn && conn.status === "active";
+  const shared = parseSharedFrom(process.env.RESEND_SHARED_FROM);
   res.json({
     usingOwnKey,
-    fromEmail: usingOwnKey ? conn?.metadata?.fromEmail ?? null : null,
-    fromName: usingOwnKey ? conn?.metadata?.fromName ?? null : null,
+    fromEmail: usingOwnKey ? conn?.metadata?.fromEmail ?? null : shared.email,
+    fromName: usingOwnKey ? conn?.metadata?.fromName ?? null : shared.name,
   });
 });
 

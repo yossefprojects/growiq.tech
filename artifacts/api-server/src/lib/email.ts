@@ -20,6 +20,13 @@ import {
 
 const connectors = new ReplitConnectors();
 
+// Adresse expéditeur partagée GrowIQ — un domaine vérifié chez Resend
+// (ex. "GrowIQ <contact@growiq.tech>"). Préférée à l'adresse du connector pour
+// les envois freemium/système : le connector pointe sur une adresse Gmail que
+// Resend refuse (domaine non vérifiable). Une adresse vérifiée ici débloque
+// l'envoi gratuit partagé pour tous les utilisateurs.
+const SHARED_FROM = process.env.RESEND_SHARED_FROM?.trim() || null;
+
 export interface SendEmailInput {
   to: string[];
   subject: string;
@@ -199,12 +206,12 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
         if (adminCreds) {
           result = await callResend(
             adminCreds.apiKey,
-            input.from || adminCreds.fromEmail,
+            input.from || SHARED_FROM || adminCreds.fromEmail,
             input,
             "resend-connector",
           );
         } else {
-          const from = input.from || process.env.EMAIL_FROM || "onboarding@resend.dev";
+          const from = input.from || SHARED_FROM || process.env.EMAIL_FROM || "onboarding@resend.dev";
           result = await callResend(envKey!, from, input, "resend-env");
         }
         // Si l'envoi échoue après réservation, on rend les emails au quota.
@@ -222,11 +229,11 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   // 3) Pas de userId → envois système (notifications admin). Pas de quota.
   const creds = await getResendConnectorCreds();
   if (creds) {
-    return callResend(creds.apiKey, input.from || creds.fromEmail, input, "resend-connector");
+    return callResend(creds.apiKey, input.from || SHARED_FROM || creds.fromEmail, input, "resend-connector");
   }
   const envKey = process.env.RESEND_API_KEY;
   if (envKey) {
-    const from = input.from || process.env.EMAIL_FROM || "onboarding@resend.dev";
+    const from = input.from || SHARED_FROM || process.env.EMAIL_FROM || "onboarding@resend.dev";
     return callResend(envKey, from, input, "resend-env");
   }
   const sg = await trySendgridEnv(input);

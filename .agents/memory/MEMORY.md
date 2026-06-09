@@ -5,5 +5,5 @@
 - [Publish-gating per-user status](publish-gating-per-user-status.md) — publish/launch buttons must read per-user /api/integrations, not admin-gated /api/meta/status (returns false for non-admins).
 - [Landing claims policy](landing-claims-policy.md) — public landing must avoid invented numbers (compliance); pricing 0/29/79€ shown by user choice despite no billing.
 - [Email attachments & sender](email-attachments-and-sender.md) — attachments: public bucket + base64 to Resend, download once before send loop; "from" can't be free-typed (Resend domain-verified), surface active sender + link to integrations.
-- [Resend freemium sender domain blocker](resend-sender-domain.md) — shared connector from=@gmail.com → all freemium sends 403 "domain not verified"; config/DNS fix (verify growiq.tech), NOT a code bug; per-user own-key path works.
+- [Resend freemium sender domain](resend-sender-domain.md) — shared connector from=@gmail.com → 403 "domain not verified"; fixed via env RESEND_SHARED_FROM (verified domain) preferred in sendEmail; keep it set in prod or freemium falls back to Gmail and fails.
 - [Claude chat integration](claude-chat-integration.md) — claude-opus-4-8: no temperature/top_p (400), system is top-level param, stream on content_block_delta/text_delta; SDK not hoisted to api-server.
