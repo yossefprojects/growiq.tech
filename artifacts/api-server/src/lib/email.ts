@@ -42,6 +42,9 @@ export interface SendEmailInput {
   unsubscribeUrl?: string;
   // Pièces jointes : contenu encodé en base64 (sans préfixe data:).
   attachments?: Array<{ filename: string; content: string; contentType?: string }>;
+  // Adresse de réponse (Reply-To). Les réponses des destinataires iront à cette adresse
+  // même si le from est noreply@growiq.tech.
+  replyTo?: string;
   // Si fourni : on cherche la clé Resend perso de l'user, puis fallback freemium
   // admin avec décompte du quota mensuel (100/mois).
   userId?: string;
@@ -99,6 +102,7 @@ function buildResendBody(from: string, input: SendEmailInput): Record<string, un
     text: input.body,
   };
   if (input.html) body.html = input.html;
+  if (input.replyTo) body.reply_to = input.replyTo;
   if (input.tags && input.tags.length > 0) body.tags = input.tags;
   if (input.attachments && input.attachments.length > 0) {
     body.attachments = input.attachments.map((a) => ({
@@ -196,12 +200,19 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const recipientCount = input.to.length || 1;
 
   // 1) Clé Resend per-user (priorité absolue — pas de quota GrowIQ).
+  //    On envoie toujours depuis noreply@growiq.tech (domaine vérifié) et on met
+  //    l'adresse de l'utilisateur en Reply-To pour que les réponses lui parviennent.
   if (input.userId) {
     const userCreds = await getUserResendCreds(input.userId);
     if (userCreds) {
+      const sharedFrom = SHARED_FROM || "GrowIQ <noreply@growiq.tech>";
+      // Si pas de replyTo explicite, on met l'adresse de l'utilisateur
+      if (!input.replyTo && userCreds.fromEmail) {
+        input.replyTo = userCreds.fromEmail;
+      }
       return callResend(
         userCreds.apiKey,
-        input.from || userCreds.fromEmail,
+        input.from || sharedFrom,
         input,
         "resend-user",
       );
