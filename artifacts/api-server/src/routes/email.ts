@@ -14,6 +14,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import {
   db,
   emailContacts,
+  emailContactFolders,
   emailCampaigns,
   emailEvents,
   insertEmailContactSchema,
@@ -89,6 +90,7 @@ const bulkImportSchema = z.object({
     )
     .min(1)
     .max(5000),
+  folderId: z.number().int().positive().optional(),
 });
 
 router.post("/email/contacts/bulk", async (req, res) => {
@@ -98,12 +100,24 @@ router.post("/email/contacts/bulk", async (req, res) => {
     res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() });
     return;
   }
+  // Vérifier que le dossier appartient bien à l'utilisateur
+  if (parsed.data.folderId) {
+    const [folder] = await db
+      .select({ id: emailContactFolders.id })
+      .from(emailContactFolders)
+      .where(and(eq(emailContactFolders.userId, userId), eq(emailContactFolders.id, parsed.data.folderId)));
+    if (!folder) {
+      res.status(404).json({ error: "Dossier introuvable" });
+      return;
+    }
+  }
   const values = parsed.data.contacts.map((c) => ({
     userId,
     email: c.email.toLowerCase().trim(),
     firstName: c.firstName ?? "",
     lastName: c.lastName ?? "",
     tags: c.tags ?? [],
+    folderId: parsed.data.folderId ?? null,
     source: "csv-import",
   }));
   // Déduplique en mémoire pour éviter les conflits intra-batch.
@@ -137,6 +151,89 @@ router.delete("/email/contacts/:id", async (req, res) => {
   await db
     .delete(emailContacts)
     .where(and(eq(emailContacts.userId, userId), eq(emailContacts.id, id)));
+  res.json({ ok: true });
+});
+
+// ── Dossiers de contacts ──────────────────────────────────────────────────
+
+router.get("/email/folders", async (req, res) => {
+  const userId = uid(req);
+  const rows = await db
+    .select()
+    .from(emailContactFolders)
+    .where(eq(emailContactFolders.userId, userId))
+    .orderBy(emailContactFolders.name);
+  // Compter le nombre de contacts par dossier
+  const counts = await db
+    .select({
+      folderId: emailContacts.folderId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(emailContacts)
+    .where(and(eq(emailContacts.userId, userId), sql`${emailContacts.folderId} IS NOT NULL`))
+    .groupBy(emailContacts.folderId);
+  const countMap = new Map(counts.map((c) => [c.folderId, c.count]));
+  res.json(rows.map((f) => ({ ...f, contactCount: countMap.get(f.id) ?? 0 })));
+});
+
+router.post("/email/folders", async (req, res) => {
+  const userId = uid(req);
+  const schema = z.object({
+    name: z.string().min(1).max(120),
+    color: z.string().max(20).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Nom de dossier invalide" });
+    return;
+  }
+  try {
+    const [row] = await db
+      .insert(emailContactFolders)
+      .values({ userId, name: parsed.data.name.trim(), color: parsed.data.color ?? "#8b5cf6" })
+      .returning();
+    res.status(201).json(row);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("email_contact_folders_user_name_unique")) {
+      res.status(409).json({ error: "Un dossier avec ce nom existe déjà." });
+      return;
+    }
+    res.status(500).json({ error: "Impossible de créer le dossier." });
+  }
+});
+
+router.put("/email/folders/:id", async (req, res) => {
+  const userId = uid(req);
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  const schema = z.object({
+    name: z.string().min(1).max(120).optional(),
+    color: z.string().max(20).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Données invalides" }); return; }
+  const [updated] = await db
+    .update(emailContactFolders)
+    .set(parsed.data)
+    .where(and(eq(emailContactFolders.userId, userId), eq(emailContactFolders.id, id)))
+    .returning();
+  if (!updated) { res.status(404).json({ error: "Dossier introuvable" }); return; }
+  res.json(updated);
+});
+
+router.delete("/email/folders/:id", async (req, res) => {
+  const userId = uid(req);
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  // Dissocier les contacts du dossier avant suppression
+  await db
+    .update(emailContacts)
+    .set({ folderId: null })
+    .where(and(eq(emailContacts.userId, userId), eq(emailContacts.folderId, id)));
+  await db
+    .delete(emailContactFolders)
+    .where(and(eq(emailContactFolders.userId, userId), eq(emailContactFolders.id, id)));
   res.json({ ok: true });
 });
 
@@ -461,9 +558,10 @@ router.delete("/email/campaigns/:id/attachments/:index", async (req, res) => {
 // ── Campagnes : envoi ───────────────────────────────────────────────────────
 
 const sendSchema = z.object({
-  // Soit on cible des contacts spécifiques par ID, soit "tous", soit par tag.
+  // Soit on cible des contacts spécifiques par ID, soit "tous", soit par tag, soit par dossier.
   contactIds: z.array(z.number().int()).optional(),
   tag: z.string().optional(),
+  folderId: z.number().int().positive().optional(),
   allSubscribed: z.boolean().optional(),
 });
 
@@ -523,6 +621,8 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
     if (parsed.data.contactIds && parsed.data.contactIds.length > 0) {
       const ids = new Set(parsed.data.contactIds);
       recipients = recipients.filter((c) => ids.has(c.id));
+    } else if (parsed.data.folderId) {
+      recipients = recipients.filter((c) => c.folderId === parsed.data.folderId);
     } else if (parsed.data.tag) {
       const tag = parsed.data.tag;
       recipients = recipients.filter((c) => c.tags.includes(tag));
@@ -530,7 +630,7 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
       // Aucun filtre + pas de allSubscribed → on refuse pour éviter d'envoyer
       // accidentellement à TOUTE la base.
       throw new Error(
-        "Sélectionne des contacts, un tag, ou coche \"tous les abonnés\".",
+        "Sélectionne des contacts, un tag, un dossier, ou coche \"tous les abonnés\".",
       );
     }
 

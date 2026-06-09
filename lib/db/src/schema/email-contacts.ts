@@ -1,4 +1,4 @@
-import { boolean, index, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,6 +14,8 @@ export const emailContacts = pgTable(
     lastName: text("last_name").notNull().default(""),
     // Tags libres pour segmenter (ex. "client", "prospect", "newsletter")
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    // Dossier (optionnel) pour organiser les contacts par groupe/enseigne.
+    folderId: integer("folder_id"),
     // Désinscription : si false, on n'envoie plus jamais à cet email.
     subscribed: boolean("subscribed").notNull().default(true),
     // D'où vient le contact (import-csv, manuel, etc.)
@@ -22,6 +24,7 @@ export const emailContacts = pgTable(
   },
   (t) => [
     index("email_contacts_user_id_idx").on(t.userId),
+    index("email_contacts_folder_id_idx").on(t.folderId),
     uniqueIndex("email_contacts_user_email_unique").on(t.userId, t.email),
   ],
 );
