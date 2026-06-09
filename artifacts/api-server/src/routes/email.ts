@@ -141,6 +141,61 @@ router.post("/email/contacts/bulk", async (req, res) => {
   });
 });
 
+// Déplacer des contacts vers un dossier (en masse)
+router.post("/email/contacts/move-to-folder", async (req, res) => {
+  const userId = uid(req);
+  const schema = z.object({
+    contactIds: z.array(z.number().int()).optional(),
+    fromFolderId: z.number().int().nullable().optional(), // null = sans dossier, undefined = ignorer
+    allInFolder: z.boolean().optional(), // true = déplacer tous les contacts du fromFolderId
+    toFolderId: z.number().int().nullable(), // null = retirer du dossier
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Données invalides" });
+    return;
+  }
+  // Vérifier que le dossier cible existe (si non null)
+  if (parsed.data.toFolderId !== null) {
+    const [folder] = await db
+      .select({ id: emailContactFolders.id })
+      .from(emailContactFolders)
+      .where(and(eq(emailContactFolders.userId, userId), eq(emailContactFolders.id, parsed.data.toFolderId!)));
+    if (!folder) {
+      res.status(404).json({ error: "Dossier cible introuvable" });
+      return;
+    }
+  }
+
+  const conds = [eq(emailContacts.userId, userId)];
+
+  if (parsed.data.contactIds && parsed.data.contactIds.length > 0) {
+    // Déplacer des contacts spécifiques par ID
+    const ids = parsed.data.contactIds;
+    const updated = await db
+      .update(emailContacts)
+      .set({ folderId: parsed.data.toFolderId })
+      .where(and(...conds, sql`${emailContacts.id} = ANY(${ids})`))
+      .returning({ id: emailContacts.id });
+    res.json({ moved: updated.length });
+  } else if (parsed.data.allInFolder !== undefined) {
+    // Déplacer TOUS les contacts d'un dossier (ou sans dossier)
+    if (parsed.data.fromFolderId === null) {
+      conds.push(sql`${emailContacts.folderId} IS NULL`);
+    } else if (parsed.data.fromFolderId !== undefined) {
+      conds.push(eq(emailContacts.folderId, parsed.data.fromFolderId!));
+    }
+    const updated = await db
+      .update(emailContacts)
+      .set({ folderId: parsed.data.toFolderId })
+      .where(and(...conds))
+      .returning({ id: emailContacts.id });
+    res.json({ moved: updated.length });
+  } else {
+    res.status(400).json({ error: "Spécifie contactIds ou allInFolder" });
+  }
+});
+
 router.delete("/email/contacts/:id", async (req, res) => {
   const userId = uid(req);
   const id = Number(req.params.id);

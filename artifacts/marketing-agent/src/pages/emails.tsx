@@ -255,6 +255,25 @@ function ContactsTab() {
     },
   });
 
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [moveFolderId, setMoveFolderId] = useState<number | null>(null);
+
+  const moveToFolder = useMutation({
+    mutationFn: (payload: { allInFolder: boolean; fromFolderId: number | null; toFolderId: number | null }) =>
+      af("/api/email/contacts/move-to-folder", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }) as Promise<{ moved: number }>,
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["email-contacts"] });
+      qc.invalidateQueries({ queryKey: ["email-folders"] });
+      toast.success(`${data.moved} contact(s) déplacé(s)`);
+      setShowMoveModal(false);
+      setMoveFolderId(null);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const bulkImport = useMutation({
     mutationFn: (payload: { contacts: Array<{ email: string; firstName?: string; lastName?: string }>; folderId?: number }) =>
       af("/api/email/contacts/bulk", {
@@ -465,7 +484,59 @@ function ContactsTab() {
               }}
             />
           </label>
+          {filtered.length > 0 && folders.length > 0 && (
+            <Button variant="outline" onClick={() => setShowMoveModal(true)}>
+              <Folder className="w-4 h-4 mr-1" /> Déplacer vers un dossier
+            </Button>
+          )}
         </div>
+
+        {/* Modal de déplacement vers un dossier */}
+        {showMoveModal && (
+          <div className="bg-card rounded-xl border p-5 space-y-4 shadow-lg">
+            <h3 className="font-semibold">
+              Déplacer {activeFolder === null ? "tous les" : filtered.length} contact(s)
+              {activeFolder === -1 ? " (sans dossier)" : activeFolder !== null ? ` du dossier "${folders.find((f) => f.id === activeFolder)?.name}"` : ""} vers :
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {folders.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setMoveFolderId(f.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-sm border transition flex items-center gap-1.5",
+                    moveFolderId === f.id ? "bg-violet-600 text-white border-violet-600" : "hover:bg-muted",
+                  )}
+                >
+                  <Folder className="w-3.5 h-3.5" /> {f.name}
+                </button>
+              ))}
+              <button
+                onClick={() => setMoveFolderId(null)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-sm border transition",
+                  moveFolderId === null ? "bg-violet-600 text-white border-violet-600" : "hover:bg-muted",
+                )}
+              >
+                Retirer du dossier
+              </button>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" onClick={() => { setShowMoveModal(false); setMoveFolderId(null); }}>Annuler</Button>
+              <Button
+                onClick={() => moveToFolder.mutate({
+                  allInFolder: true,
+                  fromFolderId: activeFolder === -1 ? null : activeFolder,
+                  toFolderId: moveFolderId,
+                })}
+                disabled={moveToFolder.isPending}
+              >
+                {moveToFolder.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+                Déplacer
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Modal de choix de dossier à l'import */}
         {showImportModal && (
