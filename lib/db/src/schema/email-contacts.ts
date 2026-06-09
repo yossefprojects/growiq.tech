@@ -14,7 +14,7 @@ export const emailContacts = pgTable(
     lastName: text("last_name").notNull().default(""),
     // Tags libres pour segmenter (ex. "client", "prospect", "newsletter")
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
-    // Dossier de rangement (ex. liste "PDV Intermarché"). Null = sans dossier.
+    // Dossier (optionnel) pour organiser les contacts par groupe/enseigne.
     folderId: integer("folder_id"),
     // Désinscription : si false, on n'envoie plus jamais à cet email.
     subscribed: boolean("subscribed").notNull().default(true),

@@ -13,7 +13,7 @@ export * from "./seo-audits";
 export * from "./seo-keywords";
 export * from "./seo-content-plans";
 export * from "./linkedin-connections";
-export * from "./email-folders";
+export * from "./email-contact-folders";
 export * from "./email-contacts";
 export * from "./email-campaigns";
 export * from "./email-events";

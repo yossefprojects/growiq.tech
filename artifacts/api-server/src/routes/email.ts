@@ -10,18 +10,16 @@
  *   - Tous les contacts/campagnes sont scopés par userId.
  */
 import { Router, type IRouter, type Request } from "express";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import {
   db,
   emailContacts,
+  emailContactFolders,
   emailCampaigns,
   emailEvents,
-  emailFolders,
   insertEmailContactSchema,
-  insertEmailFolderSchema,
   type EmailCampaignBrief,
   type EmailCampaignStatus,
-  type EmailWritingStyle,
   type EmailAttachment,
 } from "@workspace/db";
 import { z } from "zod/v4";
@@ -37,35 +35,14 @@ function uid(req: Request): string {
 
 const router: IRouter = Router();
 
-// Vérifie qu'un dossier appartient bien à l'user. Retourne true si folderId
-// est null/undefined (= sans dossier, toujours valide) ou s'il lui appartient.
-async function folderBelongsToUser(userId: string, folderId: number | null | undefined): Promise<boolean> {
-  if (folderId == null) return true;
-  const [row] = await db
-    .select({ id: emailFolders.id })
-    .from(emailFolders)
-    .where(and(eq(emailFolders.userId, userId), eq(emailFolders.id, folderId)));
-  return !!row;
-}
-
 // ── Contacts CRUD ───────────────────────────────────────────────────────────
 
 router.get("/email/contacts", async (req, res) => {
   const userId = uid(req);
-  // Filtre optionnel par dossier : ?folderId=<id> (un dossier précis) ou
-  // ?folderId=none (les contacts sans dossier). Absent = tous les contacts.
-  const folderParam = typeof req.query.folderId === "string" ? req.query.folderId : null;
-  const conds = [eq(emailContacts.userId, userId)];
-  if (folderParam === "none") {
-    conds.push(isNull(emailContacts.folderId));
-  } else if (folderParam) {
-    const fid = Number(folderParam);
-    if (Number.isFinite(fid)) conds.push(eq(emailContacts.folderId, fid));
-  }
   const rows = await db
     .select()
     .from(emailContacts)
-    .where(and(...conds))
+    .where(eq(emailContacts.userId, userId))
     .orderBy(desc(emailContacts.createdAt));
   res.json(rows);
 });
@@ -77,10 +54,6 @@ router.post("/email/contacts", async (req, res) => {
     res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() });
     return;
   }
-  if (!(await folderBelongsToUser(userId, parsed.data.folderId))) {
-    res.status(400).json({ error: "Dossier introuvable" });
-    return;
-  }
   try {
     const [row] = await db
       .insert(emailContacts)
@@ -90,7 +63,6 @@ router.post("/email/contacts", async (req, res) => {
         firstName: parsed.data.firstName ?? "",
         lastName: parsed.data.lastName ?? "",
         tags: parsed.data.tags ?? [],
-        folderId: parsed.data.folderId ?? null,
         source: parsed.data.source ?? "manual",
       })
       .returning();
@@ -107,7 +79,6 @@ router.post("/email/contacts", async (req, res) => {
 });
 
 const bulkImportSchema = z.object({
-  folderId: z.number().int().nullable().optional(),
   contacts: z
     .array(
       z.object({
@@ -119,6 +90,7 @@ const bulkImportSchema = z.object({
     )
     .min(1)
     .max(5000),
+  folderId: z.number().int().positive().optional(),
 });
 
 router.post("/email/contacts/bulk", async (req, res) => {
@@ -128,10 +100,16 @@ router.post("/email/contacts/bulk", async (req, res) => {
     res.status(400).json({ error: "Données invalides", details: parsed.error.flatten() });
     return;
   }
-  const folderId = parsed.data.folderId ?? null;
-  if (!(await folderBelongsToUser(userId, folderId))) {
-    res.status(400).json({ error: "Dossier introuvable" });
-    return;
+  // Vérifier que le dossier appartient bien à l'utilisateur
+  if (parsed.data.folderId) {
+    const [folder] = await db
+      .select({ id: emailContactFolders.id })
+      .from(emailContactFolders)
+      .where(and(eq(emailContactFolders.userId, userId), eq(emailContactFolders.id, parsed.data.folderId)));
+    if (!folder) {
+      res.status(404).json({ error: "Dossier introuvable" });
+      return;
+    }
   }
   const values = parsed.data.contacts.map((c) => ({
     userId,
@@ -139,7 +117,7 @@ router.post("/email/contacts/bulk", async (req, res) => {
     firstName: c.firstName ?? "",
     lastName: c.lastName ?? "",
     tags: c.tags ?? [],
-    folderId,
+    folderId: parsed.data.folderId ?? null,
     source: "csv-import",
   }));
   // Déduplique en mémoire pour éviter les conflits intra-batch.
@@ -149,20 +127,13 @@ router.post("/email/contacts/bulk", async (req, res) => {
     seen.add(v.email);
     return true;
   });
-  // Si un dossier est choisi, on (ré)affecte ce dossier même aux contacts qui
-  // existaient déjà, pour que toute la liste importée se retrouve bien dans le
-  // dossier voulu. Sinon on ne touche pas aux contacts existants.
-  const insertQuery = db.insert(emailContacts).values(deduped);
-  const inserted = folderId == null
-    ? await insertQuery
-        .onConflictDoNothing({ target: [emailContacts.userId, emailContacts.email] })
-        .returning()
-    : await insertQuery
-        .onConflictDoUpdate({
-          target: [emailContacts.userId, emailContacts.email],
-          set: { folderId },
-        })
-        .returning();
+  const inserted = await db
+    .insert(emailContacts)
+    .values(deduped)
+    .onConflictDoNothing({
+      target: [emailContacts.userId, emailContacts.email],
+    })
+    .returning();
   res.json({
     requested: parsed.data.contacts.length,
     inserted: inserted.length,
@@ -183,124 +154,86 @@ router.delete("/email/contacts/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
-// ── Dossiers (listes de contacts) ───────────────────────────────────────────
+// ── Dossiers de contacts ──────────────────────────────────────────────────
 
-// Liste les dossiers de l'user avec le nombre de contacts dans chacun.
 router.get("/email/folders", async (req, res) => {
   const userId = uid(req);
-  const folders = await db
+  const rows = await db
     .select()
-    .from(emailFolders)
-    .where(eq(emailFolders.userId, userId))
-    .orderBy(desc(emailFolders.createdAt));
-  // Compte des contacts par dossier (en une requête groupée).
+    .from(emailContactFolders)
+    .where(eq(emailContactFolders.userId, userId))
+    .orderBy(emailContactFolders.name);
+  // Compter le nombre de contacts par dossier
   const counts = await db
     .select({
       folderId: emailContacts.folderId,
       count: sql<number>`count(*)::int`,
     })
     .from(emailContacts)
-    .where(eq(emailContacts.userId, userId))
+    .where(and(eq(emailContacts.userId, userId), sql`${emailContacts.folderId} IS NOT NULL`))
     .groupBy(emailContacts.folderId);
-  const countByFolder = new Map<number, number>();
-  let noFolderCount = 0;
-  for (const row of counts) {
-    if (row.folderId == null) noFolderCount = row.count;
-    else countByFolder.set(row.folderId, row.count);
-  }
-  res.json({
-    folders: folders.map((f) => ({
-      id: f.id,
-      name: f.name,
-      createdAt: f.createdAt,
-      contactCount: countByFolder.get(f.id) ?? 0,
-    })),
-    noFolderCount,
-  });
+  const countMap = new Map(counts.map((c) => [c.folderId, c.count]));
+  res.json(rows.map((f) => ({ ...f, contactCount: countMap.get(f.id) ?? 0 })));
 });
 
 router.post("/email/folders", async (req, res) => {
   const userId = uid(req);
-  const parsed = insertEmailFolderSchema.safeParse(req.body);
+  const schema = z.object({
+    name: z.string().min(1).max(120),
+    color: z.string().max(20).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Nom de dossier invalide" });
     return;
   }
   try {
     const [row] = await db
-      .insert(emailFolders)
-      .values({ userId, name: parsed.data.name.trim() })
+      .insert(emailContactFolders)
+      .values({ userId, name: parsed.data.name.trim(), color: parsed.data.color ?? "#8b5cf6" })
       .returning();
     res.status(201).json(row);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("email_folders_user_name_unique")) {
-      res.status(409).json({ error: "Un dossier porte déjà ce nom." });
+    if (msg.includes("email_contact_folders_user_name_unique")) {
+      res.status(409).json({ error: "Un dossier avec ce nom existe déjà." });
       return;
     }
-    req.log.error({ err }, "create folder failed");
-    res.status(500).json({ error: "Impossible de créer ce dossier." });
+    res.status(500).json({ error: "Impossible de créer le dossier." });
   }
 });
 
-router.patch("/email/folders/:id", async (req, res) => {
+router.put("/email/folders/:id", async (req, res) => {
   const userId = uid(req);
   const id = Number(req.params.id);
-  if (!Number.isFinite(id)) {
-    res.status(400).json({ error: "ID invalide" });
-    return;
-  }
-  const parsed = insertEmailFolderSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Nom de dossier invalide" });
-    return;
-  }
-  try {
-    const [row] = await db
-      .update(emailFolders)
-      .set({ name: parsed.data.name.trim() })
-      .where(and(eq(emailFolders.userId, userId), eq(emailFolders.id, id)))
-      .returning();
-    if (!row) {
-      res.status(404).json({ error: "Dossier introuvable" });
-      return;
-    }
-    res.json(row);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("email_folders_user_name_unique")) {
-      res.status(409).json({ error: "Un dossier porte déjà ce nom." });
-      return;
-    }
-    req.log.error({ err }, "rename folder failed");
-    res.status(500).json({ error: "Impossible de renommer ce dossier." });
-  }
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  const schema = z.object({
+    name: z.string().min(1).max(120).optional(),
+    color: z.string().max(20).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Données invalides" }); return; }
+  const [updated] = await db
+    .update(emailContactFolders)
+    .set(parsed.data)
+    .where(and(eq(emailContactFolders.userId, userId), eq(emailContactFolders.id, id)))
+    .returning();
+  if (!updated) { res.status(404).json({ error: "Dossier introuvable" }); return; }
+  res.json(updated);
 });
 
-// Supprime un dossier. Les contacts qu'il contenait ne sont PAS supprimés :
-// ils repassent simplement "sans dossier" (folderId = null).
 router.delete("/email/folders/:id", async (req, res) => {
   const userId = uid(req);
   const id = Number(req.params.id);
-  if (!Number.isFinite(id)) {
-    res.status(400).json({ error: "ID invalide" });
-    return;
-  }
-  const [existing] = await db
-    .select({ id: emailFolders.id })
-    .from(emailFolders)
-    .where(and(eq(emailFolders.userId, userId), eq(emailFolders.id, id)));
-  if (!existing) {
-    res.status(404).json({ error: "Dossier introuvable" });
-    return;
-  }
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  // Dissocier les contacts du dossier avant suppression
   await db
     .update(emailContacts)
     .set({ folderId: null })
     .where(and(eq(emailContacts.userId, userId), eq(emailContacts.folderId, id)));
   await db
-    .delete(emailFolders)
-    .where(and(eq(emailFolders.userId, userId), eq(emailFolders.id, id)));
+    .delete(emailContactFolders)
+    .where(and(eq(emailContactFolders.userId, userId), eq(emailContactFolders.id, id)));
   res.json({ ok: true });
 });
 
@@ -311,15 +244,8 @@ const generateSchema = z.object({
   audience: z.string().min(1).max(2000),
   objective: z.string().min(1).max(2000),
   tone: z.string().max(120).optional(),
-  style: z.enum(["vouvoiement", "tutoiement"]).optional(),
   name: z.string().max(200).optional(),
 });
-
-function styleInstruction(style: EmailWritingStyle): string {
-  return style === "tutoiement"
-    ? `Adresse-toi au destinataire au TUTOIEMENT : utilise "tu", "ton", "ta", "tes". Ton chaleureux et proche. N'emploie JAMAIS "vous", "votre", "vos".`
-    : `Adresse-toi au destinataire au VOUVOIEMENT : utilise "vous", "votre", "vos". Ton professionnel, courtois et chaleureux. N'emploie JAMAIS "tu", "ton", "ta", "tes".`;
-}
 
 interface GeneratedEmail {
   subject: string;
@@ -327,10 +253,7 @@ interface GeneratedEmail {
   bodyHtml: string;
 }
 
-async function generateEmailWithAI(
-  brief: EmailCampaignBrief,
-  style: EmailWritingStyle,
-): Promise<GeneratedEmail> {
+async function generateEmailWithAI(brief: EmailCampaignBrief): Promise<GeneratedEmail> {
   const prompt = `Tu es un expert en email marketing francophone.
 Rédige UN email pour cette campagne. Réponds STRICTEMENT en JSON :
 {"subject": "...", "bodyText": "...", "bodyHtml": "..."}
@@ -339,8 +262,7 @@ Règles :
 - Sujet court (max 60 caractères), accrocheur, sans clickbait.
 - bodyText : version texte plain, lisible, sans markdown.
 - bodyHtml : HTML simple et propre (<p>, <h2>, <a>, <strong>). Pas de CSS inline complexe.
-- ${styleInstruction(style)}
-- Ton général : ${brief.tone || "chaleureux et naturel"}.
+- Ton : ${brief.tone || "chaleureux, tutoiement, naturel"}.
 - Termine par une signature simple et un PS si pertinent.
 
 Brief :
@@ -372,16 +294,14 @@ router.post("/email/campaigns/generate", async (req, res) => {
     res.status(400).json({ error: "Brief invalide", details: parsed.error.flatten() });
     return;
   }
-  const style: EmailWritingStyle = parsed.data.style ?? "vouvoiement";
   const brief: EmailCampaignBrief = {
     product: parsed.data.product,
     audience: parsed.data.audience,
     objective: parsed.data.objective,
     tone: parsed.data.tone,
-    style,
   };
   try {
-    const ai = await generateEmailWithAI(brief, style);
+    const ai = await generateEmailWithAI(brief);
     const [row] = await db
       .insert(emailCampaigns)
       .values({
@@ -477,27 +397,7 @@ router.delete("/email/campaigns/:id", async (req, res) => {
     res.status(400).json({ error: "ID invalide" });
     return;
   }
-  // Garde anti-suppression accidentelle : une campagne déjà envoyée (ou en cours
-  // d'envoi) ne peut PAS être supprimée — sinon on perd l'historique et les stats.
-  // Seuls les brouillons et les envois totalement échoués sont supprimables.
-  // Suppression ATOMIQUE : le DELETE filtre directement sur le statut, ce qui
-  // évite une race avec une transition d'envoi (draft -> sending) qui pourrait
-  // se glisser entre un SELECT et un DELETE séparés.
-  const deleted = await db
-    .delete(emailCampaigns)
-    .where(
-      and(
-        eq(emailCampaigns.userId, userId),
-        eq(emailCampaigns.id, id),
-        inArray(emailCampaigns.status, ["draft", "failed"]),
-      ),
-    )
-    .returning({ id: emailCampaigns.id });
-  if (deleted.length > 0) {
-    res.json({ ok: true });
-    return;
-  }
-  // Rien supprimé : soit la campagne n'existe pas, soit son statut la protège.
+  // Empêcher la suppression des campagnes déjà envoyées (pour conserver l'historique et les stats)
   const [existing] = await db
     .select({ status: emailCampaigns.status })
     .from(emailCampaigns)
@@ -506,11 +406,16 @@ router.delete("/email/campaigns/:id", async (req, res) => {
     res.status(404).json({ error: "Campagne introuvable" });
     return;
   }
-  res.status(409).json({
-    error:
-      "Cette campagne a déjà été envoyée : elle est conservée dans ton historique et ne peut pas être supprimée.",
-    status: existing.status,
-  });
+  if (existing.status === "sent" || existing.status === "sending" || existing.status === "partially_failed") {
+    res.status(403).json({
+      error: "Impossible de supprimer une campagne déjà envoyée. L'historique et les statistiques sont conservés.",
+    });
+    return;
+  }
+  await db
+    .delete(emailCampaigns)
+    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)));
+  res.json({ ok: true });
 });
 
 // ── Expéditeur (adresse "from") ─────────────────────────────────────────────
@@ -653,11 +558,10 @@ router.delete("/email/campaigns/:id/attachments/:index", async (req, res) => {
 // ── Campagnes : envoi ───────────────────────────────────────────────────────
 
 const sendSchema = z.object({
-  // Soit on cible des contacts spécifiques par ID, soit "tous", soit par tag,
-  // soit tous les contacts d'un dossier.
+  // Soit on cible des contacts spécifiques par ID, soit "tous", soit par tag, soit par dossier.
   contactIds: z.array(z.number().int()).optional(),
   tag: z.string().optional(),
-  folderId: z.number().int().optional(),
+  folderId: z.number().int().positive().optional(),
   allSubscribed: z.boolean().optional(),
 });
 
@@ -717,9 +621,8 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
     if (parsed.data.contactIds && parsed.data.contactIds.length > 0) {
       const ids = new Set(parsed.data.contactIds);
       recipients = recipients.filter((c) => ids.has(c.id));
-    } else if (parsed.data.folderId != null) {
-      const fid = parsed.data.folderId;
-      recipients = recipients.filter((c) => c.folderId === fid);
+    } else if (parsed.data.folderId) {
+      recipients = recipients.filter((c) => c.folderId === parsed.data.folderId);
     } else if (parsed.data.tag) {
       const tag = parsed.data.tag;
       recipients = recipients.filter((c) => c.tags.includes(tag));
@@ -727,7 +630,7 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
       // Aucun filtre + pas de allSubscribed → on refuse pour éviter d'envoyer
       // accidentellement à TOUTE la base.
       throw new Error(
-        "Sélectionne des contacts, un tag, ou coche \"tous les abonnés\".",
+        "Sélectionne des contacts, un tag, un dossier, ou coche \"tous les abonnés\".",
       );
     }
 
