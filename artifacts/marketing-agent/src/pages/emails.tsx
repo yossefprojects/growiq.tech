@@ -65,6 +65,7 @@ type Campaign = {
   openCount: number;
   clickCount: number;
   sentAt: string | null;
+  errorMessage: string | null;
   createdAt: string;
 };
 
@@ -784,13 +785,18 @@ function StatusBadge({ status }: { status: Campaign["status"] }) {
 function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () => void }) {
   const af = useAuthedFetch();
   const qc = useQueryClient();
-  const isDraft = campaign.status === "draft";
 
   // État édition (brouillons uniquement)
   const [editing, setEditing] = useState(false);
   const [editSubject, setEditSubject] = useState("");
   const [editName, setEditName] = useState("");
   const bodyRef = useRef<HTMLDivElement>(null);
+
+  // État envoi
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [sendFolderId, setSendFolderId] = useState<number | null>(null);
+  const [sendAll, setSendAll] = useState(false);
+  const [confirmSend, setConfirmSend] = useState(false);
 
   // Désactiver le refetch automatique quand on édite pour ne pas écraser les modifs
   const { data } = useQuery<Campaign & { stats?: Record<string, number> }>({
@@ -803,46 +809,92 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
     enabled: !editing,
   });
   const c = data ?? campaign;
-
-  // État envoi
-  const [showSendModal, setShowSendModal] = useState(false);
-  const [sendFolderId, setSendFolderId] = useState<number | null>(null);
-  const [sendAll, setSendAll] = useState(false);
+  const isDraft = c.status === "draft";
+  const isFailed = c.status === "failed";
+  const isSent = c.status === "sent" || c.status === "partially_failed";
 
   const { data: folders = [] } = useQuery<Folder[]>({
     queryKey: ["email-folders"],
     queryFn: () => af("/api/email/folders") as Promise<Folder[]>,
   });
 
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["email-campaign", campaign.id] });
+    qc.invalidateQueries({ queryKey: ["email-campaigns"] });
+  };
+
   const updateCampaign = useMutation({
     mutationFn: (payload: { name?: string; subject?: string; bodyHtml?: string }) =>
       af(`/api/email/campaigns/${campaign.id}`, { method: "PATCH", body: JSON.stringify(payload) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["email-campaign", campaign.id] });
-      qc.invalidateQueries({ queryKey: ["email-campaigns"] });
-      setEditing(false);
-      toast.success("Campagne mise à jour");
-    },
+    onSuccess: () => { invalidateAll(); setEditing(false); toast.success("Campagne mise à jour"); },
     onError: (err: Error) => toast.error(err.message),
   });
 
   const sendCampaign = useMutation({
     mutationFn: (payload: { folderId?: number; allSubscribed?: boolean }) =>
       af(`/api/email/campaigns/${campaign.id}/send`, { method: "POST", body: JSON.stringify(payload) }) as Promise<{ sent: number; failed: number; total: number }>,
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["email-campaign", campaign.id] });
-      qc.invalidateQueries({ queryKey: ["email-campaigns"] });
-      toast.success(`Campagne envoyée : ${data.sent} email(s) envoyé(s)`);
-      setShowSendModal(false);
-    },
+    onSuccess: (d) => { invalidateAll(); toast.success(`Campagne envoyée : ${d.sent} email(s)`); setShowSendModal(false); setConfirmSend(false); },
+    onError: (err: Error) => { toast.error(err.message); setConfirmSend(false); },
+  });
+
+  const duplicateCampaign = useMutation({
+    mutationFn: () => af(`/api/email/campaigns/${campaign.id}/duplicate`, { method: "POST" }) as Promise<Campaign>,
+    onSuccess: () => { invalidateAll(); toast.success("Copie créée en brouillon"); onBack(); },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const resetCampaign = useMutation({
+    mutationFn: () => af(`/api/email/campaigns/${campaign.id}/reset`, { method: "POST" }) as Promise<Campaign>,
+    onSuccess: () => { invalidateAll(); toast.success("Campagne remise en brouillon"); },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const selectedCount = sendAll
+    ? folders.reduce((s, f) => s + f.contactCount, 0)
+    : folders.find((f) => f.id === sendFolderId)?.contactCount ?? 0;
 
   return (
     <div className="space-y-4">
       <button onClick={onBack} className="text-sm text-muted-foreground hover:text-violet-600 flex items-center gap-1">
         <ArrowLeft className="w-4 h-4" /> Retour aux campagnes
       </button>
+
+      {/* Message d'erreur si campagne échouée */}
+      {isFailed && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-red-700">Cette campagne a échoué</p>
+            {c.errorMessage && <p className="text-sm text-red-600 mt-1">{c.errorMessage}</p>}
+            <div className="flex gap-2 mt-3">
+              <Button size="sm" variant="outline" onClick={() => resetCampaign.mutate()} disabled={resetCampaign.isPending}>
+                {resetCampaign.isPending && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+                Remettre en brouillon
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => duplicateCampaign.mutate()} disabled={duplicateCampaign.isPending}>
+                {duplicateCampaign.isPending && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+                Dupliquer en nouveau brouillon
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Actions pour campagnes envoyées */}
+      {isSent && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-green-700">Campagne envoyée</p>
+            <p className="text-sm text-green-600 mt-1">{c.sentCount} envoyé(s), {c.failedCount} échec(s)</p>
+            <Button size="sm" variant="outline" className="mt-3" onClick={() => duplicateCampaign.mutate()} disabled={duplicateCampaign.isPending}>
+              {duplicateCampaign.isPending && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+              Dupliquer en nouveau brouillon
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-card rounded-xl border p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
           {editing ? (
@@ -875,7 +927,7 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
           <div className="flex items-center gap-2 shrink-0">
             <StatusBadge status={c.status} />
             {isDraft && !editing && (
-              <button onClick={() => { setEditName(c.name); setEditSubject(c.subject); setEditBodyHtml(c.bodyHtml); setEditing(true); }} className="text-muted-foreground hover:text-violet-600" title="Modifier">
+              <button onClick={() => { setEditName(c.name); setEditSubject(c.subject); setEditing(true); }} className="text-muted-foreground hover:text-violet-600" title="Modifier">
                 <Pencil className="w-4 h-4" />
               </button>
             )}
@@ -903,7 +955,7 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
                   {folders.map((f) => (
                     <button
                       key={f.id}
-                      onClick={() => { setSendFolderId(f.id); setSendAll(false); }}
+                      onClick={() => { setSendFolderId(f.id); setSendAll(false); setConfirmSend(false); }}
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-sm border transition flex items-center gap-1.5",
                         sendFolderId === f.id && !sendAll ? "bg-violet-600 text-white border-violet-600" : "hover:bg-card",
@@ -913,7 +965,7 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
                     </button>
                   ))}
                   <button
-                    onClick={() => { setSendAll(true); setSendFolderId(null); }}
+                    onClick={() => { setSendAll(true); setSendFolderId(null); setConfirmSend(false); }}
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-sm border transition",
                       sendAll ? "bg-violet-600 text-white border-violet-600" : "hover:bg-card",
@@ -922,22 +974,42 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
                     Tous les abonnés
                   </button>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => sendCampaign.mutate(sendAll ? { allSubscribed: true } : { folderId: sendFolderId! })}
-                    disabled={sendCampaign.isPending || (!sendAll && !sendFolderId)}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    {sendCampaign.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
-                    Confirmer l'envoi
-                  </Button>
-                  <Button variant="ghost" onClick={() => setShowSendModal(false)}>Annuler</Button>
-                </div>
+
+                {/* Résumé + double confirmation */}
+                {(sendAll || sendFolderId) && (
+                  <div className="bg-white rounded-lg border p-3 space-y-2">
+                    <p className="text-sm">
+                      <strong>{selectedCount}</strong> contact(s) recevront l'email
+                      <strong> "{c.subject}"</strong>
+                    </p>
+                    {!confirmSend ? (
+                      <Button onClick={() => setConfirmSend(true)} className="bg-orange-500 hover:bg-orange-600">
+                        Vérifier et confirmer
+                      </Button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => sendCampaign.mutate(sendAll ? { allSubscribed: true } : { folderId: sendFolderId! })}
+                          disabled={sendCampaign.isPending}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          {sendCampaign.isPending && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+                          Oui, envoyer {selectedCount} email(s) maintenant
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmSend(false)}>Non</Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <Button variant="ghost" size="sm" onClick={() => { setShowSendModal(false); setConfirmSend(false); }}>Annuler</Button>
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Aperçu / édition du contenu */}
       <div className="bg-card rounded-xl border p-6 space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm uppercase text-muted-foreground">

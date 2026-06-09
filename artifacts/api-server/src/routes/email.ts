@@ -433,15 +433,84 @@ router.patch("/email/campaigns/:id", async (req, res) => {
     res.status(400).json({ error: "Données invalides" });
     return;
   }
+  // On ne peut modifier que les brouillons
   const [row] = await db
     .update(emailCampaigns)
     .set(parsed.data)
-    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)))
+    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id), eq(emailCampaigns.status, "draft")))
     .returning();
   if (!row) {
+    res.status(404).json({ error: "Campagne introuvable ou déjà envoyée (seuls les brouillons peuvent être modifiés)." });
+    return;
+  }
+  res.json(row);
+});
+
+// ── Dupliquer une campagne en nouveau brouillon ────────────────────────────
+router.post("/email/campaigns/:id/duplicate", async (req, res) => {
+  const userId = uid(req);
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "ID invalide" });
+    return;
+  }
+  const [original] = await db
+    .select()
+    .from(emailCampaigns)
+    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)));
+  if (!original) {
     res.status(404).json({ error: "Campagne introuvable" });
     return;
   }
+  const [copy] = await db
+    .insert(emailCampaigns)
+    .values({
+      userId,
+      name: `${original.name} (copie)`,
+      brief: original.brief,
+      subject: original.subject,
+      bodyHtml: original.bodyHtml,
+      bodyText: original.bodyText,
+      status: "draft",
+      recipientCount: 0,
+      sentCount: 0,
+      failedCount: 0,
+      openCount: 0,
+      clickCount: 0,
+      attachments: original.attachments,
+    })
+    .returning();
+  res.json(copy);
+});
+
+// ── Remettre une campagne échouée en brouillon ─────────────────────────────
+router.post("/email/campaigns/:id/reset", async (req, res) => {
+  const userId = uid(req);
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "ID invalide" });
+    return;
+  }
+  const [row] = await db
+    .update(emailCampaigns)
+    .set({
+      status: "draft" as EmailCampaignStatus,
+      recipientCount: 0,
+      sentCount: 0,
+      failedCount: 0,
+      openCount: 0,
+      clickCount: 0,
+      errorMessage: null,
+      sentAt: null,
+    })
+    .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id), eq(emailCampaigns.status, "failed")))
+    .returning();
+  if (!row) {
+    res.status(404).json({ error: "Campagne introuvable ou pas en état 'échoué'." });
+    return;
+  }
+  // Nettoyer les events précédents
+  await db.delete(emailEvents).where(eq(emailEvents.campaignId, id));
   res.json(row);
 });
 
