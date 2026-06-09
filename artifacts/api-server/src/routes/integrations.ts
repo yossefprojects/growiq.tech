@@ -111,6 +111,8 @@ router.get("/integrations", async (req, res) => {
       fromName: resend?.metadata?.fromName ?? null,
       verifiedAt: resend?.metadata?.verifiedAt ?? null,
       lastErrorMessage: resend?.metadata?.lastErrorMessage ?? null,
+      // Suivi ouvertures/clics actif si l'user a renseigné son secret de webhook
+      webhookConfigured: !!resend?.metadata?.resendWebhookSecret,
     },
     metaAds: {
       platform: "meta_ads",
@@ -175,18 +177,65 @@ router.post("/integrations/resend", async (req, res) => {
     return;
   }
   const { apiKey, fromEmail, fromName } = parsed.data;
+  const userId = uid(req);
+  // Merge metadata pour ne pas écraser un secret de webhook déjà configuré.
+  const existing = await getUserIntegration(userId, "resend");
   await upsertUserIntegration({
-    userId: uid(req),
+    userId,
     platform: "resend",
     accessToken: apiKey,
     accountId: fromEmail,
     accountLabel: fromEmail,
     metadata: {
+      ...existing?.metadata,
       fromEmail,
       fromName: fromName ?? undefined,
     },
     status: "active",
     lastVerifiedAt: null, // pas encore testée
+  });
+  res.json({ ok: true });
+});
+
+// Secret de signature du webhook Resend de l'user (suivi ouvertures/clics).
+// L'user crée un webhook dans SON compte Resend pointant vers /api/webhooks/resend,
+// puis colle ici le "Signing Secret" (whsec_...) pour qu'on vérifie ses events.
+const resendWebhookBodySchema = z.object({
+  secret: z
+    .string()
+    .trim()
+    .min(10, "Secret trop court")
+    .max(200, "Secret trop long")
+    .regex(/^whsec_/, "Un secret de webhook Resend commence par 'whsec_'"),
+});
+
+router.post("/integrations/resend/webhook", async (req, res) => {
+  const parsed = resendWebhookBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_payload", details: parsed.error.issues });
+    return;
+  }
+  const userId = uid(req);
+  const existing = await getUserIntegration(userId, "resend");
+  if (!existing || existing.status !== "active") {
+    res.status(412).json({
+      error:
+        "Connecte d'abord ta propre clé Resend avant d'activer le suivi des ouvertures et des clics.",
+    });
+    return;
+  }
+  await upsertUserIntegration({
+    userId,
+    platform: "resend",
+    accessToken: existing.accessToken,
+    accountId: existing.accountId,
+    accountLabel: existing.accountLabel,
+    metadata: {
+      ...existing.metadata,
+      resendWebhookSecret: parsed.data.secret,
+    },
+    status: "active",
+    lastVerifiedAt: existing.lastVerifiedAt,
   });
   res.json({ ok: true });
 });

@@ -63,6 +63,9 @@ export type UserIntegrationMetadata = {
   fromName?: string;
   // Resend : true si on a réussi à envoyer un email de test depuis cette config
   verifiedAt?: string;
+  // Resend : secret de signature du webhook de l'user (commence par "whsec_").
+  // Permet de vérifier les events ouvertures/clics envoyés par SON compte Resend.
+  resendWebhookSecret?: string;
   // Provider profile display (avatar, name) pour l'UI
   displayName?: string;
   displayAvatarUrl?: string;

@@ -90,6 +90,7 @@ type ResendStatus = {
   fromName: string | null;
   verifiedAt: string | null;
   lastErrorMessage: string | null;
+  webhookConfigured: boolean;
 };
 type MetaAdsStatus = {
   platform: "meta_ads";
@@ -644,21 +645,31 @@ function ResendSection({
   onSave,
   onTest,
   onDisconnect,
+  onSaveWebhook,
   saving,
   testing,
+  savingWebhook,
 }: {
   resend: ResendStatus;
   usage: EmailUsageResponse | undefined;
   onSave: (apiKey: string, fromEmail: string, fromName: string) => void;
   onTest: () => void;
   onDisconnect: () => void;
+  onSaveWebhook: (secret: string) => void;
   saving: boolean;
   testing: boolean;
+  savingWebhook: boolean;
 }) {
   const [apiKey, setApiKey] = useState("");
   const [fromEmail, setFromEmail] = useState("");
   const [fromName, setFromName] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [webhookSecret, setWebhookSecret] = useState("");
+  const [showWebhook, setShowWebhook] = useState(false);
+  const webhookUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/webhooks/resend`
+      : "/api/webhooks/resend";
 
   useEffect(() => {
     if (resend.connected && resend.fromEmail) {
@@ -840,6 +851,125 @@ function ResendSection({
             </div>
           </div>
         )}
+
+        {resend.connected ? (
+          <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium">
+                Suivi des ouvertures et des clics
+              </div>
+              {resend.webhookConfigured ? (
+                <Badge variant="ok">Activé</Badge>
+              ) : (
+                <Badge variant="off">Non activé</Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {resend.webhookConfigured
+                ? "Les ouvertures et clics de tes envois sont comptés et affichés dans la page Emails."
+                : "Active ce suivi pour voir, dans tes statistiques, combien de personnes ouvrent tes emails et cliquent dedans."}
+            </p>
+
+            {!showWebhook ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowWebhook(true)}
+                data-testid="button-resend-webhook-show"
+              >
+                {resend.webhookConfigured
+                  ? "Modifier le suivi"
+                  : "Activer le suivi des stats"}
+              </Button>
+            ) : (
+              <div className="space-y-3 pt-1">
+                <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal pl-4">
+                  <li>
+                    Ouvre la page Webhooks de Resend.{" "}
+                    <a
+                      href="https://resend.com/webhooks"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#5b54d6] hover:underline inline-flex items-center gap-1"
+                    >
+                      Y aller
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </li>
+                  <li>
+                    Clique sur « Add Webhook » et colle cette adresse dans le champ
+                    URL :
+                  </li>
+                  <li>
+                    Coche au minimum les événements{" "}
+                    <code>email.opened</code> et <code>email.clicked</code>, puis
+                    valide.
+                  </li>
+                  <li>
+                    Resend t'affiche un « Signing Secret » qui commence par{" "}
+                    <code>whsec_</code>. Copie-le et colle-le ci-dessous.
+                  </li>
+                </ol>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={webhookUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="text-xs font-mono"
+                    data-testid="input-resend-webhook-url"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(webhookUrl);
+                      toastSuccess("Adresse copiée.");
+                    }}
+                    data-testid="button-resend-webhook-copy"
+                  >
+                    Copier
+                  </Button>
+                </div>
+                <div>
+                  <Label htmlFor="resend-webhook-secret" className="text-xs">
+                    Signing Secret (commence par <code>whsec_</code>)
+                  </Label>
+                  <Input
+                    id="resend-webhook-secret"
+                    type="password"
+                    placeholder="whsec_xxxxxxxxxxxxxxxxxxxx"
+                    value={webhookSecret}
+                    onChange={(e) => setWebhookSecret(e.target.value)}
+                    autoComplete="off"
+                    data-testid="input-resend-webhook-secret"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => onSaveWebhook(webhookSecret)}
+                    disabled={savingWebhook || !webhookSecret}
+                    data-testid="button-resend-webhook-save"
+                  >
+                    {savingWebhook ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : null}
+                    Activer le suivi
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowWebhook(false);
+                      setWebhookSecret("");
+                    }}
+                    data-testid="button-resend-webhook-cancel"
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </Card>
   );
@@ -1274,6 +1404,27 @@ export default function IntegrationsPage() {
     onError: (e: Error) => toastError(e.message),
   });
 
+  const saveResendWebhook = useMutation({
+    mutationFn: async (secret: string) => {
+      const r = await authedFetch(`${basePath}/api/integrations/resend/webhook`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret }),
+      });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? "Échec de l'enregistrement");
+      }
+    },
+    onSuccess: () => {
+      toastSuccess(
+        "Suivi activé. Les ouvertures et clics de tes prochains envois seront comptés.",
+      );
+      void qc.invalidateQueries({ queryKey: ["integrations"] });
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+
   const testResend = useMutation({
     mutationFn: async () => {
       const r = await authedFetch(`${basePath}/api/integrations/resend/test`, {
@@ -1341,6 +1492,7 @@ export default function IntegrationsPage() {
           fromName: null,
           verifiedAt: null,
           lastErrorMessage: null,
+          webhookConfigured: false,
         },
         metaAds: integrationsQ.data.metaAds ?? {
           platform: "meta_ads",
@@ -1431,8 +1583,10 @@ export default function IntegrationsPage() {
               }
               onTest={() => testResend.mutate()}
               onDisconnect={() => disconnect.mutate("resend")}
+              onSaveWebhook={(secret) => saveResendWebhook.mutate(secret)}
               saving={saveResend.isPending}
               testing={testResend.isPending}
+              savingWebhook={saveResendWebhook.isPending}
             />
             <MetaAdsSection
               status={data.metaAds}

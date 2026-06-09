@@ -10,7 +10,7 @@
  *   - Tous les contacts/campagnes sont scopés par userId.
  */
 import { Router, type IRouter, type Request } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   emailContacts,
@@ -314,10 +314,40 @@ router.delete("/email/campaigns/:id", async (req, res) => {
     res.status(400).json({ error: "ID invalide" });
     return;
   }
-  await db
+  // Garde anti-suppression accidentelle : une campagne déjà envoyée (ou en cours
+  // d'envoi) ne peut PAS être supprimée — sinon on perd l'historique et les stats.
+  // Seuls les brouillons et les envois totalement échoués sont supprimables.
+  // Suppression ATOMIQUE : le DELETE filtre directement sur le statut, ce qui
+  // évite une race avec une transition d'envoi (draft -> sending) qui pourrait
+  // se glisser entre un SELECT et un DELETE séparés.
+  const deleted = await db
     .delete(emailCampaigns)
+    .where(
+      and(
+        eq(emailCampaigns.userId, userId),
+        eq(emailCampaigns.id, id),
+        inArray(emailCampaigns.status, ["draft", "failed"]),
+      ),
+    )
+    .returning({ id: emailCampaigns.id });
+  if (deleted.length > 0) {
+    res.json({ ok: true });
+    return;
+  }
+  // Rien supprimé : soit la campagne n'existe pas, soit son statut la protège.
+  const [existing] = await db
+    .select({ status: emailCampaigns.status })
+    .from(emailCampaigns)
     .where(and(eq(emailCampaigns.userId, userId), eq(emailCampaigns.id, id)));
-  res.json({ ok: true });
+  if (!existing) {
+    res.status(404).json({ error: "Campagne introuvable" });
+    return;
+  }
+  res.status(409).json({
+    error:
+      "Cette campagne a déjà été envoyée : elle est conservée dans ton historique et ne peut pas être supprimée.",
+    status: existing.status,
+  });
 });
 
 // ── Expéditeur (adresse "from") ─────────────────────────────────────────────

@@ -370,7 +370,11 @@ function CampaignsTab() {
 
   const deleteCampaign = useMutation({
     mutationFn: (id: number) => af(`/api/email/campaigns/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["email-campaigns"] }),
+    onSuccess: () => {
+      toast.success("Campagne supprimée");
+      void qc.invalidateQueries({ queryKey: ["email-campaigns"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   if (selected) {
@@ -416,16 +420,18 @@ function CampaignsTab() {
                   <Stat icon={<Send className="w-3.5 h-3.5" />} value={c.sentCount} label="Envoi" />
                   <Stat icon={<Eye className="w-3.5 h-3.5" />} value={c.openCount} label="Ouv." />
                   <Stat icon={<MousePointerClick className="w-3.5 h-3.5" />} value={c.clickCount} label="Clics" />
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm(`Supprimer "${c.name}" ?`)) deleteCampaign.mutate(c.id);
-                    }}
-                    className="text-red-600 hover:text-red-300 p-1 cursor-pointer"
-                    aria-label="Supprimer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </span>
+                  {c.status === "draft" || c.status === "failed" ? (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Supprimer "${c.name}" ?`)) deleteCampaign.mutate(c.id);
+                      }}
+                      className="text-red-600 hover:text-red-300 p-1 cursor-pointer"
+                      aria-label="Supprimer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </button>
