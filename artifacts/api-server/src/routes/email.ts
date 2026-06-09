@@ -843,9 +843,16 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
 
     let sent = 0;
     let failed = 0;
-    // Envoi séquentiel pour ne pas saturer Resend (rate limit ~10 req/s).
-    // Pour gros volumes ce serait à passer en queue background.
+    // Envoi séquentiel + throttle pour respecter la limite Resend (2 req/s par
+    // défaut). On espace chaque envoi d'au moins 550 ms (~1.8 req/s) ; en cas de
+    // 429 ponctuel, sendEmail réessaie de son côté avec l'en-tête Retry-After.
+    // Tradeoff : pour de grosses listes l'envoi peut prendre 1-2 min ; un vrai
+    // worker en file d'attente serait nécessaire au-delà de quelques centaines.
+    const SEND_SPACING_MS = 550;
+    let first = true;
     for (const contact of recipients) {
+      if (!first) await new Promise((r) => setTimeout(r, SEND_SPACING_MS));
+      first = false;
       try {
         const personalSubject = replaceMergeTags(campaign.subject, contact);
         const personalText = replaceMergeTags(campaign.bodyText, contact);
