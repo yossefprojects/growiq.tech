@@ -7,8 +7,8 @@
  */
 import { Router, type IRouter } from "express";
 import { Webhook } from "svix";
-import { eq, sql } from "drizzle-orm";
-import { db, emailCampaigns, emailEvents, type EmailEventType } from "@workspace/db";
+import { and, eq, sql } from "drizzle-orm";
+import { db, emailCampaigns, emailContacts, emailEvents, type EmailEventType } from "@workspace/db";
 import { getUserIntegration } from "../lib/user-integrations";
 
 const router: IRouter = Router();
@@ -201,6 +201,17 @@ router.post("/webhooks/resend", async (req, res) => {
         .update(emailCampaigns)
         .set({ clickCount: sql`${emailCampaigns.clickCount} + 1` })
         .where(eq(emailCampaigns.id, campaignId));
+    } else if (eventType === "bounced" || eventType === "complained") {
+      // Auto-unsubscribe: ne plus jamais envoyer à cette adresse
+      await db
+        .update(emailContacts)
+        .set({ subscribed: false })
+        .where(
+          and(
+            eq(emailContacts.userId, campaign.userId),
+            eq(emailContacts.email, String(to).toLowerCase()),
+          ),
+        );
     }
   }
 

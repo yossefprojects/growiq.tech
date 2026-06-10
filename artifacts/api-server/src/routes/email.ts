@@ -80,6 +80,8 @@ router.post("/email/contacts", async (req, res) => {
         firstName: parsed.data.firstName ?? "",
         lastName: parsed.data.lastName ?? "",
         tags: parsed.data.tags ?? [],
+        customFields: parsed.data.customFields ?? {},
+        folderId: parsed.data.folderId ?? null,
         source: parsed.data.source ?? "manual",
       })
       .returning();
@@ -400,6 +402,7 @@ router.post("/email/campaigns/generate", async (req, res) => {
     audience: parsed.data.audience,
     objective: parsed.data.objective,
     tone: parsed.data.tone,
+    style,
   };
   try {
     const ai = await generateEmailWithAI(brief, style);

@@ -109,13 +109,36 @@ const KNOWN_HEADERS: Record<string, "email" | "firstName" | "lastName"> = {
 
 type CsvRow = { email: string; firstName?: string; lastName?: string; customFields?: Record<string, string> };
 
-function parseCsv(text: string): CsvRow[] {
+function parseCsv(rawText: string): CsvRow[] {
+  const text = rawText.replace(/^﻿/, "");
   const lines = text
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
   if (lines.length === 0) return [];
-  const splitRow = (line: string) => line.split(/[,;]/).map((c) => c.replace(/^"|"$/g, "").trim());
+  // Splits a CSV row respecting quoted fields (handles commas/semicolons inside quotes)
+  const splitRow = (line: string): string[] => {
+    const cells: string[] = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]!;
+      if (inQuotes) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') inQuotes = false;
+        else cur += ch;
+      } else if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === "," || ch === ";") {
+        cells.push(cur.trim());
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    cells.push(cur.trim());
+    return cells;
+  };
 
   const first = lines[0]!.toLowerCase();
   const hasHeader = first.includes("email") || first.includes("mail");
@@ -953,6 +976,12 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
     queryFn: () => af("/api/email/folders") as Promise<Folder[]>,
   });
 
+  const { data: allContacts = [] } = useQuery<Contact[]>({
+    queryKey: ["email-contacts"],
+    queryFn: () => af("/api/email/contacts") as Promise<Contact[]>,
+  });
+  const subscribedCount = allContacts.filter((c) => c.subscribed).length;
+
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["email-campaign", campaign.id] });
     qc.invalidateQueries({ queryKey: ["email-campaigns"] });
@@ -985,7 +1014,7 @@ function CampaignDetail({ campaign, onBack }: { campaign: Campaign; onBack: () =
   });
 
   const selectedCount = sendAll
-    ? folders.reduce((s, f) => s + f.contactCount, 0)
+    ? subscribedCount
     : folders.find((f) => f.id === sendFolderId)?.contactCount ?? 0;
 
   return (
