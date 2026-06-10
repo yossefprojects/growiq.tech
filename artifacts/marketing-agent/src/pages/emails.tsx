@@ -188,6 +188,7 @@ function ContactsTab() {
   const [importFolderId, setImportFolderId] = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [pendingCsvRows, setPendingCsvRows] = useState<Array<{ email: string; firstName?: string; lastName?: string }>>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { data: contacts = [], isLoading } = useQuery<Contact[]>({
     queryKey: ["email-contacts"],
@@ -254,6 +255,18 @@ function ContactsTab() {
       qc.invalidateQueries({ queryKey: ["email-contacts"] });
       qc.invalidateQueries({ queryKey: ["email-folders"] });
     },
+  });
+
+  const bulkDeleteContacts = useMutation({
+    mutationFn: (ids: number[]) =>
+      af("/api/email/contacts/bulk-delete", { method: "POST", body: JSON.stringify({ ids }) }) as Promise<{ deleted: number }>,
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["email-contacts"] });
+      qc.invalidateQueries({ queryKey: ["email-folders"] });
+      setSelectedIds(new Set());
+      toast.success(`${data.deleted} contact(s) supprimé(s)`);
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const [showMoveModal, setShowMoveModal] = useState(false);
@@ -599,6 +612,30 @@ function ContactsTab() {
           </div>
         )}
 
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 bg-violet-100 dark:bg-violet-950/40 border border-violet-300 dark:border-violet-700 rounded-xl px-4 py-3">
+            <span className="text-sm font-medium text-violet-800 dark:text-violet-200">
+              {selectedIds.size} sélectionné(s)
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={bulkDeleteContacts.isPending}
+              onClick={() => {
+                if (confirm(`Supprimer ${selectedIds.size} contact(s) définitivement ?`)) {
+                  bulkDeleteContacts.mutate(Array.from(selectedIds));
+                }
+              }}
+            >
+              {bulkDeleteContacts.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Trash2 className="w-4 h-4 mr-1" />}
+              Supprimer la sélection
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              Annuler
+            </Button>
+          </div>
+        )}
+
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
           {isLoading ? (
             <div className="p-10 text-center text-muted-foreground">
@@ -616,6 +653,20 @@ function ContactsTab() {
             <table className="w-full text-sm">
               <thead className="bg-muted text-xs uppercase text-muted-foreground">
                 <tr>
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(new Set(filtered.map((c) => c.id)));
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                      className="accent-violet-600 w-4 h-4 cursor-pointer"
+                    />
+                  </th>
                   <th className="text-left px-4 py-3">Email</th>
                   <th className="text-left px-4 py-3">Prénom</th>
                   <th className="text-left px-4 py-3">Nom</th>
@@ -628,7 +679,19 @@ function ContactsTab() {
                 {filtered.map((c) => {
                   const folder = folders.find((f) => f.id === c.folderId);
                   return (
-                    <tr key={c.id} className="border-t hover:bg-muted">
+                    <tr key={c.id} className={cn("border-t hover:bg-muted", selectedIds.has(c.id) && "bg-violet-50 dark:bg-violet-950/30")}>
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(c.id)}
+                          onChange={(e) => {
+                            const next = new Set(selectedIds);
+                            if (e.target.checked) next.add(c.id); else next.delete(c.id);
+                            setSelectedIds(next);
+                          }}
+                          className="accent-violet-600 w-4 h-4 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-4 py-3 font-medium">{c.email}</td>
                       <td className="px-4 py-3">{c.firstName}</td>
                       <td className="px-4 py-3">{c.lastName}</td>
