@@ -33,6 +33,23 @@ function uid(req: Request): string {
   return (req as AuthedRequest).userId;
 }
 
+// Remplace les merge tags {{NOM_DU_CHAMP}} par les valeurs du contact.
+// Champs spéciaux : PRENOM, NOM, EMAIL. Le reste vient de customFields.
+function replaceMergeTags(
+  text: string,
+  contact: { email: string; firstName: string; lastName: string; customFields?: Record<string, string> },
+): string {
+  const map: Record<string, string> = {
+    PRENOM: contact.firstName,
+    NOM: contact.lastName,
+    EMAIL: contact.email,
+    ...Object.fromEntries(
+      Object.entries(contact.customFields ?? {}).map(([k, v]) => [k.toUpperCase(), v]),
+    ),
+  };
+  return text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => map[key.toUpperCase()] ?? match);
+}
+
 const router: IRouter = Router();
 
 // ── Contacts CRUD ───────────────────────────────────────────────────────────
@@ -86,6 +103,7 @@ const bulkImportSchema = z.object({
         firstName: z.string().max(120).optional(),
         lastName: z.string().max(120).optional(),
         tags: z.array(z.string()).optional(),
+        customFields: z.record(z.string().max(200)).optional(),
       }),
     )
     .min(1)
@@ -117,6 +135,7 @@ router.post("/email/contacts/bulk", async (req, res) => {
     firstName: c.firstName ?? "",
     lastName: c.lastName ?? "",
     tags: c.tags ?? [],
+    customFields: c.customFields ?? {},
     folderId: parsed.data.folderId ?? null,
     source: "csv-import",
   }));
@@ -207,6 +226,26 @@ router.delete("/email/contacts/:id", async (req, res) => {
     .delete(emailContacts)
     .where(and(eq(emailContacts.userId, userId), eq(emailContacts.id, id)));
   res.json({ ok: true });
+});
+
+// Suppression en masse de contacts
+router.post("/email/contacts/bulk-delete", async (req, res) => {
+  const userId = uid(req);
+  const parsed = z.object({ ids: z.array(z.number().int()).min(1).max(5000) }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Liste d'IDs invalide" });
+    return;
+  }
+  const { ids } = parsed.data;
+  let deleted = 0;
+  for (const id of ids) {
+    const [row] = await db
+      .delete(emailContacts)
+      .where(and(eq(emailContacts.userId, userId), eq(emailContacts.id, id)))
+      .returning({ id: emailContacts.id });
+    if (row) deleted++;
+  }
+  res.json({ deleted });
 });
 
 // ── Dossiers de contacts ──────────────────────────────────────────────────
@@ -808,13 +847,16 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
     // Pour gros volumes ce serait à passer en queue background.
     for (const contact of recipients) {
       try {
+        const personalSubject = replaceMergeTags(campaign.subject, contact);
+        const personalText = replaceMergeTags(campaign.bodyText, contact);
+        const personalHtml = campaign.bodyHtml ? replaceMergeTags(campaign.bodyHtml, contact) : undefined;
         const result = await sendEmail({
           to: [contact.email],
-          subject: campaign.subject,
-          body: campaign.bodyText,
-          html: campaign.bodyHtml,
+          subject: personalSubject,
+          body: personalText,
+          html: personalHtml,
           ...(attachments.length > 0 ? { attachments } : {}),
-          userId, // per-user : clé Resend perso ou quota freemium
+          userId,
           tags: [
             { name: "campaign_id", value: String(id) },
             { name: "user_id", value: userId.slice(0, 60) },

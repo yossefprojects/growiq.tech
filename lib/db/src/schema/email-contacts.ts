@@ -14,6 +14,9 @@ export const emailContacts = pgTable(
     lastName: text("last_name").notNull().default(""),
     // Tags libres pour segmenter (ex. "client", "prospect", "newsletter")
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    // Champs personnalisés libres (ex. { "departement": "75", "entreprise": "Acme" }).
+    // Utilisés comme merge tags dans les campagnes : {{DEPARTEMENT}}, {{ENTREPRISE}}, etc.
+    customFields: jsonb("custom_fields").$type<Record<string, string>>().notNull().default({}),
     // Dossier (optionnel) pour organiser les contacts par groupe/enseigne.
     folderId: integer("folder_id"),
     // Désinscription : si false, on n'envoie plus jamais à cet email.
@@ -34,6 +37,7 @@ export const insertEmailContactSchema = createInsertSchema(emailContacts, {
   firstName: z.string().max(120).optional(),
   lastName: z.string().max(120).optional(),
   tags: z.array(z.string().max(60)).max(20).optional(),
+  customFields: z.record(z.string().max(200)).optional(),
 }).omit({
   id: true,
   userId: true,

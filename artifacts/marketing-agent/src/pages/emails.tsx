@@ -46,6 +46,7 @@ type Contact = {
   firstName: string;
   lastName: string;
   tags: string[];
+  customFields: Record<string, string>;
   folderId: number | null;
   subscribed: boolean;
   source: string;
@@ -97,24 +98,71 @@ function useAuthedFetch() {
   };
 }
 
-// ── CSV parsing très simple (1 colonne ou email,prenom,nom) ────────────────
-function parseCsv(text: string): Array<{ email: string; firstName?: string; lastName?: string }> {
+// ── CSV parsing avec colonnes personnalisées ───────────────────────────────
+// Colonnes reconnues : email/mail, prenom/firstname, nom/lastname.
+// Toute autre colonne est traitée comme un champ personnalisé (merge tag).
+const KNOWN_HEADERS: Record<string, "email" | "firstName" | "lastName"> = {
+  email: "email", mail: "email", "e-mail": "email", courriel: "email",
+  prenom: "firstName", prénom: "firstName", firstname: "firstName", "first name": "firstName", "first_name": "firstName",
+  nom: "lastName", lastname: "lastName", "last name": "lastName", "last_name": "lastName",
+};
+
+type CsvRow = { email: string; firstName?: string; lastName?: string; customFields?: Record<string, string> };
+
+function parseCsv(text: string): CsvRow[] {
   const lines = text
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
   if (lines.length === 0) return [];
-  // Détecte la présence d'un header
+  const splitRow = (line: string) => line.split(/[,;]/).map((c) => c.replace(/^"|"$/g, "").trim());
+
   const first = lines[0]!.toLowerCase();
   const hasHeader = first.includes("email") || first.includes("mail");
-  const rows = hasHeader ? lines.slice(1) : lines;
-  const out: Array<{ email: string; firstName?: string; lastName?: string }> = [];
-  for (const line of rows) {
-    const cells = line.split(/[,;]\s*/).map((c) => c.replace(/^"|"$/g, "").trim());
-    const email = cells.find((c) => /@/.test(c));
-    if (!email) continue;
-    const others = cells.filter((c) => c !== email && c.length > 0);
-    out.push({ email, firstName: others[0], lastName: others[1] });
+  if (!hasHeader) {
+    const out: CsvRow[] = [];
+    for (const line of lines) {
+      const cells = splitRow(line);
+      const email = cells.find((c) => /@/.test(c));
+      if (!email) continue;
+      const others = cells.filter((c) => c !== email && c.length > 0);
+      out.push({ email, firstName: others[0], lastName: others[1] });
+    }
+    return out;
+  }
+
+  const headers = splitRow(lines[0]!);
+  const colMap = headers.map((h) => {
+    const norm = h.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+    return KNOWN_HEADERS[norm] ?? null;
+  });
+
+  const out: CsvRow[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = splitRow(lines[i]!);
+    let email = "";
+    let firstName = "";
+    let lastName = "";
+    const customFields: Record<string, string> = {};
+
+    for (let j = 0; j < cells.length; j++) {
+      const val = cells[j]!;
+      if (!val) continue;
+      const mapped = colMap[j];
+      if (mapped === "email") email = val;
+      else if (mapped === "firstName") firstName = val;
+      else if (mapped === "lastName") lastName = val;
+      else if (j < headers.length && headers[j]) {
+        customFields[headers[j]!] = val;
+      }
+    }
+    if (!email || !/@/.test(email)) continue;
+    out.push({
+      email,
+      ...(firstName ? { firstName } : {}),
+      ...(lastName ? { lastName } : {}),
+      ...(Object.keys(customFields).length > 0 ? { customFields } : {}),
+    });
   }
   return out;
 }
@@ -187,7 +235,7 @@ function ContactsTab() {
   const [renameFolderName, setRenameFolderName] = useState("");
   const [importFolderId, setImportFolderId] = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [pendingCsvRows, setPendingCsvRows] = useState<Array<{ email: string; firstName?: string; lastName?: string }>>([]);
+  const [pendingCsvRows, setPendingCsvRows] = useState<CsvRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const { data: contacts = [], isLoading } = useQuery<Contact[]>({
@@ -356,6 +404,14 @@ function ContactsTab() {
   }, [contacts, query, activeFolder]);
 
   const unfolderedCount = contacts.filter((c) => !c.folderId).length;
+
+  const customFieldKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const c of contacts) {
+      for (const k of Object.keys(c.customFields ?? {})) keys.add(k);
+    }
+    return [...keys];
+  }, [contacts]);
 
   return (
     <div className="flex gap-6">
@@ -545,6 +601,16 @@ function ContactsTab() {
         {showImportModal && (
           <div className="bg-card rounded-xl border p-5 space-y-4 shadow-lg">
             <h3 className="font-semibold">Importer {pendingCsvRows.length} contact(s)</h3>
+            {(() => {
+              const allKeys = new Set(pendingCsvRows.flatMap((r) => Object.keys(r.customFields ?? {})));
+              if (allKeys.size === 0) return null;
+              return (
+                <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                  Champs personnalisés détectés : {[...allKeys].map((k) => `{{${k.toUpperCase()}}}`).join(", ")}
+                  {" "}— utilisables comme merge tags dans vos campagnes.
+                </p>
+              );
+            })()}
             <p className="text-sm text-muted-foreground">Dans quel dossier veux-tu importer ces contacts ?</p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -671,6 +737,9 @@ function ContactsTab() {
                   <th className="text-left px-4 py-3">Prénom</th>
                   <th className="text-left px-4 py-3">Nom</th>
                   {activeFolder === null && <th className="text-left px-4 py-3">Dossier</th>}
+                  {customFieldKeys.map((k) => (
+                    <th key={k} className="text-left px-4 py-3">{k}</th>
+                  ))}
                   <th className="text-left px-4 py-3">Source</th>
                   <th className="text-right px-4 py-3">Actions</th>
                 </tr>
@@ -706,6 +775,9 @@ function ContactsTab() {
                           )}
                         </td>
                       )}
+                      {customFieldKeys.map((k) => (
+                        <td key={k} className="px-4 py-3 text-xs">{c.customFields?.[k] ?? "—"}</td>
+                      ))}
                       <td className="px-4 py-3 text-xs text-muted-foreground">{c.source}</td>
                       <td className="px-4 py-3 text-right">
                         <button
