@@ -115,6 +115,22 @@ function buildResendBody(from: string, input: SendEmailInput): Record<string, un
   return body;
 }
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// Resend limite par défaut à 2 requêtes/seconde et renvoie un 429
+// (rate_limit_exceeded) au-delà. On réessaie l'envoi en respectant l'en-tête
+// `Retry-After` (en secondes) si présent, sinon un backoff exponentiel borné.
+const RESEND_MAX_RETRIES = 4;
+
+function rateLimitDelayMs(response: Response, attempt: number): number {
+  const retryAfter = response.headers.get("retry-after");
+  if (retryAfter) {
+    const secs = Number(retryAfter);
+    if (Number.isFinite(secs) && secs > 0) return Math.min(secs * 1000, 10_000);
+  }
+  return Math.min(1000 * 2 ** attempt, 8000);
+}
+
 async function parseResendResponse(
   response: Response,
   from: string,
@@ -135,12 +151,18 @@ async function callResend(
   input: SendEmailInput,
   provider: "resend-user" | "resend-connector" | "resend-env"
 ): Promise<SendEmailResult> {
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(buildResendBody(from, input)),
-  });
-  return parseResendResponse(response, from, provider);
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(buildResendBody(from, input)),
+    });
+    if (response.status === 429 && attempt < RESEND_MAX_RETRIES) {
+      await sleep(rateLimitDelayMs(response, attempt));
+      continue;
+    }
+    return parseResendResponse(response, from, provider);
+  }
 }
 
 // Envoi via le proxy du connecteur Resend (clé injectée par Replit, jamais extraite).
@@ -149,11 +171,17 @@ async function sendViaResendProxy(
   input: SendEmailInput
 ): Promise<SendEmailResult> {
   try {
-    const response = await connectors.proxy("resend", "/emails", {
-      method: "POST",
-      body: buildResendBody(from, input),
-    });
-    return parseResendResponse(response, from, "resend-connector");
+    for (let attempt = 0; ; attempt++) {
+      const response = await connectors.proxy("resend", "/emails", {
+        method: "POST",
+        body: buildResendBody(from, input),
+      });
+      if (response.status === 429 && attempt < RESEND_MAX_RETRIES) {
+        await sleep(rateLimitDelayMs(response, attempt));
+        continue;
+      }
+      return parseResendResponse(response, from, "resend-connector");
+    }
   } catch (err) {
     logger.warn({ err }, "Resend proxy send failed");
     return {

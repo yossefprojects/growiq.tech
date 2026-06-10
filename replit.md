@@ -38,7 +38,7 @@ Un agent AI spécialisé en marketing avec une interface de chat web et une API.
 - `lib/db/src/schema/ad-campaigns.ts` — Suivi des campagnes payantes lancées
 - `artifacts/marketing-agent/src/pages/agency.tsx` — Agence automatique multi-step UI
 - `lib/db/src/schema/agency-campaigns.ts` — Agency campaigns table (brief + plan jsonb)
-- `lib/db/src/schema/email-contacts.ts`, `email-campaigns.ts`, `email-events.ts`, `email-folders.ts` — Emailing (contacts, dossiers, campagnes IA, events Resend avec idempotency)
+- `lib/db/src/schema/email-contacts.ts`, `email-campaigns.ts`, `email-events.ts`, `email-contact-folders.ts` — Emailing (contacts, dossiers, campagnes IA, events Resend avec idempotency)
 - `artifacts/api-server/src/routes/email.ts` — CRUD contacts + génération IA + envoi Resend (atomic status transition, retry-safe)
 - `artifacts/api-server/src/routes/webhooks.ts` — Webhook Resend (raw body + signature Svix + onConflictDoNothing)
 - `artifacts/marketing-agent/src/pages/emails.tsx` — Page Emails (contacts + campagnes avec stats opens/clicks)
