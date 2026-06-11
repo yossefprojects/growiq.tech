@@ -56,7 +56,9 @@ export type UserGoogleAdsCreds = {
   clientSecret: string;
 };
 
-/** Resolve Google Ads credentials for a given user (OAuth token + customer ID). */
+/** Resolve Google Ads credentials for a given user (OAuth token + customer ID).
+ *  If the customer ID is missing, auto-detects it via listAccessibleCustomers
+ *  and persists it so future calls are instant. */
 export async function getUserGoogleAdsCreds(userId: string): Promise<UserGoogleAdsCreds | null> {
   const conn = await getUserIntegration(userId, "google_ads");
   if (!conn || conn.status !== "active" || !conn.refreshToken) return null;
@@ -64,7 +66,39 @@ export async function getUserGoogleAdsCreds(userId: string): Promise<UserGoogleA
   const config = getConfig();
   if (!config.developerToken || !config.clientId || !config.clientSecret) return null;
 
-  const customerId = conn.metadata?.googleAdsCustomerId || config.customerId;
+  let customerId = conn.metadata?.googleAdsCustomerId || config.customerId;
+
+  // Auto-detect customer ID if missing
+  if (!customerId) {
+    const detected = await listAccessibleCustomers({
+      refreshToken: conn.refreshToken,
+      developerToken: config.developerToken,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+    } as any).catch(() => null);
+
+    if (detected?.ok && detected.customerIds.length > 0) {
+      customerId = detected.customerIds[0];
+      logger.info({ userId, customerId, allIds: detected.customerIds }, "Auto-detected Google Ads customer ID");
+      await upsertUserIntegration({
+        userId,
+        platform: "google_ads",
+        accessToken: conn.accessToken,
+        refreshToken: conn.refreshToken,
+        expiresAt: conn.expiresAt,
+        scopes: conn.scopes,
+        accountId: conn.accountId,
+        accountLabel: conn.accountLabel,
+        metadata: {
+          ...conn.metadata,
+          googleAdsCustomerId: customerId,
+          googleAdsAllCustomerIds: detected.customerIds,
+        },
+        status: conn.status,
+      });
+    }
+  }
+
   if (!customerId) return null;
 
   return {
@@ -76,6 +110,48 @@ export async function getUserGoogleAdsCreds(userId: string): Promise<UserGoogleA
     clientId: config.clientId,
     clientSecret: config.clientSecret,
   };
+}
+
+/** List all Google Ads customer IDs accessible by a user (for account selection). */
+export async function getUserAccessibleCustomerIds(userId: string): Promise<string[] | null> {
+  const conn = await getUserIntegration(userId, "google_ads");
+  if (!conn || conn.status !== "active" || !conn.refreshToken) return null;
+
+  if (conn.metadata?.googleAdsAllCustomerIds?.length) {
+    return conn.metadata.googleAdsAllCustomerIds as string[];
+  }
+
+  const config = getConfig();
+  if (!config.developerToken || !config.clientId || !config.clientSecret) return null;
+
+  const result = await listAccessibleCustomers({
+    refreshToken: conn.refreshToken,
+    developerToken: config.developerToken,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+  } as any).catch(() => null);
+
+  return result?.ok ? result.customerIds : null;
+}
+
+/** Set the active Google Ads customer ID for a user. */
+export async function setUserGoogleAdsCustomerId(userId: string, customerId: string): Promise<boolean> {
+  const conn = await getUserIntegration(userId, "google_ads");
+  if (!conn || !conn.refreshToken) return false;
+
+  await upsertUserIntegration({
+    userId,
+    platform: "google_ads",
+    accessToken: conn.accessToken,
+    refreshToken: conn.refreshToken,
+    expiresAt: conn.expiresAt,
+    scopes: conn.scopes,
+    accountId: conn.accountId,
+    accountLabel: conn.accountLabel,
+    metadata: { ...conn.metadata, googleAdsCustomerId: customerId.replace(/-/g, "") },
+    status: conn.status,
+  });
+  return true;
 }
 
 // Per-user token cache: userId → { token, expiresAt }

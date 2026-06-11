@@ -24,6 +24,8 @@ import {
   getGoogleCampaignMetrics,
   getGoogleCampaignMetricsForUser,
   getUserGoogleAdsCreds,
+  getUserAccessibleCustomerIds,
+  setUserGoogleAdsCustomerId,
   type UserGoogleAdsCreds,
 } from "../lib/google-ads";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -72,6 +74,41 @@ router.get("/ads/status", async (req, res) => {
       ? { configured: true, missing: [], userConnected: true }
       : isGoogleAdsConfigured(),
   });
+});
+
+// ── Google Ads: list accessible customer accounts ─────────────────────────
+router.get("/ads/google/accounts", async (req, res): Promise<void> => {
+  const ids = await getUserAccessibleCustomerIds(uid(req));
+  if (!ids) {
+    res.status(503).json({ error: "Connecte d'abord ton compte Google Ads." });
+    return;
+  }
+  const creds = await getUserGoogleAdsCreds(uid(req));
+  res.json({
+    accounts: ids,
+    selected: creds?.customerId ?? null,
+  });
+});
+
+// ── Google Ads: select a customer account ─────────────────────────────────
+router.post("/ads/google/accounts/select", async (req, res): Promise<void> => {
+  const { customerId } = req.body as { customerId?: string };
+  if (!customerId) {
+    res.status(400).json({ error: "customerId requis" });
+    return;
+  }
+  const ids = await getUserAccessibleCustomerIds(uid(req));
+  const cleaned = customerId.replace(/-/g, "");
+  if (!ids?.includes(cleaned)) {
+    res.status(403).json({ error: "Ce compte Google Ads n'est pas accessible avec ton compte." });
+    return;
+  }
+  const ok = await setUserGoogleAdsCustomerId(uid(req), cleaned);
+  if (!ok) {
+    res.status(500).json({ error: "Impossible de sauvegarder le choix." });
+    return;
+  }
+  res.json({ selected: cleaned });
 });
 
 // ── Meta Ads: boost an existing organic post ────────────────────────────────

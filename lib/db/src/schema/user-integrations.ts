@@ -51,8 +51,10 @@ export type UserIntegrationMetadata = {
   }>;
   // Meta Ads : id du compte publicitaire actuellement sélectionné pour booster les posts
   selectedMetaAdAccountId?: string;
-  // Google Ads : customer ID du compte choisi (ex "1234567890"). En attente du Developer Token.
+  // Google Ads : customer ID du compte choisi (ex "1234567890").
   googleAdsCustomerId?: string;
+  // Google Ads : tous les customer IDs accessibles (auto-détectés après OAuth)
+  googleAdsAllCustomerIds?: string[];
   // Google Ads : login customer ID si compte sous MCC
   googleAdsLoginCustomerId?: string;
   // Google Ads : email du compte Google connecté
