@@ -768,47 +768,41 @@ Génère IMMÉDIATEMENT tous les livrables suivants.
 
 RÈGLES DE FORMATAGE ABSOLUES :
 - Chaque post doit être PRÊT À COPIER-COLLER directement sur le réseau social.
-- La caption de chaque post doit être écrite EXACTEMENT comme elle apparaîtra sur le réseau : avec des vrais sauts de ligne (pas \\n écrit en texte), des emojis, des espaces.
-- JAMAIS de markdown dans les captions (pas de **gras**, pas de ##, pas de - listes). Écris en texte brut formaté avec des emojis et des sauts de ligne.
-- Pour la description de l'image : écris une ligne commençant par "🖼️ IMAGE :" suivie d'une description EN ANGLAIS d'une photo réaliste (pas d'illustration, pas de 3D). Inclus le type d'appareil photo, l'objectif, l'éclairage, la composition. Exemple : "🖼️ IMAGE : Photorealistic photograph taken with a Canon EOS R5, 35mm lens, warm natural light. A craftsman working on roof insulation, authentic workshop setting, shallow depth of field."
+- NE METS JAMAIS de description d'image ou de "visuel suggéré" dans le texte. Les images seront générées automatiquement par le système.
+- La caption de chaque post doit être écrite EXACTEMENT comme elle apparaîtra sur le réseau : avec des vrais sauts de ligne, des emojis, des espaces.
+- NE METS AUCUN markdown dans les captions (pas de **gras**, pas de ##). Écris en texte brut avec emojis et sauts de ligne.
 
-📱 6 POSTS PRÊTS À PUBLIER
+## 📱 6 Posts prêts à publier
 
 Pour chaque post, utilise ce format :
 
----
+### Post 1 — [Plateforme] — [Jour et heure]
 
-POST 1 — [PLATEFORME] — [Jour et heure conseillée]
+[Caption prête à copier-coller. Commence par une accroche forte avec emoji. Aère avec des sauts de ligne. Termine par une question ou appel à l'action. NE METS PAS de description d'image.]
 
-🖼️ IMAGE : [description photo réaliste en anglais]
-
-[Caption prête à copier-coller, directement publiable. Commence par une accroche forte avec emoji. Aère avec des sauts de ligne. Termine par une question ou un appel à l'action.]
-
----
-
-STYLE DES CAPTIONS PAR PLATEFORME :
-- Facebook : ton décontracté, tutoiement, questions pour engager, emojis fréquents (🔥💡✅🚀👇), 200-400 caractères
-- Instagram : storytelling, emojis, accroche percutante, 5-8 hashtags pertinents à la fin, 200-500 caractères
-- LinkedIn : ton professionnel mais humain, vouvoiement, phrases percutantes, 2 hashtags max, 300-600 caractères
+STYLE PAR PLATEFORME :
+- Facebook : ton décontracté, tutoiement, questions, emojis (🔥💡✅🚀👇), 200-400 caractères
+- Instagram : storytelling, emojis, accroche percutante, 5-8 hashtags à la fin, 200-500 caractères
+- LinkedIn : ton pro mais humain, vouvoiement, 2 hashtags max, 300-600 caractères
 
 Génère 2 posts Facebook, 2 posts Instagram et 2 posts LinkedIn.
 
-📅 CALENDRIER DE PUBLICATION — 4 semaines
+## 📅 Calendrier de publication — 4 semaines
 
 | Semaine | Lundi | Mercredi | Vendredi |
 |---------|-------|----------|---------|
-(Remplis avec le format, le thème et la plateforme pour chaque jour)
+(Remplis avec le format, le thème et la plateforme)
 
-🎬 3 IDÉES DE REELS / VIDÉOS COURTES
+## 🎬 3 Idées de Reels / Vidéos courtes
 
 Pour chaque : Accroche (3 sec) | Déroulé (30-60s) | CTA final | Son/musique suggéré
 
-💡 5 ASTUCES POUR BOOSTER L'ENGAGEMENT
+## 💡 5 Astuces pour booster l'engagement
 
 Conseils concrets et actionnables, sans jargon.
 
 ---
-Génère TOUT le contenu ci-dessus, complet et prêt à utiliser immédiatement.`,
+Génère TOUT le contenu, complet et prêt à utiliser. NE METS AUCUNE description d'image.`,
 
     email: `Tu es mandaté pour créer une CAMPAGNE E-MAIL COMPLÈTE pour :
 ${baseInfo}
@@ -994,34 +988,34 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
     }
   }
 
-  // For social campaigns, extract image prompts, generate real images, and clean up text
+  // For social campaigns, auto-generate images based on post content
   if (type === "social") {
-    const imageMatches = [...fullResponse.matchAll(/🖼️\s*IMAGE\s*:\s*(.+)/gi)];
-    // Remove image prompt lines from the stored response (they're internal, not user-facing)
-    fullResponse = fullResponse.replace(/🖼️\s*IMAGE\s*:\s*.+/gi, "").replace(/\n{3,}/g, "\n\n");
-    if (imageMatches.length > 0) {
+    // Extract post sections from the generated text
+    const postBlocks = [...fullResponse.matchAll(/###?\s*Post\s*\d+[^\n]*\n([\s\S]*?)(?=###?\s*Post\s*\d+|##\s*📅|##\s*🎬|##\s*💡|$)/gi)];
+    if (postBlocks.length > 0) {
       res.write(`data: ${JSON.stringify({ content: "\n\n---\n\n🎨 **Génération des visuels en cours...** (cela peut prendre 30-60 secondes)\n\n" })}\n\n`);
       const { generateImageBuffer } = await import("@workspace/integrations-openai-ai-server/image");
       const imageGenResults = await Promise.allSettled(
-        imageMatches.slice(0, 6).map(async (match, i) => {
-          const prompt = match[1].trim();
+        postBlocks.slice(0, 6).map(async (match, i) => {
+          const postContent = match[1].trim().slice(0, 300);
+          const prompt = `Photorealistic photograph taken with a Canon EOS R5, 35mm lens, natural lighting. Professional brand photo for social media about: ${postContent}. Style: authentic editorial photography, warm tones, shallow depth of field. No text, no watermarks, no logos, no overlays. Must look like a real photograph.`;
           const buf = await generateImageBuffer(prompt, "1024x1024", "high");
           const uploaded = await uploadPublicBuffer(buf, { ext: "png", contentType: "image/png" });
-          return { index: i, prompt, url: uploaded.publicUrl };
+          return { index: i, url: uploaded.publicUrl };
         })
       );
       let imageSection = "";
       for (let i = 0; i < imageGenResults.length; i++) {
         const r = imageGenResults[i];
         if (r.status === "fulfilled" && r.value.url) {
-          imageSection += `**Post ${i + 1}** :\n\n![Post ${i + 1}](${r.value.url})\n\n`;
-        } else {
-          imageSection += `**Post ${i + 1}** : ⚠️ Génération échouée\n\n`;
+          imageSection += `### 📸 Visuel Post ${i + 1}\n\n![Post ${i + 1}](${r.value.url})\n\n`;
         }
       }
-      const imagesContent = `\n\n---\n\n## 🖼️ Visuels générés pour tes posts\n\n${imageSection}`;
-      fullResponse += imagesContent;
-      res.write(`data: ${JSON.stringify({ content: imagesContent })}\n\n`);
+      if (imageSection) {
+        const imagesContent = `\n\n---\n\n## 🖼️ Visuels générés pour tes posts\n\n${imageSection}`;
+        fullResponse += imagesContent;
+        res.write(`data: ${JSON.stringify({ content: imagesContent })}\n\n`);
+      }
     }
   }
 
