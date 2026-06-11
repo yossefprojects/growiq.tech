@@ -13,7 +13,7 @@ import facebookRouter, { publicFacebookRouter } from "./facebook-oauth";
 import googleRouter, { publicGoogleRouter } from "./google-oauth";
 import integrationsRouter from "./integrations";
 import manualIntegrationsRouter from "./manual-integrations";
-import emailRouter from "./email";
+import emailRouter, { publicEmailRouter } from "./email";
 import webhooksRouter from "./webhooks";
 import contactRouter from "./contact";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
@@ -29,6 +29,7 @@ router.use(publicFacebookRouter);
 router.use(publicGoogleRouter);
 router.use(webhooksRouter);
 router.use(contactRouter);
+router.use(publicEmailRouter);
 
 // Authenticated (any signed-in user can read their own profile)
 router.use(meRouter);

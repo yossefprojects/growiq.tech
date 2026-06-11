@@ -9,6 +9,7 @@
  *     mais l'envoi est immédiat.
  *   - Tous les contacts/campagnes sont scopés par userId.
  */
+import crypto from "node:crypto";
 import { Router, type IRouter, type Request } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
 import {
@@ -51,6 +52,7 @@ function replaceMergeTags(
 }
 
 const router: IRouter = Router();
+export const publicEmailRouter: IRouter = Router();
 
 // ── Contacts CRUD ───────────────────────────────────────────────────────────
 
@@ -859,12 +861,15 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
       try {
         const personalSubject = replaceMergeTags(campaign.subject, contact);
         const personalText = replaceMergeTags(campaign.bodyText, contact);
-        const personalHtml = campaign.bodyHtml ? replaceMergeTags(campaign.bodyHtml, contact) : undefined;
+        const unsubUrl = buildUnsubscribeUrl(contact.email, userId);
+        let personalHtml = campaign.bodyHtml ? replaceMergeTags(campaign.bodyHtml, contact) : undefined;
+        if (personalHtml) personalHtml = appendUnsubscribeFooter(personalHtml, unsubUrl);
         const result = await sendEmail({
           to: [contact.email],
           subject: personalSubject,
-          body: personalText,
+          body: personalText + `\n\n---\nSe désinscrire : ${unsubUrl}`,
           html: personalHtml,
+          unsubscribeUrl: unsubUrl,
           ...(attachments.length > 0 ? { attachments } : {}),
           userId,
           tags: [
@@ -940,5 +945,80 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
     }
   }
 });
+
+// ── Unsubscribe (public, no auth) ───────────────────────────────────────
+
+function unsubSecret(): string {
+  return process.env["SESSION_SECRET"] || "growiq-unsub-fallback";
+}
+
+function signUnsubscribe(email: string, userId: string): string {
+  const payload = Buffer.from(JSON.stringify({ e: email, u: userId })).toString("base64url");
+  const sig = crypto.createHmac("sha256", unsubSecret()).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
+}
+
+function verifyUnsubscribe(token: string): { email: string; userId: string } | null {
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [payload, sig] = parts;
+  const expected = crypto.createHmac("sha256", unsubSecret()).update(payload!).digest("base64url");
+  if (sig !== expected) return null;
+  try {
+    const data = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8")) as { e: string; u: string };
+    return { email: data.e, userId: data.u };
+  } catch {
+    return null;
+  }
+}
+
+export function buildUnsubscribeUrl(email: string, userId: string, baseUrl?: string): string {
+  const token = signUnsubscribe(email, userId);
+  const base = baseUrl || process.env["PUBLIC_URL"] || "https://growiq.tech";
+  return `${base}/api/email/unsubscribe?token=${encodeURIComponent(token)}`;
+}
+
+export function appendUnsubscribeFooter(html: string, unsubUrl: string): string {
+  const footer = `<div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;font-size:12px;color:#9ca3af;">
+<p>Vous recevez cet email car vous êtes dans notre liste de contacts.</p>
+<p><a href="${unsubUrl}" style="color:#6b7280;text-decoration:underline;">Se désinscrire</a></p>
+</div>`;
+  if (html.includes("</body>")) return html.replace("</body>", `${footer}</body>`);
+  return html + footer;
+}
+
+// Public route — no auth required (link clicked from email)
+publicEmailRouter.get("/email/unsubscribe", async (req, res) => {
+  const token = typeof req.query["token"] === "string" ? req.query["token"] : "";
+  const verified = verifyUnsubscribe(token);
+  if (!verified) {
+    res.status(400).send(unsubPage("Lien invalide ou expiré.", false));
+    return;
+  }
+  const updated = await db
+    .update(emailContacts)
+    .set({ subscribed: false })
+    .where(
+      and(
+        eq(emailContacts.userId, verified.userId),
+        eq(emailContacts.email, verified.email.toLowerCase()),
+      ),
+    )
+    .returning({ id: emailContacts.id });
+  if (updated.length > 0) {
+    res.send(unsubPage("Vous avez été désinscrit(e) avec succès. Vous ne recevrez plus d'emails de notre part.", true));
+  } else {
+    res.send(unsubPage("Cette adresse n'est pas dans notre liste ou est déjà désinscrite.", true));
+  }
+});
+
+function unsubPage(message: string, success: boolean): string {
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Désinscription</title>
+<style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f9fafb;}
+.card{max-width:420px;padding:2rem;text-align:center;background:#fff;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+.icon{font-size:3rem;margin-bottom:1rem;}
+p{color:#374151;line-height:1.6;}</style></head>
+<body><div class="card"><div class="icon">${success ? "✅" : "⚠️"}</div><p>${message}</p></div></body></html>`;
+}
 
 export default router;
