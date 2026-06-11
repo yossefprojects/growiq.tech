@@ -47,8 +47,8 @@ interface ExtractedPost {
 
 function extractPosts(raw: string): ExtractedPost[] {
   const posts: ExtractedPost[] = [];
-  // Match headers like "### Post 1 — Facebook — Lundi 9h00" or "POST 1 — FACEBOOK — Mardi 8h30"
-  const postRegex = /(?:#{1,3}\s*)?Post\s*(\d+)\s*—\s*(\w+)\s*—\s*([^\n]*)/gi;
+  // Match headers like "### Post 1 — Facebook — Lundi 9h00" or "POST 1 - FACEBOOK - Mardi 8h30"
+  const postRegex = /(?:#{1,3}\s*)?Post\s*(\d+)\s*[—–\-]\s*([A-Za-zÀ-ÿ]+)\s*[—–\-]\s*([^\n]*)/gi;
   const matches = [...raw.matchAll(postRegex)];
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i];
@@ -63,8 +63,8 @@ function extractPosts(raw: string): ExtractedPost[] {
       .replace(/\*\*/g, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
-    // Stop at calendar/reels/tips sections
-    const sectionBreak = caption.search(/^##?\s*📅|^##?\s*🎬|^##?\s*💡|^##?\s*🖼️/m);
+    // Stop at calendar/reels/tips/images sections
+    const sectionBreak = caption.search(/^(?:#{1,3}\s*)?📅|^(?:#{1,3}\s*)?🎬|^(?:#{1,3}\s*)?💡|^(?:#{1,3}\s*)?🖼️|^CALENDRIER|^IDÉES DE REELS|^ASTUCES/mi);
     if (sectionBreak > 0) caption = caption.slice(0, sectionBreak).trim();
     if (caption.length > 10) {
       const platform = match[2].trim().toLowerCase();
