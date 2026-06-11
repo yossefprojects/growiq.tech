@@ -352,6 +352,18 @@ Tu peux exécuter de vraies actions marketing pour l'utilisateur (pas seulement 
 - **Créer des pages de capture de leads** publiques
 
 Quand l'utilisateur veut publier sur Facebook ou Instagram, propose-lui d'utiliser la boîte à outils (bouton « Programmer ») ou le bouton « Publier maintenant ». Instagram exige une image accessible publiquement (URL HTTPS).
+
+## STYLE DES POSTS SOCIAUX
+
+Quand tu rédiges un post pour les réseaux sociaux, écris TOUJOURS un texte VIVANT et AUTHENTIQUE :
+- Des sauts de ligne pour aérer (jamais un bloc de texte compact)
+- Des emojis pertinents en début de ligne ou dans le texte (🔥💡✅🚀👇📌🎯💬⚡🙌)
+- Un ton conversationnel, humain, comme si tu parlais à un ami
+- Structure : Accroche forte (1 ligne qui interpelle) → Corps (2-3 phrases qui racontent ou posent un problème) → Question ou CTA engageant
+- Facebook : décontracté, questions ouvertes, emojis
+- Instagram : storytelling, emojis, 5-10 hashtags à la fin
+- LinkedIn : professionnel mais humain, vouvoiement, 2 hashtags max
+- ÉVITER : le ton corporate/robotique, les phrases plates, les formulations génériques type "Nous sommes ravis de..."
 `;
 
 router.get("/openai/conversations", async (req, res): Promise<void> => {
@@ -755,7 +767,16 @@ ${baseInfo}
 Génère IMMÉDIATEMENT tous les livrables suivants :
 
 ## 📱 10 Posts Prêts à Publier
-Pour chaque post : Plateforme | Visuel suggéré | Caption complète | Hashtags (20-30) | Heure conseillée
+Pour chaque post : Plateforme | Visuel suggéré | Caption complète | Hashtags (si Instagram, 5-10 max) | Heure conseillée
+
+IMPORTANT pour les captions : écris des textes VIVANTS et AUTHENTIQUES, pas du contenu corporate. Utilise :
+- Des sauts de ligne pour aérer (pas de blocs compacts)
+- Des emojis en début de ligne ou dans le texte (🔥💡✅🚀👇📌🎯💬)
+- Un ton conversationnel comme si tu parlais à un ami
+- Structure : Accroche forte → Corps qui raconte une histoire → Question ou CTA engageant
+- Facebook : ton décontracté, questions pour engager, emojis
+- Instagram : storytelling, emojis, 5-10 hashtags à la fin
+- LinkedIn : ton professionnel mais humain, vouvoiement, 2 hashtags max
 
 ## 🎬 5 Scripts Reels / TikTok
 Pour chaque : Accroche (3 sec) | Déroulé (30-60s) | CTA final | Son/musique suggéré
@@ -2019,7 +2040,7 @@ Tu produis UN SEUL objet JSON valide (sans markdown, sans texte autour) :
       "id": "p1",
       "channel": "facebook" ou "instagram" ou "linkedin",
       "scheduledFor": "ISO-8601 datetime dans les 7 prochains jours, JAMAIS dans le passé",
-      "copy": "texte du message (200-400 caractères, ton adapté au réseau, 1-2 emojis pertinents et 2-4 hashtags si Instagram ; sur LinkedIn ton plus professionnel et posé, peu ou pas d'emojis, vouvoiement, pas de hashtags excessifs)",
+      "copy": "texte du message VIVANT et AUTHENTIQUE (300-600 caractères). OBLIGATOIRE : utiliser des sauts de ligne (\\n\\n) pour aérer le texte, des emojis pertinents en début de ligne ou dans le texte (🔥💡✅🚀👇📌🎯💬), un ton conversationnel comme si tu parlais à un ami. Structure type :\\n- Accroche forte (1 ligne qui interpelle)\\n\\n- Corps du message (2-3 phrases qui racontent une histoire ou posent un problème)\\n\\n- Appel à l'action (question ou invitation à commenter/cliquer)\\n\\nPour Instagram : 3-5 hashtags pertinents à la fin.\\nPour LinkedIn : ton professionnel mais humain, vouvoiement, pas de hashtags excessifs (2 max).\\nPour Facebook : ton décontracté, émojis, questions pour engager.\\nÉVITER : le ton corporate/robotique, les phrases plates, les blocs de texte sans respiration.",
       "imagePrompt": "ENGLISH description for photorealistic image generation. Must describe a real photograph (not illustration/3D/cartoon). Include: camera type (e.g. Canon EOS R5), lens (e.g. 35mm), lighting (natural/studio), specific scene composition, colors, mood. NEVER include text/logos/watermarks in the image. Example: 'Photorealistic photograph taken with a Sony A7III, 50mm f/1.8 lens, warm natural afternoon light. A barista pouring latte art in a cozy modern café, shallow depth of field, warm earth tones.'"
     }
   ],
