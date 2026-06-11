@@ -179,7 +179,7 @@ function parseCsv(rawText: string): CsvRow[] {
         customFields[headers[j]!] = val;
       }
     }
-    if (!email || !/@/.test(email)) continue;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) continue;
     out.push({
       email,
       ...(firstName ? { firstName } : {}),

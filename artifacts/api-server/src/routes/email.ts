@@ -36,11 +36,16 @@ function uid(req: Request): string {
 
 // Remplace les merge tags {{NOM_DU_CHAMP}} par les valeurs du contact.
 // Champs spéciaux : PRENOM, NOM, EMAIL. Le reste vient de customFields.
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 function replaceMergeTags(
   text: string,
   contact: { email: string; firstName: string; lastName: string; customFields?: Record<string, string> },
+  forHtml = false,
 ): string {
-  const map: Record<string, string> = {
+  const raw: Record<string, string> = {
     PRENOM: contact.firstName,
     NOM: contact.lastName,
     EMAIL: contact.email,
@@ -48,7 +53,11 @@ function replaceMergeTags(
       Object.entries(contact.customFields ?? {}).map(([k, v]) => [k.toUpperCase(), v]),
     ),
   };
-  return text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => map[key.toUpperCase()] ?? match);
+  return text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => {
+    const val = raw[key.toUpperCase()];
+    if (val === undefined) return match;
+    return forHtml ? escapeHtml(val) : val;
+  });
 }
 
 const router: IRouter = Router();
@@ -826,7 +835,7 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
 
     await db
       .update(emailCampaigns)
-      .set({ recipientCount: (campaign.recipientCount ?? 0) + recipients.length })
+      .set({ recipientCount: alreadySent.size + recipients.length })
       .where(eq(emailCampaigns.id, id));
 
     // Pièces jointes : on les télécharge UNE fois depuis le bucket et on les
@@ -862,7 +871,7 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
         const personalSubject = replaceMergeTags(campaign.subject, contact);
         const personalText = replaceMergeTags(campaign.bodyText, contact);
         const unsubUrl = buildUnsubscribeUrl(contact.email, userId);
-        let personalHtml = campaign.bodyHtml ? replaceMergeTags(campaign.bodyHtml, contact) : undefined;
+        let personalHtml = campaign.bodyHtml ? replaceMergeTags(campaign.bodyHtml, contact, true) : undefined;
         if (personalHtml) personalHtml = appendUnsubscribeFooter(personalHtml, unsubUrl);
         const result = await sendEmail({
           to: [contact.email],
@@ -919,8 +928,8 @@ router.post("/email/campaigns/:id/send", async (req, res) => {
       .update(emailCampaigns)
       .set({
         status: finalStatus,
-        sentCount: (campaign.sentCount ?? 0) + sent,
-        failedCount: (campaign.failedCount ?? 0) + failed,
+        sentCount: alreadySent.size + sent,
+        failedCount: failed,
         sentAt: new Date(),
         errorMessage: failed > 0 ? `${failed} envoi(s) ont échoué.` : null,
       })
@@ -952,8 +961,10 @@ function unsubSecret(): string {
   return process.env["SESSION_SECRET"] || "growiq-unsub-fallback";
 }
 
+const UNSUB_TTL_SECONDS = 90 * 24 * 60 * 60; // 90 days
+
 function signUnsubscribe(email: string, userId: string): string {
-  const payload = Buffer.from(JSON.stringify({ e: email, u: userId })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ e: email, u: userId, t: Math.floor(Date.now() / 1000) })).toString("base64url");
   const sig = crypto.createHmac("sha256", unsubSecret()).update(payload).digest("base64url");
   return `${payload}.${sig}`;
 }
@@ -965,7 +976,8 @@ function verifyUnsubscribe(token: string): { email: string; userId: string } | n
   const expected = crypto.createHmac("sha256", unsubSecret()).update(payload!).digest("base64url");
   if (sig !== expected) return null;
   try {
-    const data = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8")) as { e: string; u: string };
+    const data = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8")) as { e: string; u: string; t?: number };
+    if (data.t && Math.floor(Date.now() / 1000) - data.t > UNSUB_TTL_SECONDS) return null;
     return { email: data.e, userId: data.u };
   } catch {
     return null;
