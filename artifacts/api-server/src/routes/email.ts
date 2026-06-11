@@ -107,7 +107,7 @@ const bulkImportSchema = z.object({
         firstName: z.string().max(120).optional(),
         lastName: z.string().max(120).optional(),
         tags: z.array(z.string()).optional(),
-        customFields: z.record(z.string().max(200)).optional(),
+        customFields: z.record(z.string(), z.string().max(200)).optional(),
       }),
     )
     .min(1)

@@ -37,7 +37,7 @@ export const insertEmailContactSchema = createInsertSchema(emailContacts, {
   firstName: z.string().max(120).optional(),
   lastName: z.string().max(120).optional(),
   tags: z.array(z.string().max(60)).max(20).optional(),
-  customFields: z.record(z.string().max(200)).optional(),
+  customFields: z.record(z.string(), z.string().max(200)).optional(),
 }).omit({
   id: true,
   userId: true,
