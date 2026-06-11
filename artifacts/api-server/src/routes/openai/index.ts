@@ -994,13 +994,14 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
     }
   }
 
-  // For social campaigns, extract image prompts and generate real images
+  // For social campaigns, extract image prompts, generate real images, and clean up text
   if (type === "social") {
     const imageMatches = [...fullResponse.matchAll(/🖼️\s*IMAGE\s*:\s*(.+)/gi)];
+    // Remove image prompt lines from the stored response (they're internal, not user-facing)
+    fullResponse = fullResponse.replace(/🖼️\s*IMAGE\s*:\s*.+/gi, "").replace(/\n{3,}/g, "\n\n");
     if (imageMatches.length > 0) {
       res.write(`data: ${JSON.stringify({ content: "\n\n---\n\n🎨 **Génération des visuels en cours...** (cela peut prendre 30-60 secondes)\n\n" })}\n\n`);
       const { generateImageBuffer } = await import("@workspace/integrations-openai-ai-server/image");
-      const imageResults: { index: number; prompt: string; url?: string }[] = [];
       const imageGenResults = await Promise.allSettled(
         imageMatches.slice(0, 6).map(async (match, i) => {
           const prompt = match[1].trim();
@@ -1013,7 +1014,6 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
       for (let i = 0; i < imageGenResults.length; i++) {
         const r = imageGenResults[i];
         if (r.status === "fulfilled" && r.value.url) {
-          imageResults.push(r.value);
           imageSection += `**Post ${i + 1}** :\n\n![Post ${i + 1}](${r.value.url})\n\n`;
         } else {
           imageSection += `**Post ${i + 1}** : ⚠️ Génération échouée\n\n`;

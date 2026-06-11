@@ -39,15 +39,31 @@ interface CampaignActionsProps {
   title?: string;
 }
 
+function cleanContentForShare(raw: string): string {
+  return raw
+    .replace(/🖼️\s*IMAGE\s*:\s*.+/gi, "")
+    .replace(/^---$/gm, "")
+    .replace(/^POST \d+\s*—\s*.+$/gmi, "")
+    .replace(/^Voici une campagne .+$/gmi, "")
+    .replace(/^## 🖼️ Visuels générés.+$/gmi, "")
+    .replace(/^\*\*Post \d+\*\*\s*:?\s*$/gmi, "")
+    .replace(/^!\[Post \d+\]\(.+\)$/gm, "")
+    .replace(/🎨\s*\*\*Génération des visuels.+$/gmi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function CampaignActions({ content, title = "Campagne marketing" }: CampaignActionsProps) {
   const [emailOpen, setEmailOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [landingOpen, setLandingOpen] = useState(false);
 
+  const cleanContent = cleanContentForShare(content);
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(cleanContent);
       toast.success("Contenu copié dans le presse-papier");
     } catch {
       toast.error("Impossible de copier");
@@ -80,8 +96,8 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
 
   // Web intents — public URL templates that work for any user without OAuth
   const shareText = (platform: string) => {
-    const text = content.slice(0, 280);
-    const longText = content.slice(0, 2000);
+    const text = cleanContent.slice(0, 280);
+    const longText = cleanContent.slice(0, 2000);
     const encoded = encodeURIComponent(text);
     const encodedLong = encodeURIComponent(longText);
     const encodedTitle = encodeURIComponent(title);
@@ -101,7 +117,7 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
 
   const handleInstagram = async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(cleanContent);
       toast.success("Contenu copié ! Ouvre Instagram et colle le texte dans ta publication.", {
         action: { label: "Ouvrir", onClick: () => window.open("https://www.instagram.com/", "_blank") },
         duration: 6000,
@@ -113,7 +129,7 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
 
   const handleTikTok = async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(cleanContent);
       toast.success("Contenu copié ! Ouvre TikTok et colle dans la description.", {
         action: { label: "Ouvrir", onClick: () => window.open("https://www.tiktok.com/upload", "_blank") },
         duration: 6000,
@@ -125,7 +141,7 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
 
   const handleEmailQuick = () => {
     const subject = encodeURIComponent(title);
-    const body = encodeURIComponent(content.slice(0, 5000));
+    const body = encodeURIComponent(cleanContent.slice(0, 5000));
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
