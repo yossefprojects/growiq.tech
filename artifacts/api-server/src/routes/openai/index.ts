@@ -1127,8 +1127,8 @@ router.post("/scheduled-posts", async (req, res): Promise<void> => {
     try {
       const { generateImageBuffer } = await import("@workspace/integrations-openai-ai-server/image");
       const promptSeed = content.slice(0, 400);
-      const visualPrompt = `Visuel pour réseaux sociaux, style photo professionnelle, ambiance moderne et engageante. Sujet : ${promptSeed}. Pas de texte sur l'image.`;
-      const buffer = await generateImageBuffer(visualPrompt, "1024x1024");
+      const visualPrompt = `Photorealistic photograph taken with a Canon EOS R5, 35mm lens, natural lighting. The scene depicts: ${promptSeed}. Style: authentic editorial photography for a professional social media brand. The image must look like a real photograph taken by a professional photographer — not AI-generated, not illustrated, not 3D rendered. No text, no watermarks, no logos, no overlays. Shallow depth of field, natural colors, realistic skin textures if people are present.`;
+      const buffer = await generateImageBuffer(visualPrompt, "1024x1024", "high");
       const uploaded = await uploadPublicBuffer(buffer, { ext: "png", contentType: "image/png" });
       finalMeta["imageUrl"] = uploaded.publicUrl;
       req.log.info({ url: uploaded.publicUrl }, "Auto-generated social image");
@@ -2020,7 +2020,7 @@ Tu produis UN SEUL objet JSON valide (sans markdown, sans texte autour) :
       "channel": "facebook" ou "instagram" ou "linkedin",
       "scheduledFor": "ISO-8601 datetime dans les 7 prochains jours, JAMAIS dans le passé",
       "copy": "texte du message (200-400 caractères, ton adapté au réseau, 1-2 emojis pertinents et 2-4 hashtags si Instagram ; sur LinkedIn ton plus professionnel et posé, peu ou pas d'emojis, vouvoiement, pas de hashtags excessifs)",
-      "imagePrompt": "description ANGLAISE détaillée pour générer un visuel carré professionnel (photo réaliste, pas de texte sur l'image)"
+      "imagePrompt": "ENGLISH description for photorealistic image generation. Must describe a real photograph (not illustration/3D/cartoon). Include: camera type (e.g. Canon EOS R5), lens (e.g. 35mm), lighting (natural/studio), specific scene composition, colors, mood. NEVER include text/logos/watermarks in the image. Example: 'Photorealistic photograph taken with a Sony A7III, 50mm f/1.8 lens, warm natural afternoon light. A barista pouring latte art in a cozy modern café, shallow depth of field, warm earth tones.'"
     }
   ],
   "recommendations": ["3 à 5 astuces TRÈS courtes et concrètes, sans jargon"],
@@ -2115,7 +2115,7 @@ function normalizePlan(raw: unknown): AgencyPlan {
         channel: ch,
         scheduledFor: clampFutureDate(cap(po["scheduledFor"], 50), (idx + 1) * 24),
         copy: cap(po["copy"], 1200) || "(message manquant)",
-        imagePrompt: cap(po["imagePrompt"], 800) || "Professional marketing photo, modern style",
+        imagePrompt: cap(po["imagePrompt"], 800) || "Photorealistic photograph taken with a Canon EOS R5, 50mm lens, natural soft lighting. Professional brand lifestyle scene, authentic and editorial. No text, no logos, no watermarks.",
       };
     }),
     recommendations,
@@ -2186,7 +2186,7 @@ router.post("/agency/generate", async (req, res): Promise<void> => {
   const { generateImageBuffer } = await import("@workspace/integrations-openai-ai-server/image");
   const imageResults = await Promise.allSettled(
     plan.posts.map(async (p) => {
-      const buf = await generateImageBuffer(p.imagePrompt, "1024x1024");
+      const buf = await generateImageBuffer(p.imagePrompt, "1024x1024", "high");
       const uploaded = await uploadPublicBuffer(buf, { ext: "png", contentType: "image/png" });
       return uploaded.publicUrl;
     })

@@ -29,12 +29,14 @@ export type ImageSize =
 
 export async function generateImageBuffer(
   prompt: string,
-  size: ImageSize = "1024x1024"
+  size: ImageSize = "1024x1024",
+  quality: "low" | "medium" | "high" = "high",
 ): Promise<Buffer> {
   const response = await openai.images.generate({
     model: "gpt-image-1",
     prompt,
     size: size as "1024x1024",
+    quality,
   });
   const base64 = response.data?.[0]?.b64_json ?? "";
   return Buffer.from(base64, "base64");
