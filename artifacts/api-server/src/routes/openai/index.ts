@@ -764,34 +764,51 @@ Génère TOUT le contenu ci-dessus, complet et actionnable.`,
 
     social: `Tu es mandaté pour créer une CAMPAGNE RÉSEAUX SOCIAUX COMPLÈTE pour :
 ${baseInfo}
-Génère IMMÉDIATEMENT tous les livrables suivants :
+Génère IMMÉDIATEMENT tous les livrables suivants.
 
-## 📱 10 Posts Prêts à Publier
-Pour chaque post : Plateforme | Visuel suggéré | Caption complète | Hashtags (si Instagram, 5-10 max) | Heure conseillée
+RÈGLES DE FORMATAGE ABSOLUES :
+- Chaque post doit être PRÊT À COPIER-COLLER directement sur le réseau social.
+- La caption de chaque post doit être écrite EXACTEMENT comme elle apparaîtra sur le réseau : avec des vrais sauts de ligne (pas \\n écrit en texte), des emojis, des espaces.
+- JAMAIS de markdown dans les captions (pas de **gras**, pas de ##, pas de - listes). Écris en texte brut formaté avec des emojis et des sauts de ligne.
+- Pour la description de l'image : écris une ligne commençant par "🖼️ IMAGE :" suivie d'une description EN ANGLAIS d'une photo réaliste (pas d'illustration, pas de 3D). Inclus le type d'appareil photo, l'objectif, l'éclairage, la composition. Exemple : "🖼️ IMAGE : Photorealistic photograph taken with a Canon EOS R5, 35mm lens, warm natural light. A craftsman working on roof insulation, authentic workshop setting, shallow depth of field."
 
-IMPORTANT pour les captions : écris des textes VIVANTS et AUTHENTIQUES, pas du contenu corporate. Utilise :
-- Des sauts de ligne pour aérer (pas de blocs compacts)
-- Des emojis en début de ligne ou dans le texte (🔥💡✅🚀👇📌🎯💬)
-- Un ton conversationnel comme si tu parlais à un ami
-- Structure : Accroche forte → Corps qui raconte une histoire → Question ou CTA engageant
-- Facebook : ton décontracté, questions pour engager, emojis
-- Instagram : storytelling, emojis, 5-10 hashtags à la fin
-- LinkedIn : ton professionnel mais humain, vouvoiement, 2 hashtags max
+📱 6 POSTS PRÊTS À PUBLIER
 
-## 🎬 5 Scripts Reels / TikTok
-Pour chaque : Accroche (3 sec) | Déroulé (30-60s) | CTA final | Son/musique suggéré
-
-## 📅 Calendrier de Publication — 30 jours
-Tableau : Semaine | Lundi | Mercredi | Vendredi | Samedi | Format | Thème
-
-## 💬 3 Idées de Carrousels / Stories Interactifs
-Pour chaque : Slides 1 à 6 avec contenu + question/sondage à inclure
-
-## 🤝 Plan Social Selling — 15 min/jour
-Script de prise de contact en DM | 5 groupes/communautés à rejoindre | Routine d'engagement quotidien
+Pour chaque post, utilise ce format :
 
 ---
-Génère TOUT le contenu ci-dessus, complet et prêt à publier immédiatement.`,
+
+POST 1 — [PLATEFORME] — [Jour et heure conseillée]
+
+🖼️ IMAGE : [description photo réaliste en anglais]
+
+[Caption prête à copier-coller, directement publiable. Commence par une accroche forte avec emoji. Aère avec des sauts de ligne. Termine par une question ou un appel à l'action.]
+
+---
+
+STYLE DES CAPTIONS PAR PLATEFORME :
+- Facebook : ton décontracté, tutoiement, questions pour engager, emojis fréquents (🔥💡✅🚀👇), 200-400 caractères
+- Instagram : storytelling, emojis, accroche percutante, 5-8 hashtags pertinents à la fin, 200-500 caractères
+- LinkedIn : ton professionnel mais humain, vouvoiement, phrases percutantes, 2 hashtags max, 300-600 caractères
+
+Génère 2 posts Facebook, 2 posts Instagram et 2 posts LinkedIn.
+
+📅 CALENDRIER DE PUBLICATION — 4 semaines
+
+| Semaine | Lundi | Mercredi | Vendredi |
+|---------|-------|----------|---------|
+(Remplis avec le format, le thème et la plateforme pour chaque jour)
+
+🎬 3 IDÉES DE REELS / VIDÉOS COURTES
+
+Pour chaque : Accroche (3 sec) | Déroulé (30-60s) | CTA final | Son/musique suggéré
+
+💡 5 ASTUCES POUR BOOSTER L'ENGAGEMENT
+
+Conseils concrets et actionnables, sans jargon.
+
+---
+Génère TOUT le contenu ci-dessus, complet et prêt à utiliser immédiatement.`,
 
     email: `Tu es mandaté pour créer une CAMPAGNE E-MAIL COMPLÈTE pour :
 ${baseInfo}
@@ -974,6 +991,37 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
     if (content) {
       fullResponse += content;
       res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
+  }
+
+  // For social campaigns, extract image prompts and generate real images
+  if (type === "social") {
+    const imageMatches = [...fullResponse.matchAll(/🖼️\s*IMAGE\s*:\s*(.+)/gi)];
+    if (imageMatches.length > 0) {
+      res.write(`data: ${JSON.stringify({ content: "\n\n---\n\n🎨 **Génération des visuels en cours...** (cela peut prendre 30-60 secondes)\n\n" })}\n\n`);
+      const { generateImageBuffer } = await import("@workspace/integrations-openai-ai-server/image");
+      const imageResults: { index: number; prompt: string; url?: string }[] = [];
+      const imageGenResults = await Promise.allSettled(
+        imageMatches.slice(0, 6).map(async (match, i) => {
+          const prompt = match[1].trim();
+          const buf = await generateImageBuffer(prompt, "1024x1024", "high");
+          const uploaded = await uploadPublicBuffer(buf, { ext: "png", contentType: "image/png" });
+          return { index: i, prompt, url: uploaded.publicUrl };
+        })
+      );
+      let imageSection = "";
+      for (let i = 0; i < imageGenResults.length; i++) {
+        const r = imageGenResults[i];
+        if (r.status === "fulfilled" && r.value.url) {
+          imageResults.push(r.value);
+          imageSection += `**Post ${i + 1}** :\n\n![Post ${i + 1}](${r.value.url})\n\n`;
+        } else {
+          imageSection += `**Post ${i + 1}** : ⚠️ Génération échouée\n\n`;
+        }
+      }
+      const imagesContent = `\n\n---\n\n## 🖼️ Visuels générés pour tes posts\n\n${imageSection}`;
+      fullResponse += imagesContent;
+      res.write(`data: ${JSON.stringify({ content: imagesContent })}\n\n`);
     }
   }
 

@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Globe, PenLine, CheckCircle2, Circle, Loader2, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export type CampaignType = {
   id: string;
@@ -636,15 +638,19 @@ export function CampaignLaunchModal({ open, onClose, onCampaignCreated }: Campai
                 <span className="text-2xl">{selectedTypeObj?.icon}</span>
                 <div>
                   <DialogTitle>Génération en cours…</DialogTitle>
-                  <p className="text-sm text-muted-foreground mt-0.5">L'agent crée tous vos livrables. Cela prend 20-40 secondes.</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">L'agent crée tous vos livrables et visuels. Cela prend 30-90 secondes.</p>
                 </div>
               </div>
             </DialogHeader>
-            <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4 max-h-64 overflow-y-auto">
-              <p className="text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
-                {streamingText || "Démarrage de la génération…"}
-                {streamingText && <span className="inline-block w-1.5 h-3.5 bg-primary ml-0.5 animate-pulse align-middle" />}
-              </p>
+            <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4 max-h-[420px] overflow-y-auto">
+              {streamingText ? (
+                <div className="text-sm text-foreground prose prose-sm dark:prose-invert max-w-none leading-relaxed [&_img]:rounded-lg [&_img]:max-w-full [&_img]:my-2">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingText}</ReactMarkdown>
+                  <span className="inline-block w-1.5 h-3.5 bg-primary ml-0.5 animate-pulse align-middle" />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Démarrage de la génération…</p>
+              )}
             </div>
             <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
               <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
