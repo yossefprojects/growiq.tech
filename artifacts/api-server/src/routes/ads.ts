@@ -6,8 +6,8 @@
  * corresponding secrets aren't set yet, so the rest of the app keeps working.
  */
 import { Router, type IRouter, type Request } from "express";
-import { and, eq } from "drizzle-orm";
-import { db, adCampaigns, scheduledPosts } from "@workspace/db";
+import { and, eq, desc } from "drizzle-orm";
+import { db, adCampaigns, scheduledPosts, seoKeywordSets, businessProfiles } from "@workspace/db";
 import type { AuthedRequest } from "../middlewares/auth";
 import {
   isMetaAdsConfigured,
@@ -21,6 +21,7 @@ import {
   setGoogleCampaignStatus,
   getGoogleCampaignMetrics,
 } from "../lib/google-ads";
+import { openai } from "@workspace/integrations-openai-ai-server";
 
 function uid(req: Request): string {
   return (req as AuthedRequest).userId;
@@ -299,6 +300,171 @@ router.post("/ads/google/launch", async (req, res): Promise<void> => {
     status: "paused",
     message:
       "Campagne créée et mise en pause. Vérifie-la dans Google Ads puis active-la via POST /api/ads/google/:id/activate.",
+  });
+});
+
+// ── Google Ads: AI-powered launch (SEO → headlines/descriptions/keywords) ──
+router.post("/ads/google/ai-launch", async (req, res): Promise<void> => {
+  const body = req.body as {
+    objective?: string;
+    dailyBudgetCents?: number;
+    durationDays?: number;
+    finalUrl?: string;
+    campaignName?: string;
+    audience?: string;
+  };
+
+  if (!body.dailyBudgetCents || !body.durationDays || !body.finalUrl) {
+    res.status(400).json({
+      error: "Champs requis : dailyBudgetCents, durationDays, finalUrl",
+    });
+    return;
+  }
+
+  const check = isGoogleAdsConfigured();
+  if (!check.configured) {
+    res.status(503).json({
+      error: "Google Ads pas encore activé sur cette installation.",
+      missing: check.missing,
+    });
+    return;
+  }
+
+  const userId = uid(req);
+
+  // 1. Fetch SEO keywords for this user
+  const seoSets = await db
+    .select()
+    .from(seoKeywordSets)
+    .where(eq(seoKeywordSets.userId, userId))
+    .orderBy(desc(seoKeywordSets.createdAt))
+    .limit(3);
+
+  const allSeoKeywords = seoSets.flatMap((s) => s.data?.keywords ?? []);
+  const commercialKeywords = allSeoKeywords
+    .filter((k) => k.intent === "transactionnel" || k.intent === "commercial")
+    .map((k) => k.keyword);
+  const allKeywordTexts = allSeoKeywords.map((k) => k.keyword);
+  const adsKeywords = commercialKeywords.length >= 5
+    ? commercialKeywords.slice(0, 20)
+    : allKeywordTexts.slice(0, 20);
+
+  // 2. Fetch business profile
+  const [profile] = await db
+    .select()
+    .from(businessProfiles)
+    .where(eq(businessProfiles.userId, userId))
+    .limit(1);
+
+  const businessContext = [
+    profile?.businessName && `Entreprise : ${profile.businessName}`,
+    profile?.activity && `Secteur : ${profile.activity}`,
+    profile?.targetAudience && `Cible : ${profile.targetAudience}`,
+    body.audience && `Audience spécifiée : ${body.audience}`,
+    body.objective && `Objectif : ${body.objective}`,
+  ].filter(Boolean).join("\n");
+
+  // 3. Use AI to generate headlines + descriptions from SEO data
+  const keywordList = adsKeywords.length > 0
+    ? adsKeywords.join(", ")
+    : "marketing digital, croissance entreprise, acquisition clients";
+
+  const aiPrompt = `Tu es un expert Google Ads. Génère des éléments pour une campagne Search basée sur ces données.
+
+${businessContext}
+URL de destination : ${body.finalUrl}
+Mots-clés SEO disponibles : ${keywordList}
+
+Réponds UNIQUEMENT en JSON valide (pas de markdown) :
+{
+  "campaignName": "nom court et percutant pour la campagne (max 60 chars)",
+  "headlines": ["titre1", "titre2", ...],
+  "descriptions": ["description1", "description2", ...],
+  "keywords": ["mot-clé1", "mot-clé2", ...]
+}
+
+RÈGLES :
+- headlines : exactement 10 titres, chacun ≤ 30 caractères, percutants et variés
+- descriptions : exactement 4 descriptions, chacune ≤ 90 caractères, avec appel à l'action
+- keywords : 15-20 mots-clés pertinents pour Google Search, mélange de génériques et longue traîne
+- Intègre naturellement les mots-clés SEO fournis
+- Langue : français`;
+
+  let generated: { campaignName: string; headlines: string[]; descriptions: string[]; keywords: string[] };
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 1200,
+      messages: [{ role: "user", content: aiPrompt }],
+    });
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const match = raw.match(/\{[\s\S]*\}/);
+    generated = JSON.parse(match ? match[0] : raw);
+  } catch (err) {
+    res.status(500).json({ error: "Erreur IA lors de la génération des annonces." });
+    return;
+  }
+
+  if (!generated.headlines?.length || generated.headlines.length < 3) {
+    res.status(500).json({ error: "L'IA n'a pas pu générer assez de titres." });
+    return;
+  }
+
+  const campaignName = body.campaignName || generated.campaignName || `GrowIQ — ${new Date().toLocaleDateString("fr")}`;
+  const finalKeywords = generated.keywords?.length > 0 ? generated.keywords : adsKeywords;
+
+  // 4. Create DB record
+  const [record] = await db
+    .insert(adCampaigns)
+    .values({
+      provider: "google",
+      status: "draft",
+      budgetCents: body.dailyBudgetCents * body.durationDays,
+      durationDays: body.durationDays,
+      userId,
+      meta: {
+        campaignName,
+        notes: `AI-generated from SEO. Objective: ${body.objective ?? "non spécifié"}. Keywords source: ${adsKeywords.length} SEO keywords.`,
+      },
+    })
+    .returning();
+
+  // 5. Launch on Google Ads (PAUSED)
+  const result = await launchGoogleSearchCampaign({
+    campaignName,
+    dailyBudgetCents: body.dailyBudgetCents,
+    finalUrl: body.finalUrl,
+    headlines: generated.headlines.map((h: string) => h.slice(0, 30)),
+    descriptions: generated.descriptions.map((d: string) => d.slice(0, 90)),
+    keywords: finalKeywords.slice(0, 20),
+  });
+
+  if (!result.success) {
+    await db
+      .update(adCampaigns)
+      .set({ status: "failed", errorMessage: result.error.slice(0, 500) })
+      .where(eq(adCampaigns.id, record.id));
+    res.status(502).json({ error: result.error, configMissing: result.configMissing });
+    return;
+  }
+
+  await db
+    .update(adCampaigns)
+    .set({ providerCampaignId: result.campaignResource, status: "paused" })
+    .where(eq(adCampaigns.id, record.id));
+
+  res.json({
+    id: record.id,
+    campaignResource: result.campaignResource,
+    status: "paused",
+    campaignName,
+    generated: {
+      headlines: generated.headlines,
+      descriptions: generated.descriptions,
+      keywords: finalKeywords.slice(0, 20),
+      seoKeywordsUsed: adsKeywords.length,
+    },
+    message: "Campagne Google Ads créée en pause. L'utilisateur peut l'activer quand il est prêt.",
   });
 });
 

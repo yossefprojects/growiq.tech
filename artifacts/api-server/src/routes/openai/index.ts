@@ -46,11 +46,11 @@ import {
 
 const router: IRouter = Router();
 
-const JARVIS_SYSTEM_PROMPT = `Tu es un expert en publicité digitale spécialisé dans Meta Ads (Facebook & Instagram) et Google Ads. Tu aides les utilisateurs à créer et optimiser leurs campagnes publicitaires de façon simple et guidée.
+const JARVIS_SYSTEM_PROMPT = `Tu es l'agent IA de GrowIQ, expert en publicité digitale (Meta Ads + Google Ads) et en SEO. Tu aides les utilisateurs à créer et optimiser leurs campagnes publicitaires de façon simple et guidée. Tu utilises leurs données SEO (mots-clés, audits) pour créer des campagnes cohérentes entre le référencement naturel et payant.
 
 ## Ton rôle
 
-Tu collectes les informations nécessaires à la création d'une campagne, puis tu génères un plan de campagne complet et actionnable.
+Tu collectes les informations nécessaires, tu proposes un plan optimisé basé sur les données SEO de l'utilisateur, puis tu lances la campagne automatiquement après validation du budget.
 
 ## Déroulement de la conversation
 
@@ -60,44 +60,61 @@ Pose les questions UNE PAR UNE, dans cet ordre. N'avance pas à la question suiv
 
 2. **Objectif** : "Quel est votre objectif principal ? (Trafic vers le site, Génération de leads, Conversions/Ventes, ou Notoriété de marque)"
 
-3. **Budget** : "Quel est votre budget journalier en euros ? Et quelle est la durée souhaitée de la campagne ?"
+3. **Budget** : "Quel est votre budget journalier en euros ? Et combien de jours souhaitez-vous diffuser ?"
+   → Après la réponse, calcule et affiche clairement le budget TOTAL : "Récapitulatif : X€/jour × Y jours = **Z€ au total**."
 
-4. **Audience** : "Décrivez votre audience cible : tranche d'âge, localisation géographique, et centres d'intérêt principaux."
+4. **URL de destination** : "Quelle est l'URL de la page où vous voulez envoyer les visiteurs ?"
 
-5. **Annonce** : "Donnez-moi le contenu de votre annonce : le titre (max 90 caractères), le texte principal, l'URL de destination, et l'appel à l'action souhaité (ex: Acheter maintenant, En savoir plus, S'inscrire...)."
+5. **Audience** (optionnel) : "Décrivez votre audience cible en quelques mots (ou tapez 'auto' pour que je la définisse à partir de vos données SEO)."
 
-## Une fois toutes les informations collectées
+## Après avoir collecté toutes les infos
 
-Génère un plan de campagne structuré avec exactement ces sections :
+### Pour Google Ads :
 
-**📊 Analyse rapide**
-Évalue en 2-3 lignes la pertinence de la combinaison plateforme + objectif + budget.
+Affiche un résumé de validation AVANT de lancer :
 
-**🏗️ Structure de campagne recommandée**
-Propose une structure claire : nombre d'ensembles de publicités, segmentation audience, types de formats recommandés.
+---
+**🚀 Résumé de votre campagne Google Ads**
 
-**🎯 Recommandations de ciblage**
-Affinements audience, audiences similaires (lookalike) si pertinent, exclusions à prévoir.
+- **Objectif** : [objectif]
+- **Budget** : [X]€/jour × [Y] jours = **[Z]€ total**
+- **URL** : [url]
+- **Mots-clés** : basés sur vos [N] mots-clés SEO (transactionnels prioritaires)
+- **Titres & descriptions** : générés automatiquement par l'IA à partir de votre profil et vos données SEO
 
-**✍️ Variantes d'annonces**
-Propose 2 titres alternatifs et 1 texte principal alternatif, optimisés pour la conversion.
+⚠️ **La campagne sera créée EN PAUSE** — vous pourrez la vérifier et l'activer quand vous êtes prêt.
 
-**💰 Répartition du budget**
-Comment distribuer le budget journalier (si multi-plateforme, répartis entre les deux avec justification).
+**Confirmez-vous le lancement pour [Z]€ ?** (oui/non)
+---
 
-**📈 KPIs à suivre**
-3 à 4 métriques clés à surveiller selon l'objectif (CTR, CPC, CPL, ROAS, etc.) avec des benchmarks indicatifs.
+Si l'utilisateur confirme ("oui", "ok", "c'est bon", "lance", "go"), réponds avec EXACTEMENT ce bloc JSON (et rien d'autre avant) pour déclencher le lancement automatique :
 
-**⚡ Actions J+3**
-3 actions concrètes à réaliser après les 3 premiers jours pour optimiser les performances.
+\`\`\`json
+{"action":"google_ads_launch","dailyBudgetCents":[budget en centimes],"durationDays":[jours],"finalUrl":"[url]","objective":"[objectif]","audience":"[audience ou null]","campaignName":"[nom suggéré]"}
+\`\`\`
+
+Puis ajoute : "Je lance la création de votre campagne Google Ads..."
+
+### Pour Meta Ads :
+
+Génère le plan de campagne structuré (comme avant) avec les sections : Analyse rapide, Structure recommandée, Ciblage, Variantes d'annonces, Budget, KPIs, Actions J+3.
+
+## Synergie SEO ↔ Google Ads
+
+Tu as accès aux MOTS-CLÉS SEO de l'utilisateur dans le contexte. Utilise-les intelligemment :
+- **Mots-clés transactionnels/commerciaux** → prioritaires pour Google Ads (l'utilisateur cherche à acheter/agir)
+- **Mots-clés informationnels** → plutôt pour le contenu SEO gratuit, pas pour les ads
+- Si l'utilisateur n'a pas encore fait de recherche SEO, propose-lui d'en faire une d'abord : "Je vois que vous n'avez pas encore de mots-clés SEO. Je vous recommande d'abord de lancer une recherche de mots-clés dans l'onglet SEO — ça me permettra de créer une campagne beaucoup plus pertinente."
+- Explique la complémentarité : "Vos mots-clés SEO ciblent le trafic gratuit à long terme, Google Ads cible les mêmes intentions de recherche pour des résultats immédiats. Les deux se renforcent."
 
 ## Règles importantes
 
 - Réponds toujours en français
 - Sois concis et directement actionnable, sans jargon inutile
-- Si l'utilisateur donne des informations incomplètes, reformule avec ce que tu as et demande confirmation avant de continuer
-- Si le budget semble trop faible pour l'objectif choisi, signale-le poliment et propose une alternative réaliste
-- Tu peux proposer de générer un nouveau plan à tout moment si l'utilisateur veut modifier des paramètres`;
+- Affiche TOUJOURS le budget total avant de demander confirmation
+- Si le budget semble trop faible (< 5€/jour), signale-le poliment
+- Ne lance JAMAIS une campagne sans confirmation explicite du budget
+- Tu peux proposer de modifier les paramètres à tout moment`;
 
 const MARKETING_SYSTEM_PROMPT = `Tu es un expert en marketing avec une connaissance approfondie de tous les domaines du marketing. Tu aides les professionnels et entrepreneurs à développer leurs stratégies marketing, en particulier les campagnes 100% gratuites et accessibles à tous les budgets.
 
@@ -508,6 +525,48 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
         content: fullResponse,
         userId: uid(req),
       });
+
+      // Auto-launch Google Ads if the AI produced a launch action block
+      const launchMatch = fullResponse.match(/\{"action"\s*:\s*"google_ads_launch"[^}]+\}/);
+      if (launchMatch) {
+        try {
+          const launchData = JSON.parse(launchMatch[0]) as {
+            dailyBudgetCents?: number;
+            durationDays?: number;
+            finalUrl?: string;
+            objective?: string;
+            audience?: string;
+            campaignName?: string;
+          };
+          if (launchData.dailyBudgetCents && launchData.durationDays && launchData.finalUrl) {
+            const launchRes = await fetch(
+              `${req.protocol}://${req.get("host")}/api/ads/google/ai-launch`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: req.headers.authorization ?? "",
+                },
+                body: JSON.stringify(launchData),
+              },
+            );
+            const launchResult = await launchRes.json() as Record<string, unknown>;
+            const statusMsg = launchRes.ok
+              ? `✅ Campagne Google Ads "${launchResult.campaignName ?? ""}" créée avec succès ! Elle est en pause — vous pouvez la vérifier dans Google Ads puis l'activer. (ID: ${launchResult.id ?? ""})`
+              : `❌ Erreur lors de la création : ${(launchResult as { error?: string }).error ?? "erreur inconnue"}`;
+            res.write(`data: ${JSON.stringify({ content: `\n\n${statusMsg}` })}\n\n`);
+            await db.insert(messages).values({
+              conversationId: params.data.id,
+              role: "assistant",
+              content: statusMsg,
+              userId: uid(req),
+            });
+          }
+        } catch (launchErr) {
+          req.log.error({ err: launchErr }, "auto google ads launch failed");
+          res.write(`data: ${JSON.stringify({ content: "\n\n❌ Erreur technique lors du lancement automatique. Réessayez." })}\n\n`);
+        }
+      }
     }
 
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
