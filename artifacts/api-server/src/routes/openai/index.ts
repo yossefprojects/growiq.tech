@@ -990,17 +990,26 @@ router.post("/openai/campaigns/generate", async (req, res): Promise<void> => {
     }
   }
 
-  // For social campaigns, auto-generate images based on post content
+  // For social campaigns, auto-generate images based on business context
   if (type === "social") {
-    // Extract post sections from the generated text
     const postBlocks = [...fullResponse.matchAll(/###?\s*Post\s*\d+[^\n]*\n([\s\S]*?)(?=###?\s*Post\s*\d+|##\s*📅|##\s*🎬|##\s*💡|$)/gi)];
     if (postBlocks.length > 0) {
       res.write(`data: ${JSON.stringify({ content: "\n\n---\n\n🎨 **Génération des visuels en cours...** (cela peut prendre 30-60 secondes)\n\n" })}\n\n`);
       const { generateImageBuffer } = await import("@workspace/integrations-openai-ai-server/image");
+      // Build image prompts using the business context for relevance
+      const biz = businessContext;
+      const sceneVariations = [
+        `a professional working on ${biz.sector} documents at a modern desk with a laptop showing data dashboards`,
+        `a team of ${biz.sector} professionals collaborating in a bright modern office, reviewing plans together`,
+        `a close-up of hands using a tablet or laptop for ${biz.sector} work, with relevant tools nearby`,
+        `a satisfied professional in the ${biz.sector} industry smiling while using modern technology at work`,
+        `an aerial view of a ${biz.sector} workspace with documents, laptop, coffee, warm natural light`,
+        `a ${biz.sector} professional explaining results to a client in a modern meeting room`,
+      ];
       const imageGenResults = await Promise.allSettled(
         postBlocks.slice(0, 6).map(async (match, i) => {
-          const postContent = match[1].trim().slice(0, 300);
-          const prompt = `Photorealistic photograph taken with a Canon EOS R5, 35mm lens, natural lighting. Professional brand photo for social media about: ${postContent}. Style: authentic editorial photography, warm tones, shallow depth of field. No text, no watermarks, no logos, no overlays. Must look like a real photograph.`;
+          const scene = sceneVariations[i % sceneVariations.length];
+          const prompt = `Photorealistic photograph taken with a Canon EOS R5, 35mm f/1.4 lens, warm natural lighting. ${scene}. Business: ${biz.businessName}, sector: ${biz.sector}. Style: authentic editorial photography like in a business magazine, warm earth tones, shallow depth of field, natural skin textures. No text, no watermarks, no logos, no overlays, no AI artifacts. Must look like a real photograph taken by a professional photographer.`;
           const buf = await generateImageBuffer(prompt, "1024x1024", "high");
           const uploaded = await uploadPublicBuffer(buf, { ext: "png", contentType: "image/png" });
           return { index: i, url: uploaded.publicUrl };

@@ -106,8 +106,16 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
   const hasPosts = posts.length > 0;
 
   const shareOnePost = (caption: string, platform: string) => {
-    const text = caption.slice(0, 280);
-    const longText = caption.slice(0, 2000);
+    // Final safety net: strip any remaining markdown from the text
+    const clean = caption
+      .replace(/^#{1,3}\s+.*$/gm, "")
+      .replace(/\*\*/g, "")
+      .replace(/^---$/gm, "")
+      .replace(/!\[.*?\]\(.*?\)/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    const text = clean.slice(0, 280);
+    const longText = clean.slice(0, 2000);
     const encoded = encodeURIComponent(text);
     const encodedLong = encodeURIComponent(longText);
     const encodedTitle = encodeURIComponent(title);
