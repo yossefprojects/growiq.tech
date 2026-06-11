@@ -763,6 +763,7 @@ function ContactsTab() {
                   {customFieldKeys.map((k) => (
                     <th key={k} className="text-left px-4 py-3">{k}</th>
                   ))}
+                  <th className="text-left px-4 py-3">Statut</th>
                   <th className="text-left px-4 py-3">Source</th>
                   <th className="text-right px-4 py-3">Actions</th>
                 </tr>
@@ -784,7 +785,7 @@ function ContactsTab() {
                           className="accent-violet-600 w-4 h-4 cursor-pointer"
                         />
                       </td>
-                      <td className="px-4 py-3 font-medium">{c.email}</td>
+                      <td className={cn("px-4 py-3 font-medium", !c.subscribed && "text-red-400 line-through")}>{c.email}</td>
                       <td className="px-4 py-3">{c.firstName}</td>
                       <td className="px-4 py-3">{c.lastName}</td>
                       {activeFolder === null && (
@@ -801,6 +802,17 @@ function ContactsTab() {
                       {customFieldKeys.map((k) => (
                         <td key={k} className="px-4 py-3 text-xs">{c.customFields?.[k] ?? "—"}</td>
                       ))}
+                      <td className="px-4 py-3">
+                        {c.subscribed ? (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                            <CheckCircle2 className="w-3 h-3" /> Abonné
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
+                            <XCircle className="w-3 h-3" /> Désinscrit
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{c.source}</td>
                       <td className="px-4 py-3 text-right">
                         <button
@@ -822,7 +834,13 @@ function ContactsTab() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          {filtered.length} contact(s) affiché(s) sur {contacts.length} au total. Les doublons sont ignorés à l'import.
+          {filtered.length} contact(s) affiché(s) sur {contacts.length} au total.
+          {contacts.filter((c) => !c.subscribed).length > 0 && (
+            <span className="text-red-500 ml-2">
+              {contacts.filter((c) => !c.subscribed).length} désinscrit(s)
+            </span>
+          )}
+          {" "}Les doublons sont ignorés à l'import.
         </p>
       </div>
     </div>
