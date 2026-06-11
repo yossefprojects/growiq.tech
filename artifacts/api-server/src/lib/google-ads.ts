@@ -13,6 +13,7 @@
  * demand and cache the result in-memory.
  */
 import { logger } from "./logger";
+import { getUserIntegration, upsertUserIntegration } from "./user-integrations";
 
 const API_VERSION = "v18";
 const API_BASE = `https://googleads.googleapis.com/${API_VERSION}`;
@@ -20,8 +21,8 @@ const API_BASE = `https://googleads.googleapis.com/${API_VERSION}`;
 function getConfig() {
   return {
     developerToken: process.env["GOOGLE_ADS_DEVELOPER_TOKEN"],
-    clientId: process.env["GOOGLE_ADS_CLIENT_ID"],
-    clientSecret: process.env["GOOGLE_ADS_CLIENT_SECRET"],
+    clientId: process.env["GOOGLE_ADS_CLIENT_ID"] || process.env["GOOGLE_OAUTH_CLIENT_ID"],
+    clientSecret: process.env["GOOGLE_ADS_CLIENT_SECRET"] || process.env["GOOGLE_OAUTH_CLIENT_SECRET"],
     refreshToken: process.env["GOOGLE_ADS_REFRESH_TOKEN"],
     customerId: process.env["GOOGLE_ADS_CUSTOMER_ID"],
     loginCustomerId: process.env["GOOGLE_ADS_LOGIN_CUSTOMER_ID"],
@@ -39,7 +40,78 @@ export function isGoogleAdsConfigured(): { configured: boolean; missing: string[
   return { configured: missing.length === 0, missing };
 }
 
-// In-memory OAuth token cache. Tokens last 1h; we refresh 5 min before expiry.
+/** Check if a specific user has Google Ads credentials (OAuth-connected). */
+export function isGoogleAdsReadyForUser(developerToken: string | undefined, userCustomerId: string | undefined): boolean {
+  return !!(developerToken && userCustomerId);
+}
+
+// Per-user credentials resolved from user_integrations + env.
+export type UserGoogleAdsCreds = {
+  accessToken: string;
+  refreshToken: string;
+  customerId: string;
+  loginCustomerId?: string;
+  developerToken: string;
+  clientId: string;
+  clientSecret: string;
+};
+
+/** Resolve Google Ads credentials for a given user (OAuth token + customer ID). */
+export async function getUserGoogleAdsCreds(userId: string): Promise<UserGoogleAdsCreds | null> {
+  const conn = await getUserIntegration(userId, "google_ads");
+  if (!conn || conn.status !== "active" || !conn.refreshToken) return null;
+
+  const config = getConfig();
+  if (!config.developerToken || !config.clientId || !config.clientSecret) return null;
+
+  const customerId = conn.metadata?.googleAdsCustomerId || config.customerId;
+  if (!customerId) return null;
+
+  return {
+    accessToken: conn.accessToken,
+    refreshToken: conn.refreshToken,
+    customerId: customerId.replace(/-/g, ""),
+    loginCustomerId: conn.metadata?.googleAdsLoginCustomerId || config.loginCustomerId,
+    developerToken: config.developerToken,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+  };
+}
+
+// Per-user token cache: userId → { token, expiresAt }
+const userTokenCache = new Map<string, { token: string; expiresAt: number }>();
+
+async function getAccessTokenForUser(creds: UserGoogleAdsCreds): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  const cached = userTokenCache.get(creds.customerId);
+  if (cached && cached.expiresAt - 5 * 60_000 > Date.now()) {
+    return { ok: true, token: cached.token };
+  }
+  try {
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
+        refresh_token: creds.refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+    const data = (await res.json()) as { access_token?: string; expires_in?: number; error?: string };
+    if (!res.ok || !data.access_token) {
+      return { ok: false, error: data.error ?? `HTTP ${res.status}` };
+    }
+    userTokenCache.set(creds.customerId, {
+      token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
+    });
+    return { ok: true, token: data.access_token };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "OAuth refresh failed" };
+  }
+}
+
+// In-memory OAuth token cache for admin/env credentials.
 let cachedAccessToken: { token: string; expiresAt: number } | null = null;
 
 async function getAccessToken(): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
@@ -72,6 +144,41 @@ async function getAccessToken(): Promise<{ ok: true; token: string } | { ok: fal
     return { ok: true, token: data.access_token };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "OAuth refresh failed" };
+  }
+}
+
+/** Per-user Google Ads API fetch (uses user's OAuth tokens + customer ID). */
+async function adsFetchForUser(
+  creds: UserGoogleAdsCreds,
+  path: string,
+  method: "GET" | "POST",
+  body?: unknown,
+): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }> {
+  const token = await getAccessTokenForUser(creds);
+  if (!token.ok) return { ok: false, error: token.error };
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token.token}`,
+    "developer-token": creds.developerToken,
+    "Content-Type": "application/json",
+  };
+  if (creds.loginCustomerId) headers["login-customer-id"] = creds.loginCustomerId;
+
+  try {
+    const res = await fetch(`${API_BASE}/customers/${creds.customerId}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = (await res.json()) as Record<string, unknown>;
+    if (!res.ok) {
+      const errMsg =
+        ((data["error"] as { message?: string } | undefined)?.message) ?? `HTTP ${res.status}`;
+      return { ok: false, error: errMsg };
+    }
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Network error" };
   }
 }
 
@@ -136,22 +243,13 @@ export type GoogleAdsLaunchResult =
   | { success: false; error: string; configMissing?: boolean };
 
 /**
- * Launch a Search campaign — created PAUSED so the operator can verify before
- * spending real money. Requires 4 sequential mutate calls (budget → campaign
- * → ad group → ad + keywords). We bail out on the first error; partial
- * cleanup is best-effort.
+ * Launch a Search campaign using per-user credentials — created PAUSED so the
+ * user can verify before spending real money.
  */
-export async function launchGoogleSearchCampaign(
+export async function launchGoogleSearchCampaignForUser(
+  creds: UserGoogleAdsCreds,
   input: GoogleAdsLaunchInput,
 ): Promise<GoogleAdsLaunchResult> {
-  const check = isGoogleAdsConfigured();
-  if (!check.configured) {
-    return {
-      success: false,
-      error: `Google Ads pas encore configuré (manque : ${check.missing.join(", ")})`,
-      configMissing: true,
-    };
-  }
   if (input.headlines.length < 3) {
     return { success: false, error: "Google Ads exige au moins 3 titres" };
   }
@@ -159,89 +257,43 @@ export async function launchGoogleSearchCampaign(
     return { success: false, error: "Google Ads exige au moins 2 descriptions" };
   }
 
-  // 1. Campaign budget (micros = currency * 1_000_000; we have cents, so * 10_000)
+  const fetch = (path: string, body: unknown) => adsFetchForUser(creds, path, "POST", body);
+
   const budgetMicros = input.dailyBudgetCents * 10_000;
-  const budgetRes = await adsFetch("/campaignBudgets:mutate", "POST", {
-    operations: [
-      {
-        create: {
-          name: `${input.campaignName} — budget`,
-          amountMicros: String(budgetMicros),
-          deliveryMethod: "STANDARD",
-        },
-      },
-    ],
+  const budgetRes = await fetch("/campaignBudgets:mutate", {
+    operations: [{ create: { name: `${input.campaignName} — budget`, amountMicros: String(budgetMicros), deliveryMethod: "STANDARD" } }],
   });
   if (!budgetRes.ok) return { success: false, error: `Budget : ${budgetRes.error}` };
   const budgetResource = extractResource(budgetRes.data);
 
-  // 2. Campaign (Search, PAUSED for safety)
-  const campRes = await adsFetch("/campaigns:mutate", "POST", {
-    operations: [
-      {
-        create: {
-          name: input.campaignName,
-          status: "PAUSED",
-          advertisingChannelType: "SEARCH",
-          manualCpc: { enhancedCpcEnabled: false },
-          campaignBudget: budgetResource,
-          networkSettings: {
-            targetGoogleSearch: true,
-            targetSearchNetwork: true,
-            targetContentNetwork: false,
-            targetPartnerSearchNetwork: false,
-          },
-        },
-      },
-    ],
+  const campRes = await fetch("/campaigns:mutate", {
+    operations: [{ create: {
+      name: input.campaignName, status: "PAUSED", advertisingChannelType: "SEARCH",
+      manualCpc: { enhancedCpcEnabled: false }, campaignBudget: budgetResource,
+      networkSettings: { targetGoogleSearch: true, targetSearchNetwork: true, targetContentNetwork: false, targetPartnerSearchNetwork: false },
+    } }],
   });
   if (!campRes.ok) return { success: false, error: `Campagne : ${campRes.error}` };
   const campaignResource = extractResource(campRes.data);
 
-  // 3. Ad group
-  const groupRes = await adsFetch("/adGroups:mutate", "POST", {
-    operations: [
-      {
-        create: {
-          name: `${input.campaignName} — group`,
-          status: "ENABLED",
-          campaign: campaignResource,
-          type: "SEARCH_STANDARD",
-          cpcBidMicros: String(Math.floor(budgetMicros / 10)),
-        },
-      },
-    ],
+  const groupRes = await fetch("/adGroups:mutate", {
+    operations: [{ create: {
+      name: `${input.campaignName} — group`, status: "ENABLED", campaign: campaignResource,
+      type: "SEARCH_STANDARD", cpcBidMicros: String(Math.floor(budgetMicros / 10)),
+    } }],
   });
   if (!groupRes.ok) return { success: false, error: `Ad group : ${groupRes.error}` };
   const adGroupResource = extractResource(groupRes.data);
 
-  // 4. Responsive Search Ad + keywords (parallel, both depend on adGroup)
   const headlines = input.headlines.slice(0, 15).map((t) => ({ text: t.slice(0, 30) }));
   const descriptions = input.descriptions.slice(0, 4).map((t) => ({ text: t.slice(0, 90) }));
 
   const [adRes, kwRes] = await Promise.all([
-    adsFetch("/adGroupAds:mutate", "POST", {
-      operations: [
-        {
-          create: {
-            adGroup: adGroupResource,
-            status: "ENABLED",
-            ad: {
-              finalUrls: [input.finalUrl],
-              responsiveSearchAd: { headlines, descriptions },
-            },
-          },
-        },
-      ],
+    fetch("/adGroupAds:mutate", {
+      operations: [{ create: { adGroup: adGroupResource, status: "ENABLED", ad: { finalUrls: [input.finalUrl], responsiveSearchAd: { headlines, descriptions } } } }],
     }),
-    adsFetch("/adGroupCriteria:mutate", "POST", {
-      operations: input.keywords.slice(0, 20).map((kw) => ({
-        create: {
-          adGroup: adGroupResource,
-          status: "ENABLED",
-          keyword: { text: kw, matchType: "BROAD" },
-        },
-      })),
+    fetch("/adGroupCriteria:mutate", {
+      operations: input.keywords.slice(0, 20).map((kw) => ({ create: { adGroup: adGroupResource, status: "ENABLED", keyword: { text: kw, matchType: "BROAD" } } })),
     }),
   ]);
 
@@ -251,18 +303,50 @@ export async function launchGoogleSearchCampaign(
   return { success: true, campaignResource, adGroupResource, budgetResource };
 }
 
-/** Toggle a Google Ads campaign ENABLED / PAUSED / REMOVED. */
-export async function setGoogleCampaignStatus(
+/** Legacy admin-credentials launch (kept for backward compatibility). */
+export async function launchGoogleSearchCampaign(
+  input: GoogleAdsLaunchInput,
+): Promise<GoogleAdsLaunchResult> {
+  const check = isGoogleAdsConfigured();
+  if (!check.configured) {
+    return { success: false, error: `Google Ads pas encore configuré (manque : ${check.missing.join(", ")})`, configMissing: true };
+  }
+  if (input.headlines.length < 3) return { success: false, error: "Google Ads exige au moins 3 titres" };
+  if (input.descriptions.length < 2) return { success: false, error: "Google Ads exige au moins 2 descriptions" };
+
+  const budgetMicros = input.dailyBudgetCents * 10_000;
+  const budgetRes = await adsFetch("/campaignBudgets:mutate", "POST", { operations: [{ create: { name: `${input.campaignName} — budget`, amountMicros: String(budgetMicros), deliveryMethod: "STANDARD" } }] });
+  if (!budgetRes.ok) return { success: false, error: `Budget : ${budgetRes.error}` };
+  const budgetResource = extractResource(budgetRes.data);
+
+  const campRes = await adsFetch("/campaigns:mutate", "POST", { operations: [{ create: { name: input.campaignName, status: "PAUSED", advertisingChannelType: "SEARCH", manualCpc: { enhancedCpcEnabled: false }, campaignBudget: budgetResource, networkSettings: { targetGoogleSearch: true, targetSearchNetwork: true, targetContentNetwork: false, targetPartnerSearchNetwork: false } } }] });
+  if (!campRes.ok) return { success: false, error: `Campagne : ${campRes.error}` };
+  const campaignResource = extractResource(campRes.data);
+
+  const groupRes = await adsFetch("/adGroups:mutate", "POST", { operations: [{ create: { name: `${input.campaignName} — group`, status: "ENABLED", campaign: campaignResource, type: "SEARCH_STANDARD", cpcBidMicros: String(Math.floor(budgetMicros / 10)) } }] });
+  if (!groupRes.ok) return { success: false, error: `Ad group : ${groupRes.error}` };
+  const adGroupResource = extractResource(groupRes.data);
+
+  const headlines = input.headlines.slice(0, 15).map((t) => ({ text: t.slice(0, 30) }));
+  const descriptions = input.descriptions.slice(0, 4).map((t) => ({ text: t.slice(0, 90) }));
+  const [adRes, kwRes] = await Promise.all([
+    adsFetch("/adGroupAds:mutate", "POST", { operations: [{ create: { adGroup: adGroupResource, status: "ENABLED", ad: { finalUrls: [input.finalUrl], responsiveSearchAd: { headlines, descriptions } } } }] }),
+    adsFetch("/adGroupCriteria:mutate", "POST", { operations: input.keywords.slice(0, 20).map((kw) => ({ create: { adGroup: adGroupResource, status: "ENABLED", keyword: { text: kw, matchType: "BROAD" } } })) }),
+  ]);
+
+  if (!adRes.ok) return { success: false, error: `Annonce : ${adRes.error}` };
+  if (!kwRes.ok) return { success: false, error: `Mots-clés : ${kwRes.error}` };
+  return { success: true, campaignResource, adGroupResource, budgetResource };
+}
+
+/** Toggle a Google Ads campaign ENABLED / PAUSED / REMOVED (per-user). */
+export async function setGoogleCampaignStatusForUser(
+  creds: UserGoogleAdsCreds,
   campaignResource: string,
   status: "ENABLED" | "PAUSED" | "REMOVED",
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const r = await adsFetch("/campaigns:mutate", "POST", {
-    operations: [
-      {
-        update: { resourceName: campaignResource, status },
-        updateMask: "status",
-      },
-    ],
+  const r = await adsFetchForUser(creds, "/campaigns:mutate", "POST", {
+    operations: [{ update: { resourceName: campaignResource, status }, updateMask: "status" }],
   });
   if (!r.ok) {
     logger.warn({ err: r.error, campaignResource, status }, "Google campaign status change failed");
@@ -271,24 +355,37 @@ export async function setGoogleCampaignStatus(
   return { ok: true };
 }
 
-/** Fetch impressions / clicks / spend for a Google Ads campaign via GAQL. */
-export async function getGoogleCampaignMetrics(
+/** Toggle a Google Ads campaign ENABLED / PAUSED / REMOVED (admin). */
+export async function setGoogleCampaignStatus(
+  campaignResource: string,
+  status: "ENABLED" | "PAUSED" | "REMOVED",
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const r = await adsFetch("/campaigns:mutate", "POST", {
+    operations: [{ update: { resourceName: campaignResource, status }, updateMask: "status" }],
+  });
+  if (!r.ok) {
+    logger.warn({ err: r.error, campaignResource, status }, "Google campaign status change failed");
+    return { ok: false, error: r.error };
+  }
+  return { ok: true };
+}
+
+/** Fetch impressions / clicks / spend for a Google Ads campaign (per-user). */
+export async function getGoogleCampaignMetricsForUser(
+  creds: UserGoogleAdsCreds,
   campaignResource: string,
 ): Promise<
   | { ok: true; impressions: number; clicks: number; spendCents: number }
   | { ok: false; error: string }
 > {
-  // resourceName format: customers/{cid}/campaigns/{campId}
   const campaignId = campaignResource.split("/").pop() ?? "";
   if (!campaignId) return { ok: false, error: "resourceName invalide" };
-  const r = await adsFetch("/googleAds:searchStream", "POST", {
+  const r = await adsFetchForUser(creds, "/googleAds:searchStream", "POST", {
     query: `SELECT metrics.impressions, metrics.clicks, metrics.cost_micros FROM campaign WHERE campaign.id = ${campaignId}`,
   });
   if (!r.ok) return { ok: false, error: r.error };
   const stream = (r.data["results"] as Array<Record<string, unknown>>) ?? [];
-  let impressions = 0;
-  let clicks = 0;
-  let costMicros = 0;
+  let impressions = 0, clicks = 0, costMicros = 0;
   for (const row of stream) {
     const m = row["metrics"] as { impressions?: string; clicks?: string; costMicros?: string };
     impressions += Number(m?.impressions ?? 0);
@@ -296,6 +393,57 @@ export async function getGoogleCampaignMetrics(
     costMicros += Number(m?.costMicros ?? 0);
   }
   return { ok: true, impressions, clicks, spendCents: Math.round(costMicros / 10_000) };
+}
+
+/** Fetch impressions / clicks / spend for a Google Ads campaign (admin). */
+export async function getGoogleCampaignMetrics(
+  campaignResource: string,
+): Promise<
+  | { ok: true; impressions: number; clicks: number; spendCents: number }
+  | { ok: false; error: string }
+> {
+  const campaignId = campaignResource.split("/").pop() ?? "";
+  if (!campaignId) return { ok: false, error: "resourceName invalide" };
+  const r = await adsFetch("/googleAds:searchStream", "POST", {
+    query: `SELECT metrics.impressions, metrics.clicks, metrics.cost_micros FROM campaign WHERE campaign.id = ${campaignId}`,
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  const stream = (r.data["results"] as Array<Record<string, unknown>>) ?? [];
+  let impressions = 0, clicks = 0, costMicros = 0;
+  for (const row of stream) {
+    const m = row["metrics"] as { impressions?: string; clicks?: string; costMicros?: string };
+    impressions += Number(m?.impressions ?? 0);
+    clicks += Number(m?.clicks ?? 0);
+    costMicros += Number(m?.costMicros ?? 0);
+  }
+  return { ok: true, impressions, clicks, spendCents: Math.round(costMicros / 10_000) };
+}
+
+/**
+ * After OAuth, list accessible Google Ads customer accounts for the user.
+ * Uses the `listAccessibleCustomers` endpoint which doesn't require a customer ID.
+ */
+export async function listAccessibleCustomers(
+  creds: Pick<UserGoogleAdsCreds, "refreshToken" | "developerToken" | "clientId" | "clientSecret">,
+): Promise<{ ok: true; customerIds: string[] } | { ok: false; error: string }> {
+  const tokenRes = await getAccessTokenForUser(creds as UserGoogleAdsCreds);
+  if (!tokenRes.ok) return { ok: false, error: tokenRes.error };
+
+  try {
+    const res = await fetch(`${API_BASE}/customers:listAccessibleCustomers`, {
+      headers: {
+        Authorization: `Bearer ${tokenRes.token}`,
+        "developer-token": creds.developerToken,
+        "Content-Type": "application/json",
+      },
+    });
+    const data = (await res.json()) as { resourceNames?: string[]; error?: { message?: string } };
+    if (!res.ok) return { ok: false, error: data.error?.message ?? `HTTP ${res.status}` };
+    const ids = (data.resourceNames ?? []).map((rn) => rn.replace("customers/", ""));
+    return { ok: true, customerIds: ids };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Network error" };
+  }
 }
 
 function extractResource(data: Record<string, unknown>): string {

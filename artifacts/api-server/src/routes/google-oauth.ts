@@ -19,6 +19,7 @@ import {
   verifyGoogleState,
 } from "../lib/google-oauth";
 import { upsertUserIntegration } from "../lib/user-integrations";
+import { listAccessibleCustomers } from "../lib/google-ads";
 
 function uid(req: unknown): string {
   return (req as AuthedRequest).userId;
@@ -75,6 +76,24 @@ publicGoogleRouter.get("/auth/google/callback", async (req, res) => {
       ? new Date(Date.now() + tokens.expires_in * 1000)
       : null;
 
+    // Auto-detect Google Ads customer ID(s) for this user
+    const developerToken = process.env["GOOGLE_ADS_DEVELOPER_TOKEN"];
+    const clientId = process.env["GOOGLE_ADS_CLIENT_ID"] || process.env["GOOGLE_OAUTH_CLIENT_ID"];
+    const clientSecret = process.env["GOOGLE_ADS_CLIENT_SECRET"] || process.env["GOOGLE_OAUTH_CLIENT_SECRET"];
+    let googleAdsCustomerId: string | undefined;
+    if (developerToken && clientId && clientSecret && tokens.refresh_token) {
+      const custResult = await listAccessibleCustomers({
+        refreshToken: tokens.refresh_token,
+        developerToken,
+        clientId,
+        clientSecret,
+      } as any).catch(() => null);
+      if (custResult?.ok && custResult.customerIds.length > 0) {
+        googleAdsCustomerId = custResult.customerIds[0];
+        logger.info({ userId: verified.userId, customerIds: custResult.customerIds }, "Google Ads customer IDs detected");
+      }
+    }
+
     await upsertUserIntegration({
       userId: verified.userId,
       platform: "google_ads",
@@ -88,6 +107,7 @@ publicGoogleRouter.get("/auth/google/callback", async (req, res) => {
         googleAdsEmail: me?.email,
         displayName: me?.name,
         displayAvatarUrl: me?.picture,
+        ...(googleAdsCustomerId ? { googleAdsCustomerId } : {}),
       },
       status: "active",
       lastVerifiedAt: new Date(),

@@ -18,8 +18,13 @@ import {
 import {
   isGoogleAdsConfigured,
   launchGoogleSearchCampaign,
+  launchGoogleSearchCampaignForUser,
   setGoogleCampaignStatus,
+  setGoogleCampaignStatusForUser,
   getGoogleCampaignMetrics,
+  getGoogleCampaignMetricsForUser,
+  getUserGoogleAdsCreds,
+  type UserGoogleAdsCreds,
 } from "../lib/google-ads";
 import { openai } from "@workspace/integrations-openai-ai-server";
 
@@ -29,47 +34,43 @@ function uid(req: Request): string {
 
 const router: IRouter = Router();
 
-// SECURITY: Meta Ads + Google Ads use GLOBAL admin env credentials
-// (META_AD_ACCOUNT_ID, GOOGLE_ADS_*). A non-admin user calling these would
-// spend the admin's ad budget on their own campaigns. Gate the entire router
-// to admins; non-admins get an empty/false status so the UI degrades cleanly.
+// SECURITY: Meta Ads uses GLOBAL admin env credentials — gate to admins.
+// Google Ads now uses per-user credentials (OAuth) — open to all authenticated users.
 router.use((req, res, next) => {
-  // CRITICAL: this router is mounted without a path prefix, so its middleware
-  // sees EVERY request. Only gate the actual /ads/* paths — otherwise we
-  // hijack unrelated routes like /auth/facebook/start and return `[]`.
   if (!req.path.startsWith("/ads")) {
     next();
     return;
   }
+  // Google Ads routes are open to all authenticated users (they use their own OAuth creds)
+  if (req.path.startsWith("/ads/google") || req.path === "/ads/status" || req.path === "/ads") {
+    next();
+    return;
+  }
+  // Meta Ads routes: admin-only
   const isAdmin = (req as unknown as { isAdmin?: boolean }).isAdmin === true;
   if (isAdmin) {
     next();
     return;
   }
-  if (req.method === "GET" && req.path === "/ads/status") {
-    res.json({
-      meta: { configured: false, missing: [] },
-      google: { configured: false, missing: [] },
-    });
-    return;
-  }
   if (req.method === "GET") {
-    // Read-only listing endpoints — return empty for non-admins.
     res.json([]);
     return;
   }
   res.status(403).json({
-    error:
-      "Les campagnes publicitaires payantes ne sont pas disponibles sur ton compte.",
+    error: "Les campagnes Meta Ads ne sont pas disponibles sur ton compte.",
     code: "ads_admin_only",
   });
 });
 
 // ── Status ──────────────────────────────────────────────────────────────────
-router.get("/ads/status", (_req, res) => {
+router.get("/ads/status", async (req, res) => {
+  const userId = uid(req);
+  const userCreds = await getUserGoogleAdsCreds(userId);
   res.json({
     meta: isMetaAdsConfigured(),
-    google: isGoogleAdsConfigured(),
+    google: userCreds
+      ? { configured: true, missing: [], userConnected: true }
+      : isGoogleAdsConfigured(),
   });
 });
 
@@ -244,13 +245,12 @@ router.post("/ads/google/launch", async (req, res): Promise<void> => {
     return;
   }
 
-  const check = isGoogleAdsConfigured();
-  if (!check.configured) {
+  const userId = uid(req);
+  const userCreds = await getUserGoogleAdsCreds(userId);
+  if (!userCreds) {
     res.status(503).json({
-      error: "Google Ads pas encore activé sur cette installation.",
-      missing: check.missing,
-      hint:
-        "Attends l'approbation du developer token Google (2-6 semaines), puis ajoute les 6 secrets GOOGLE_ADS_*.",
+      error: "Connecte d'abord ton compte Google Ads via Paramètres > Intégrations.",
+      code: "google_ads_not_connected",
     });
     return;
   }
@@ -262,7 +262,7 @@ router.post("/ads/google/launch", async (req, res): Promise<void> => {
       status: "draft",
       budgetCents: body.dailyBudgetCents * body.durationDays,
       durationDays: body.durationDays,
-      userId: uid(req),
+      userId,
       meta: {
         agencyCampaignId: body.agencyCampaignId,
         notificationEmail: body.notificationEmail,
@@ -271,7 +271,7 @@ router.post("/ads/google/launch", async (req, res): Promise<void> => {
     })
     .returning();
 
-  const result = await launchGoogleSearchCampaign({
+  const result = await launchGoogleSearchCampaignForUser(userCreds, {
     campaignName: body.campaignName,
     dailyBudgetCents: body.dailyBudgetCents,
     finalUrl: body.finalUrl,
@@ -321,16 +321,15 @@ router.post("/ads/google/ai-launch", async (req, res): Promise<void> => {
     return;
   }
 
-  const check = isGoogleAdsConfigured();
-  if (!check.configured) {
+  const userId = uid(req);
+  const userCreds = await getUserGoogleAdsCreds(userId);
+  if (!userCreds) {
     res.status(503).json({
-      error: "Google Ads pas encore activé sur cette installation.",
-      missing: check.missing,
+      error: "Connecte d'abord ton compte Google Ads via Paramètres > Intégrations.",
+      code: "google_ads_not_connected",
     });
     return;
   }
-
-  const userId = uid(req);
 
   // 1. Fetch SEO keywords for this user
   const seoSets = await db
@@ -429,8 +428,8 @@ RÈGLES :
     })
     .returning();
 
-  // 5. Launch on Google Ads (PAUSED)
-  const result = await launchGoogleSearchCampaign({
+  // 5. Launch on Google Ads (PAUSED) — per-user credentials
+  const result = await launchGoogleSearchCampaignForUser(userCreds, {
     campaignName,
     dailyBudgetCents: body.dailyBudgetCents,
     finalUrl: body.finalUrl,
@@ -495,7 +494,10 @@ async function toggleGoogleStatus(
     res.status(404).json({ error: "Campagne introuvable ou pas encore créée chez Google" });
     return;
   }
-  const r = await setGoogleCampaignStatus(record.providerCampaignId, status);
+  const userCreds = await getUserGoogleAdsCreds(userId);
+  const r = userCreds
+    ? await setGoogleCampaignStatusForUser(userCreds, record.providerCampaignId, status)
+    : await setGoogleCampaignStatus(record.providerCampaignId, status);
   if (!r.ok) {
     res.status(502).json({ error: r.error });
     return;
@@ -534,10 +536,15 @@ router.get("/ads/:id/metrics", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Campagne introuvable" });
     return;
   }
-  const metrics =
-    record.provider === "meta"
-      ? await getMetaCampaignInsights(record.providerCampaignId)
+  let metrics;
+  if (record.provider === "meta") {
+    metrics = await getMetaCampaignInsights(record.providerCampaignId);
+  } else {
+    const userCreds = await getUserGoogleAdsCreds(uid(req));
+    metrics = userCreds
+      ? await getGoogleCampaignMetricsForUser(userCreds, record.providerCampaignId)
       : await getGoogleCampaignMetrics(record.providerCampaignId);
+  }
   if (!metrics.ok) {
     res.status(502).json({ error: metrics.error });
     return;
