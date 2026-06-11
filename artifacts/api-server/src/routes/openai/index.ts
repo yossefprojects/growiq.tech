@@ -84,6 +84,8 @@ Affiche un résumé de validation AVANT de lancer :
 
 ⚠️ **La campagne sera créée EN PAUSE** — vous pourrez la vérifier et l'activer quand vous êtes prêt.
 
+📋 **Avertissement** : GrowIQ ne garantit aucun résultat, performance ou retour sur investissement. Les contenus publicitaires sont générés par IA à titre de suggestion — vous êtes responsable de leur validation. Les dépenses sont facturées directement par Google sur votre compte. En confirmant, vous acceptez nos [CGU](https://growiq.tech/terms).
+
 **Confirmez-vous le lancement pour [Z]€ ?** (oui/non)
 ---
 

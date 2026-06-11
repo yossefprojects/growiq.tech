@@ -98,7 +98,8 @@ export default function PrivacyPage() {
       </section>
 
       <footer className="border-t border-border/60 py-8">
-        <div className="max-w-3xl mx-auto px-6 text-sm text-muted-foreground">
+        <div className="max-w-3xl mx-auto px-6 flex gap-6 text-sm text-muted-foreground">
+          <Link href="/terms" className="hover:text-foreground transition-colors">Conditions d'utilisation</Link>
           <span>GrowIQ — {new Date().getFullYear()}</span>
         </div>
       </footer>

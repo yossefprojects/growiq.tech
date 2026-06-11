@@ -1689,6 +1689,7 @@ function Footer() {
             Légal
           </div>
           {[
+            { label: "Conditions d'utilisation", href: "/terms" },
             { label: "Politique de confidentialité", href: "/privacy" },
             { label: "Google Ads API", href: "/google-ads-api" },
             { label: "Contact", href: "/contact" },

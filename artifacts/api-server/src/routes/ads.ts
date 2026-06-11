@@ -337,6 +337,7 @@ router.post("/ads/google/launch", async (req, res): Promise<void> => {
     status: "paused",
     message:
       "Campagne créée et mise en pause. Vérifie-la dans Google Ads puis active-la via POST /api/ads/google/:id/activate.",
+    disclaimer: "GrowIQ ne garantit aucun résultat ni retour sur investissement. Tu es responsable de la validation avant activation. Les dépenses publicitaires sont facturées directement par Google sur ton compte. Voir nos CGU : https://growiq.tech/terms",
   });
 });
 
@@ -501,6 +502,7 @@ RÈGLES :
       seoKeywordsUsed: adsKeywords.length,
     },
     message: "Campagne Google Ads créée en pause. L'utilisateur peut l'activer quand il est prêt.",
+    disclaimer: "GrowIQ ne garantit aucun résultat ni retour sur investissement. Les contenus ont été générés par IA à titre de suggestion. Tu es responsable de la validation avant activation. Les dépenses publicitaires sont facturées directement par Google sur ton compte. Voir nos CGU : https://growiq.tech/terms",
   });
 });
 
