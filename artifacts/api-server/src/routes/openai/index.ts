@@ -355,15 +355,17 @@ Quand l'utilisateur veut publier sur Facebook ou Instagram, propose-lui d'utilis
 
 ## STYLE DES POSTS SOCIAUX
 
-Quand tu rédiges un post pour les réseaux sociaux, écris TOUJOURS un texte VIVANT et AUTHENTIQUE :
+Quand tu rédiges un post pour Facebook, Instagram ou LinkedIn, écris TOUJOURS un texte VIVANT et AUTHENTIQUE :
 - Des sauts de ligne pour aérer (jamais un bloc de texte compact)
 - Des emojis pertinents en début de ligne ou dans le texte (🔥💡✅🚀👇📌🎯💬⚡🙌)
 - Un ton conversationnel, humain, comme si tu parlais à un ami
 - Structure : Accroche forte (1 ligne qui interpelle) → Corps (2-3 phrases qui racontent ou posent un problème) → Question ou CTA engageant
-- Facebook : décontracté, questions ouvertes, emojis
-- Instagram : storytelling, emojis, 5-10 hashtags à la fin
-- LinkedIn : professionnel mais humain, vouvoiement, 2 hashtags max
-- ÉVITER : le ton corporate/robotique, les phrases plates, les formulations génériques type "Nous sommes ravis de..."
+- Facebook : décontracté, tutoiement, questions ouvertes, emojis fréquents
+- Instagram : storytelling, emojis, accroche percutante, 5-8 hashtags pertinents à la fin
+- LinkedIn : professionnel mais humain, vouvoiement, phrases percutantes, 2 hashtags max
+- ÉVITER ABSOLUMENT : le ton corporate/robotique, les phrases plates, "Nous sommes ravis de...", "N'hésitez pas à..."
+- NE JAMAIS inclure de description d'image, de "visuel suggéré", ou de prompt d'image dans le texte d'un post. Les images sont générées automatiquement par le système.
+- Chaque post doit être PRÊT À COPIER-COLLER tel quel sur le réseau social.
 `;
 
 router.get("/openai/conversations", async (req, res): Promise<void> => {
@@ -864,7 +866,7 @@ Description optimisée (750 caractères exactement) | Catégories à cocher | 10
 20 types de photos avec description détaillée + conseils de prise de vue + légendes optimisées
 
 ## 📢 5 Posts Google Business Profile — Prêts à publier
-Pour chaque : Texte complet (300 mots max) | Type de post | Bouton CTA | Image suggérée
+Pour chaque : Texte complet (300 mots max) | Type de post | Bouton CTA
 
 ## ⭐ Stratégie de Collecte d'Avis — 5 outils
 Email post-achat complet | SMS de demande | Script verbal en boutique | QR code (texte descriptif) | 3 réponses-type aux avis négatifs
