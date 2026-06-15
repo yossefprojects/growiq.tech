@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@clerk/react";
 import { toast } from "sonner";
 import {
   Copy,
@@ -104,6 +105,7 @@ function extractPostImages(raw: string): Record<number, string> {
 }
 
 export function CampaignActions({ content, title = "Campagne marketing" }: CampaignActionsProps) {
+  const { getToken } = useAuth();
   const [emailOpen, setEmailOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -111,6 +113,14 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
   const [postPickerOpen, setPostPickerOpen] = useState(false);
   const [pendingPlatform, setPendingPlatform] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+
+  const authHeaders = async (): Promise<HeadersInit> => {
+    const token = await getToken();
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
 
   const cleanContent = cleanContentForShare(content);
   const postImages = extractPostImages(content);
@@ -136,7 +146,7 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
       if (platform === "linkedin") {
         const res = await fetch("/api/linkedin/publish", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: await authHeaders(),
           body: JSON.stringify({ text: clean.slice(0, 3000), imageUrl: imageUrl || null }),
         });
         const data = await res.json();
@@ -158,7 +168,7 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
       } else if (platform === "facebook") {
         const res = await fetch("/api/meta/publish", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: await authHeaders(),
           body: JSON.stringify({ platform: "facebook", message: clean.slice(0, 2000), imageUrl: imageUrl || undefined }),
         });
         const data = await res.json();
