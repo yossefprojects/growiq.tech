@@ -43,6 +43,7 @@ interface ExtractedPost {
   label: string;
   platform: string;
   caption: string;
+  imageUrl?: string;
 }
 
 function extractPosts(raw: string): ExtractedPost[] {
@@ -93,6 +94,15 @@ function cleanContentForShare(raw: string): string {
     .trim();
 }
 
+function extractPostImages(raw: string): Record<number, string> {
+  const images: Record<number, string> = {};
+  const imgRegex = /!\[Post\s*(\d+)\]\((https?:\/\/[^\s)]+)\)/gi;
+  for (const m of raw.matchAll(imgRegex)) {
+    images[parseInt(m[1], 10)] = m[2];
+  }
+  return images;
+}
+
 export function CampaignActions({ content, title = "Campagne marketing" }: CampaignActionsProps) {
   const [emailOpen, setEmailOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
@@ -100,20 +110,86 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
   const [landingOpen, setLandingOpen] = useState(false);
   const [postPickerOpen, setPostPickerOpen] = useState(false);
   const [pendingPlatform, setPendingPlatform] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const cleanContent = cleanContentForShare(content);
-  const posts = extractPosts(content);
+  const postImages = extractPostImages(content);
+  const posts = extractPosts(content).map((p, i) => ({
+    ...p,
+    imageUrl: postImages[i + 1],
+  }));
   const hasPosts = posts.length > 0;
 
-  const shareOnePost = (caption: string, platform: string) => {
-    // Final safety net: strip any remaining markdown from the text
-    const clean = caption
+  const cleanCaption = (caption: string) =>
+    caption
       .replace(/^#{1,3}\s+.*$/gm, "")
       .replace(/\*\*/g, "")
       .replace(/^---$/gm, "")
       .replace(/!\[.*?\]\(.*?\)/g, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
+
+  const publishViaApi = async (caption: string, platform: string, imageUrl?: string) => {
+    const clean = cleanCaption(caption);
+    setPublishing(true);
+    try {
+      if (platform === "linkedin") {
+        const res = await fetch("/api/linkedin/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: clean.slice(0, 3000), imageUrl: imageUrl || null }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 409) {
+            toast.error("Connecte ton compte LinkedIn dans Réglages > Intégrations pour publier directement.", { duration: 6000 });
+            shareViaIntent(clean, platform);
+          } else if (res.status === 401 || data.tokenExpired) {
+            toast.error("Ta connexion LinkedIn a expiré. Reconnecte-toi dans Réglages > Intégrations.", { duration: 6000 });
+          } else {
+            toast.error(data.error || "Erreur de publication LinkedIn");
+          }
+          return;
+        }
+        toast.success("Post publié sur LinkedIn !", {
+          action: data.permalink ? { label: "Voir le post", onClick: () => window.open(data.permalink, "_blank") } : undefined,
+          duration: 6000,
+        });
+      } else if (platform === "facebook") {
+        const res = await fetch("/api/meta/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ platform: "facebook", message: clean.slice(0, 2000), imageUrl: imageUrl || undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 412 || data.configMissing) {
+            toast.error("Connecte ton compte Facebook dans Réglages > Intégrations pour publier directement.", { duration: 6000 });
+            shareViaIntent(clean, platform);
+          } else if (res.status === 403 && data.earlyAccess) {
+            toast.error(data.error, { duration: 8000 });
+          } else if (res.status === 401 || data.tokenExpired) {
+            toast.error("Ta connexion Facebook a expiré. Reconnecte-toi dans Réglages > Intégrations.", { duration: 6000 });
+          } else {
+            toast.error(data.error || "Erreur de publication Facebook");
+          }
+          return;
+        }
+        toast.success("Post publié sur Facebook !", {
+          action: data.permalink ? { label: "Voir le post", onClick: () => window.open(data.permalink, "_blank") } : undefined,
+          duration: 6000,
+        });
+      } else {
+        shareViaIntent(clean, platform);
+      }
+    } catch {
+      toast.error("Erreur réseau — essaie à nouveau");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const shareViaIntent = (clean: string, platform: string) => {
     const text = clean.slice(0, 280);
     const longText = clean.slice(0, 2000);
     const encoded = encodeURIComponent(text);
@@ -137,7 +213,7 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
       setPendingPlatform(platform);
       setPostPickerOpen(true);
     } else {
-      shareOnePost(cleanContent, platform);
+      publishViaApi(cleanContent, platform);
     }
   };
 
@@ -231,8 +307,8 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" className="h-8 text-xs bg-primary hover:bg-primary/90" data-testid="action-publish-trigger">
-                <Share2 className="w-3.5 h-3.5 mr-1.5" /> Publier <ChevronDown className="w-3 h-3 ml-1" />
+              <Button size="sm" className="h-8 text-xs bg-primary hover:bg-primary/90" disabled={publishing} data-testid="action-publish-trigger">
+                <Share2 className="w-3.5 h-3.5 mr-1.5" /> {publishing ? "Publication…" : "Publier"} <ChevronDown className="w-3 h-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-60">
@@ -363,7 +439,7 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
                     if (pendingPlatform === "instagram" || pendingPlatform === "tiktok") {
                       await copyAndOpen(post.caption, pendingPlatform);
                     } else if (pendingPlatform) {
-                      shareOnePost(post.caption, pendingPlatform);
+                      await publishViaApi(post.caption, pendingPlatform, post.imageUrl);
                     }
                     setPendingPlatform(null);
                   }}
