@@ -316,10 +316,10 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
           animate={{ scale: 1, y: 0, opacity: 1 }}
           exit={{ scale: 0.96, opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="bg-card text-card-foreground rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
+          className="bg-card text-card-foreground rounded-2xl shadow-2xl w-full max-w-[95vw] sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
         >
           {/* Header */}
-          <div className="px-6 pt-6 pb-4 border-b border-border/60 relative">
+          <div className="px-4 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-border/60 relative">
             <button
               onClick={handleSkip}
               className="absolute top-4 right-4 p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
@@ -359,7 +359,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
           </div>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
             <AnimatePresence mode="wait">
               <motion.div
                 key={current.key}
@@ -374,7 +374,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-border/60 flex items-center justify-between gap-3 bg-muted/30">
+          <div className="px-4 sm:px-6 py-4 border-t border-border/60 flex items-center justify-between gap-3 bg-muted/30">
             <button
               onClick={handleSkip}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"

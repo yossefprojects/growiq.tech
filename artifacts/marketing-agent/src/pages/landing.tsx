@@ -71,7 +71,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: bg }}>
-      <div className="w-full max-w-xl bg-card rounded-2xl shadow-xl p-8 sm:p-10">
+      <div className="w-full max-w-xl bg-card rounded-2xl shadow-xl p-5 sm:p-8 lg:p-10">
         {success ? (
           <div className="text-center py-8">
             <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4" style={{ background: `${primary}20`, color: primary }}>
@@ -82,8 +82,8 @@ export default function LandingPage() {
           </div>
         ) : (
           <>
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3 leading-tight">{page.headline}</h1>
-            {page.subheadline && <p className="text-muted-foreground text-lg mb-6">{page.subheadline}</p>}
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3 leading-tight">{page.headline}</h1>
+            {page.subheadline && <p className="text-muted-foreground text-base sm:text-lg mb-6">{page.subheadline}</p>}
             <form onSubmit={handleSubmit} className="space-y-3">
               {page.fields.includes("name") && (
                 <input

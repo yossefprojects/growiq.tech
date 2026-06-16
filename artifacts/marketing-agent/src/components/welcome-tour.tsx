@@ -358,7 +358,7 @@ export function WelcomeTour({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -30 }}
             transition={{ duration: 0.35 }}
-            className="p-8"
+            className="p-5 sm:p-8"
           >
             <div
               className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${slide.accent} text-white shadow-md mb-4`}
