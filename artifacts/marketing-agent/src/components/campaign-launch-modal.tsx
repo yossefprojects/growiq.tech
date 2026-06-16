@@ -277,7 +277,7 @@ export function CampaignLaunchModal({ open, onClose, onCampaignCreated }: Campai
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[88vh] overflow-y-auto">
 
         {/* ── MODE SELECTION ── */}
         {step === "mode" && (
@@ -286,10 +286,10 @@ export function CampaignLaunchModal({ open, onClose, onCampaignCreated }: Campai
               <DialogTitle className="text-xl">Lancer une campagne marketing gratuite</DialogTitle>
               <p className="text-sm text-muted-foreground">Comment souhaitez-vous démarrer ?</p>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3">
               <button
                 onClick={() => { setMode("url"); setStep("url"); }}
-                className="flex flex-col items-start gap-3 p-5 rounded-xl border border-border bg-card hover:border-primary/60 hover:bg-primary/5 transition-all text-left group"
+                className="flex flex-col items-start gap-3 p-4 sm:p-5 rounded-xl border border-border bg-card hover:border-primary/60 hover:bg-primary/5 transition-all text-left group"
                 data-testid="mode-url"
               >
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors">
@@ -398,7 +398,7 @@ export function CampaignLaunchModal({ open, onClose, onCampaignCreated }: Campai
                 {showBusinessEdit ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
               </button>
               {showBusinessEdit && (
-                <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">Nom / Marque</Label>
                     <Input value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })} className="h-8 text-xs" />
@@ -497,7 +497,7 @@ export function CampaignLaunchModal({ open, onClose, onCampaignCreated }: Campai
               <DialogTitle className="text-xl">Choisissez le type de campagne</DialogTitle>
               <p className="text-sm text-muted-foreground">L'agent génère tous les livrables prêts à l'emploi.</p>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-3 mt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mt-2">
               {CAMPAIGN_TYPES.map((type) => (
                 <button
                   key={type.id}
@@ -542,7 +542,7 @@ export function CampaignLaunchModal({ open, onClose, onCampaignCreated }: Campai
               <p className="text-sm text-muted-foreground">Renseignez votre contexte — l'agent génère tous les livrables sur mesure.</p>
             </DialogHeader>
             <div className="space-y-4 mt-2">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="businessName">Nom de l'entreprise / marque *</Label>
                   <Input

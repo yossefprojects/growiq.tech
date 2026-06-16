@@ -30,8 +30,8 @@ export function ChatArea({ messages, isStreaming, streamingContent, isLoading, s
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 pb-36 space-y-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 sm:p-4 pb-28 sm:pb-36 space-y-4 sm:space-y-6">
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
         {messages.map((msg) => (
           <MessageItem key={msg.id} message={msg} />
         ))}
@@ -60,13 +60,13 @@ function MessageItem({ message, isStreaming }: { message: Message; isStreaming?:
   return (
     <div
       className={cn(
-        "flex gap-4 p-4 rounded-xl max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-300",
+        "flex gap-2.5 sm:gap-4 p-3 sm:p-4 rounded-xl max-w-[95%] sm:max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-300",
         isUser ? "bg-primary/5 ml-auto border border-primary/10" : "bg-card border border-border shadow-sm"
       )}
       data-testid={`message-${message.role}`}
     >
       <div className={cn(
-        "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white",
+        "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white",
         isUser ? "bg-primary" : "bg-foreground"
       )}>
         {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
@@ -139,6 +139,9 @@ function MessageItem({ message, isStreaming }: { message: Message; isStreaming?:
                   <blockquote className="border-l-2 border-primary/40 pl-3 my-2 italic text-muted-foreground">
                     {children}
                   </blockquote>
+                ),
+                img: ({ src, alt }) => (
+                  <img src={src} alt={alt || ""} className="rounded-lg w-full max-w-md my-3" loading="lazy" />
                 ),
                 hr: () => <hr className="my-3 border-border" />,
                 table: ({ children }) => (

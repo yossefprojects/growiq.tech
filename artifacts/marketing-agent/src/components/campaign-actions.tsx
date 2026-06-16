@@ -291,12 +291,12 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
 
   return (
     <>
-      <div className="mt-4 pt-3 border-t border-border/50">
+      <div className="mt-3 sm:mt-4 pt-3 border-t border-border/50">
         <div className="flex items-center gap-1.5 mb-2">
           <Sparkles className="w-3.5 h-3.5 text-primary" />
           <span className="text-xs font-semibold text-foreground">Publier / Exécuter cette campagne</span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           <Button size="sm" variant="outline" onClick={handleCopy} className="h-8 text-xs" data-testid="action-copy">
             <Copy className="w-3.5 h-3.5 mr-1.5" /> Copier
           </Button>
@@ -321,7 +321,7 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
                 <Share2 className="w-3.5 h-3.5 mr-1.5" /> {publishing ? "Publication…" : "Publier"} <ChevronDown className="w-3 h-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-60">
+            <DropdownMenuContent className="w-56 sm:w-60">
               <DropdownMenuLabel>Réseaux sociaux</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => handleShareClick("linkedin")}>
                 <Linkedin className="w-4 h-4 mr-2 text-[#0A66C2]" /> Partager sur LinkedIn
@@ -433,7 +433,7 @@ export function CampaignActions({ content, title = "Campagne marketing" }: Campa
 
       {/* Post picker dialog */}
       <Dialog open={postPickerOpen} onOpenChange={setPostPickerOpen}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Quel post veux-tu publier ?</DialogTitle>
           </DialogHeader>
@@ -528,7 +528,7 @@ function EmailSendDialog({ open, onClose, defaultSubject, defaultBody }: EmailSe
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-[95vw] sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="w-5 h-5 text-primary" /> Envoyer par email

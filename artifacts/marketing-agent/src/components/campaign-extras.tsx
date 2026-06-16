@@ -58,7 +58,7 @@ export function ImageGeneratorDialog({ open, onClose, defaultPrompt = "" }: Imag
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ImageIcon className="w-5 h-5 text-primary" /> Générer un visuel IA
@@ -190,7 +190,7 @@ export function ScheduleDialog({ open, onClose, defaultTitle = "", defaultConten
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary" /> Programmer la publication
@@ -341,7 +341,7 @@ export function LandingPageDialog({ open, onClose, defaultTitle = "", defaultHea
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>🎯 Créer une page de capture de leads</DialogTitle>
           <p className="text-xs text-muted-foreground">

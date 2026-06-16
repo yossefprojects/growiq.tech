@@ -19,9 +19,12 @@ import { BrandIcon, BrandWordmark } from "@/components/brand-logo";
 import { ChatArea } from "@/components/chat-area";
 import { CampaignLaunchModal } from "@/components/campaign-launch-modal";
 import { WelcomeTour, shouldShowWelcomeTour } from "@/components/welcome-tour";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { AdminIconButton } from "@/components/admin-button";
 import { toast } from "sonner";
 import { toastError } from "@/lib/toast-helpers";
-import { Rocket } from "lucide-react";
+import { Rocket, Menu } from "lucide-react";
 
 export default function ChatPage() {
   const [, setLocation] = useLocation();
@@ -200,34 +203,62 @@ export default function ChatPage() {
   };
 
   const isLoading = isConversationsLoading || isCampaignsLoading;
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const sidebarProps = {
+    conversations: conversations || [],
+    campaigns: campaignsData || [],
+    activeId: conversationId,
+    onNew: handleNewConversation,
+    onLaunchCampaign: () => setShowCampaignModal(true),
+    onDelete: handleDeleteConversation,
+    onDeleteCampaign: handleDeleteCampaign,
+    onShowDemo: () => setShowWelcome(true),
+    isLoading,
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
-      <Sidebar
-        conversations={conversations || []}
-        campaigns={campaignsData || []}
-        activeId={conversationId}
-        onNew={handleNewConversation}
-        onLaunchCampaign={() => setShowCampaignModal(true)}
-        onDelete={handleDeleteConversation}
-        onDeleteCampaign={handleDeleteCampaign}
-        onShowDemo={() => setShowWelcome(true)}
-        isLoading={isLoading}
-      />
+      {/* Sidebar — desktop only */}
+      <aside className="hidden lg:flex h-full">
+        <Sidebar {...sidebarProps} />
+      </aside>
 
-      <div className="flex flex-1 flex-col relative h-full">
+      <div className="flex flex-1 flex-col relative h-full min-w-0">
+        {/* Top bar — mobile + tablet */}
+        <header className="lg:hidden sticky top-0 z-30 backdrop-blur-md bg-background/80 border-b border-border/60 flex-shrink-0">
+          <div className="flex items-center justify-between px-3 h-12">
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetTrigger asChild>
+                <button className="p-2 -ml-1 rounded-md hover:bg-muted transition-colors" aria-label="Menu">
+                  <Menu className="w-5 h-5" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 w-[85vw] sm:w-72">
+                <SheetTitle className="sr-only">Menu</SheetTitle>
+                <Sidebar {...sidebarProps} />
+              </SheetContent>
+            </Sheet>
+            <BrandWordmark className="text-base" />
+            <div className="flex items-center gap-1">
+              <ThemeToggle testId="theme-toggle-chat-header" />
+              <AdminIconButton variant="ghost" />
+            </div>
+          </div>
+        </header>
+
         {!conversationId && !createMutation.isPending ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 text-center animate-in fade-in duration-500">
             <BrandIcon size={72} className="mb-5 drop-shadow-md" />
             <h2 className="mb-2">
               <BrandWordmark className="text-2xl" />
             </h2>
-            <p className="text-muted-foreground max-w-md mb-8">
+            <p className="text-muted-foreground max-w-md mb-8 text-sm sm:text-base">
               Votre stratège marketing senior. Posez une question ou laissez l'agent créer une campagne complète pour vous.
             </p>
             <button
               onClick={() => setShowCampaignModal(true)}
-              className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-6 py-3 text-sm font-semibold transition-colors shadow-md"
+              className="flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-5 py-3 text-sm font-semibold transition-colors shadow-md"
               data-testid="button-launch-campaign-hero"
             >
               <Rocket className="w-4 h-4" />
@@ -247,7 +278,7 @@ export default function ChatPage() {
           />
         )}
 
-        <div className="p-4 w-full max-w-4xl mx-auto absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent pt-10">
+        <div className="p-3 sm:p-4 w-full max-w-4xl mx-auto absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent pt-6 sm:pt-10">
           <ChatInput onSend={handleSendMessage} disabled={isStreaming || createMutation.isPending} />
         </div>
       </div>

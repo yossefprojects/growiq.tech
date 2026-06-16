@@ -182,7 +182,7 @@ export default function DashboardPage() {
                   <Menu className="w-5 h-5" />
                 </button>
               </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-72 sm:w-80">
+              <SheetContent side="left" className="p-0 w-[85vw] sm:w-72">
                 <SheetTitle className="sr-only">{t("Menu")}</SheetTitle>
                 <Sidebar {...sidebarProps} />
               </SheetContent>
