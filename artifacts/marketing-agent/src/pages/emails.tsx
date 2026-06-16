@@ -200,17 +200,17 @@ export default function EmailsPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           <Link href="/app" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-4 h-4" />
-            Retour
+            <span className="hidden sm:inline">Retour</span>
           </Link>
           <h1 className="text-lg font-bold text-foreground">Emails</h1>
           <LanguageSwitcher />
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         <div className="flex gap-2 bg-card rounded-xl border p-1 w-fit shadow-sm">
           <button
             onClick={() => setTab("contacts")}
@@ -439,7 +439,7 @@ function ContactsTab() {
   return (
     <div className="flex gap-6">
       {/* ── Sidebar Dossiers ── */}
-      <div className="w-56 shrink-0 space-y-2">
+      <div className="hidden sm:block w-56 shrink-0 space-y-2">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Dossiers</h3>
           <button onClick={() => setCreatingFolder(true)} className="text-violet-600 hover:text-violet-400" title="Nouveau dossier">

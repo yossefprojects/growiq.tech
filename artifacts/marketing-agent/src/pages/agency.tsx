@@ -562,24 +562,24 @@ export default function AgencyPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/80 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           <Link href="/app" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground shrink-0">
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">{t("Retour")}</span>
           </Link>
-          <Link href="/" className="flex items-center gap-2.5 group" data-testid="link-home">
-            <BrandIcon size={36} className="shrink-0 drop-shadow-sm" />
+          <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group" data-testid="link-home">
+            <BrandIcon size={32} className="shrink-0 drop-shadow-sm sm:w-9 sm:h-9" />
             <div className="leading-tight">
-              <BrandWordmark className="text-lg" />
+              <BrandWordmark className="text-base sm:text-lg" />
               <div className="text-[10px] text-muted-foreground uppercase tracking-wider hidden sm:block">
                 {t("Ton assistant marketing")}
               </div>
             </div>
           </Link>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <LanguageSwitcher />
             {step !== "dashboard" && (
-              <Button variant="ghost" size="sm" onClick={() => setStep("dashboard")} data-testid="link-dashboard">
+              <Button variant="ghost" size="sm" onClick={() => setStep("dashboard")} data-testid="link-dashboard" className="hidden sm:inline-flex">
                 {t("Mes campagnes ({count})", { count: campaigns.length })}
               </Button>
             )}
@@ -592,7 +592,7 @@ export default function AgencyPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-10">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {step === "form" && <BriefForm brief={brief} setBrief={setBrief} onSubmit={generatePlan} loading={loading} />}
         {step === "loading" && <LoadingScreen />}
         {step === "coming-soon" && (
@@ -747,8 +747,8 @@ function BriefForm({
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 shadow-lg shadow-violet-500/40 animate-pop-in">
           <Wand2 className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("On fait connaissance ? ✨")}</h1>
-        <p className="text-muted-foreground text-lg">{t("Une petite question à la fois, c'est promis 🙂")}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("On fait connaissance ? ✨")}</h1>
+        <p className="text-muted-foreground text-base sm:text-lg">{t("Une petite question à la fois, c'est promis 🙂")}</p>
       </div>
 
       <div className="max-w-md mx-auto space-y-2" aria-label={t("progression")}>
@@ -916,7 +916,7 @@ function StepCampaignType({
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
           {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">{t("Quel type de campagne tu veux lancer ? 🚀")}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">{t("Quel type de campagne tu veux lancer ? 🚀")}</h2>
         <p className="text-muted-foreground text-sm">
           {t("Choisis le canal qui te ressemble. Chaque type est conçu pour un objectif différent.")}
         </p>
@@ -1008,7 +1008,7 @@ function StepProduct({
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
           {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">{t("Tu proposes quoi ? 🤔")}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">{t("Tu proposes quoi ? 🤔")}</h2>
         <p className="text-muted-foreground text-sm">{t("Dis-le avec tes mots, comme si tu en parlais à un ami.")}</p>
       </div>
       <Textarea
@@ -1082,7 +1082,7 @@ function StepAudience({
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
           {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">{t("À qui tu veux parler ? 👥")}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">{t("À qui tu veux parler ? 👥")}</h2>
         <p className="text-muted-foreground text-sm">{t("Décris les gens que tu aimerais avoir comme clients : âge, ce qu'ils aiment, où ils habitent.")}</p>
       </div>
       <Textarea
@@ -1165,7 +1165,7 @@ function StepSocialNetworks({
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
           {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">{t("Sur quels réseaux on publie ? 📱")}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">{t("Sur quels réseaux on publie ? 📱")}</h2>
         <p className="text-muted-foreground text-sm">
           {t("Choisis un ou plusieurs réseaux. Je m'occupe du reste.")}
         </p>
@@ -1289,7 +1289,7 @@ function StepAdsDetails({
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
           {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}
         </div>
-        <h2 className="text-2xl font-bold">{t("Détails de ta publicité 🎯")}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">{t("Détails de ta publicité 🎯")}</h2>
         <p className="text-muted-foreground text-sm">
           {t("Quelques infos précises pour que je puisse cibler les bonnes personnes.")}
         </p>
@@ -1439,7 +1439,7 @@ function StepObjective({
         <div className="text-xs font-semibold text-violet-600 uppercase tracking-wider">
           {t("Question {currentStep} sur {totalSteps}", { currentStep, totalSteps })}{isLast ? t(" — la dernière !") : ""}
         </div>
-        <h2 className="text-2xl font-bold">{t("Qu'est-ce que tu veux obtenir ? 🎯")}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">{t("Qu'est-ce que tu veux obtenir ? 🎯")}</h2>
         <p className="text-muted-foreground text-sm">{t("Choisis ce qui compte le plus pour toi en ce moment.")}</p>
       </div>
       <div className="grid sm:grid-cols-3 gap-3">
@@ -1571,7 +1571,7 @@ function ComingSoonScreen({
           <Icon className="w-10 h-10 text-white" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">{t("Bientôt disponible 🚧")}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">{t("Bientôt disponible 🚧")}</h1>
           <p className="text-muted-foreground text-lg">
             {t("On travaille dur sur les campagnes")} <strong>{typeMeta ? t(typeMeta.label) : ""}</strong>{t(". C'est en bonne voie !")}
           </p>
@@ -1747,7 +1747,7 @@ function PreviewScreen({
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("Voilà ce que j'ai préparé 🎉")}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("Voilà ce que j'ai préparé 🎉")}</h1>
           <p className="text-muted-foreground">{t("Regarde, modifie si tu veux, puis appuie sur le gros bouton vert.")}</p>
         </div>
         <div className="flex items-center gap-2 bg-card border rounded-full px-4 py-2 shadow-sm">
@@ -2189,7 +2189,7 @@ function SuccessScreen({
         <div className="absolute inset-0 rounded-full border-4 border-green-300 animate-ping opacity-30" />
       </div>
       <div className="space-y-3">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("C'est parti !")}</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-violet-700 to-blue-700 bg-clip-text text-transparent">{t("C'est parti !")}</h1>
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
           {t("J'ai programmé {count} messages. Ils partiront tout seuls aux dates prévues. Tu n'as plus rien à faire 😊", { count: campaign.plan.posts.length })}
         </p>
@@ -2231,7 +2231,7 @@ function Dashboard({
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold">{t("Mes campagnes 📋")}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">{t("Mes campagnes 📋")}</h1>
           <p className="text-muted-foreground">{campaigns.length === 0 ? t("Pas encore de campagne") : t("{count} campagne(s) en tout", { count: campaigns.length })}</p>
         </div>
         <Button onClick={onNew} className="h-11 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700">
@@ -2499,11 +2499,11 @@ function EmailPreviewScreen({
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg">
           <Mail className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-3xl font-bold">{t("Ton email est prêt ✨")}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">{t("Ton email est prêt ✨")}</h1>
         <p className="text-muted-foreground">{t("Relis, ajuste, choisis tes destinataires, puis on envoie.")}</p>
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm p-6 space-y-4">
+      <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm uppercase text-muted-foreground">{t("Aperçu")}</h3>
           <Button variant={editing ? "secondary" : "ghost"} size="sm" onClick={() => setEditing((v) => !v)}>
@@ -2739,7 +2739,7 @@ function EmailSuccessScreen({
         <CheckCircle2 className="w-14 h-14 text-white" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">{t("Email envoyé !")}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">{t("Email envoyé !")}</h1>
         <p className="text-muted-foreground">
           {t("{sent} email(s) partis sur {total}.", { sent: result.sent, total: result.total })}
           {result.failed > 0 && ` ${t("{failed} échec(s).", { failed: result.failed })}`}
